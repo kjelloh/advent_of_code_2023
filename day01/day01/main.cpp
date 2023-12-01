@@ -13,6 +13,7 @@
 #include <utility>
 #include <optional>
 #include <map>
+#include <algorithm>
 
 using Answer = int;
 
@@ -62,8 +63,11 @@ namespace part2 {
             ,{"eight",'8'}
             ,{"nine",'9'}
         };
-        if (digit_map.contains(s)) {
-            result = digit_map[s];
+        auto iter = std::find_if(digit_map.begin(), digit_map.end(), [s](auto const& entry) {
+            return (s.find(entry.first) != std::string::npos);
+        });
+        if (iter != digit_map.end()) {
+            result = iter->second;
         }
         return result;
     }
