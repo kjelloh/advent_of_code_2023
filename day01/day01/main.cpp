@@ -52,8 +52,7 @@ namespace part2 {
     std::optional<Digit> to_digit(std::string const& s) {
         std::optional<Digit> result{};
         std::map<std::string,Digit> digit_map {
-             {"zero",'0'}
-            ,{"one",'1'}
+            {"one",'1'}
             ,{"two",'2'}
             ,{"three",'3'}
             ,{"four",'4'}
@@ -72,8 +71,8 @@ namespace part2 {
         return result;
     }
     Answer solve() {
-        std::istringstream in{part2::example};
-        // std::istringstream in{part1::input};
+        // std::istringstream in{part2::example};
+        std::istringstream in{part1::input};
         std::string entry{};
         Answer answer{};
         while (std::getline(in,entry) and (entry.size()>0)) {
@@ -82,7 +81,7 @@ namespace part2 {
             std::string so_far{};
             for (auto const& ch : entry) {
                 if (std::isdigit(ch)) {
-                    std::cout << " is digit '" << ch << "'";
+                    std::cout << "\n\tch '" << ch << "' is digit " << ch;
                     digits.push_back(ch);
                     so_far.clear();
                 }
@@ -90,7 +89,7 @@ namespace part2 {
                     so_far += ch;
                     std::cout << "\n\tso_far " << std::quoted(so_far);
                     if (auto digit = to_digit(so_far)) {
-                        std::cout << " is digit " << std::quoted(so_far);
+                        std::cout << " is digit " << *digit;
                         digits.push_back(*digit);
                         so_far.clear();
                     }
@@ -98,7 +97,7 @@ namespace part2 {
             }
             if (digits.size()>0) {
                 auto [first,last] = std::pair<Digit,Digit>({digits[0],digits.back()});
-                std::cout << " ==> " << "[" << first << "," << last << "]";
+                std::cout << "\n\t== " << "[" << first << "," << last << "]";
                 Answer calibration_value = (first - '0')*10 + (last-'0');
                 std::cout << " calibration value " << calibration_value;
                 answer += calibration_value;
