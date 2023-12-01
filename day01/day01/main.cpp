@@ -11,44 +11,131 @@
 #include <vector>
 #include <iomanip>
 #include <utility>
-
-namespace part1 {
-    extern char const* input;
-}
+#include <optional>
+#include <map>
 
 using Answer = int;
 
-int main(int argc, const char * argv[]) {
-    std::istringstream in{part1::input};
-    std::string entry{};
-    Answer answer{};
-    while (std::getline(in,entry) and (entry.size()>0)) {
-        std::cout << "!";
-        using Digit = char;
-        std::vector<Digit> digits{};
-        for (auto const& ch : entry) {
-            std::cout << "?";
-            if (std::isdigit(ch)) {
-                digits.push_back(ch);
+namespace part1 {
+    extern char const* input;
+    Answer solve() {
+        std::istringstream in{part1::input};
+        std::string entry{};
+        Answer answer{};
+        while (std::getline(in,entry) and (entry.size()>0)) {
+            using Digit = char;
+            std::vector<Digit> digits{};
+            for (auto const& ch : entry) {
+                if (std::isdigit(ch)) {
+                    digits.push_back(ch);
+                }
+            }
+            if (digits.size()>0) {
+                auto [first,last] = std::pair<Digit,Digit>({digits[0],digits.back()});
+                std::cout << "\n" << std::quoted(entry) << " ==> " << "[" << first << "," << last << "]";
+                Answer calibration_value = (first - '0')*10 + (last-'0');
+                std::cout << " calibration value " << calibration_value;
+                answer += calibration_value;
+            }
+            else {
+                break;
             }
         }
-        if (digits.size()>0) {
-            auto [first,last] = std::pair<Digit,Digit>({digits[0],digits.back()});
-            std::cout << "\n" << std::quoted(entry) << " ==> " << "[" << first << "," << last << "]";
-            Answer calibration_value = (first - '0')*10 + (last-'0');
-            std::cout << " calibration value " << calibration_value;
-            answer += calibration_value;
-        }
-        else {
-            break;
-        }
+        return answer;
     }
-    std::cout << "\nANSWER: " << answer << std::flush;
+}
+
+namespace part2 {
+    extern char const* example;
+    using Digit = char;
+    std::optional<Digit> to_digit(std::string const& s) {
+        std::optional<Digit> result{};
+        std::map<std::string,Digit> digit_map {
+             {"zero",'0'}
+            ,{"one",'1'}
+            ,{"two",'2'}
+            ,{"three",'3'}
+            ,{"four",'4'}
+            ,{"five",'5'}
+            ,{"six",'6'}
+            ,{"seven",'7'}
+            ,{"eight",'8'}
+            ,{"nine",'9'}
+        };
+        if (digit_map.contains(s)) {
+            result = digit_map[s];
+        }
+        return result;
+    }
+    Answer solve() {
+        std::istringstream in{part2::example};
+        // std::istringstream in{part1::input};
+        std::string entry{};
+        Answer answer{};
+        while (std::getline(in,entry) and (entry.size()>0)) {
+            std::cout << "\n" << std::quoted(entry);
+            std::vector<Digit> digits{};
+            std::string so_far{};
+            for (auto const& ch : entry) {
+                if (std::isdigit(ch)) {
+                    std::cout << " is digit '" << ch << "'";
+                    digits.push_back(ch);
+                    so_far.clear();
+                }
+                else {
+                    so_far += ch;
+                    std::cout << "\n\tso_far " << std::quoted(so_far);
+                    if (auto digit = to_digit(so_far)) {
+                        std::cout << " is digit " << std::quoted(so_far);
+                        digits.push_back(*digit);
+                        so_far.clear();
+                    }
+                }
+            }
+            if (digits.size()>0) {
+                auto [first,last] = std::pair<Digit,Digit>({digits[0],digits.back()});
+                std::cout << " ==> " << "[" << first << "," << last << "]";
+                Answer calibration_value = (first - '0')*10 + (last-'0');
+                std::cout << " calibration value " << calibration_value;
+                answer += calibration_value;
+            }
+            else {
+                std::cerr << "\nNo digits in entry " << std::quoted(entry);
+                break;
+            }
+        }
+        return answer;
+    }
+}
+
+
+int main(int argc, const char * argv[]) {
+    // auto part1_answer = part1::solve();
+    // std::cout << "\nPart 1 = " << part1_answer;
+    auto part2_answer = part2::solve();
+    std::cout << "\nPart 2 = " << part2_answer;
     std::cout << "\nBYE :)\n";
     return 0;
 }
 
+namespace part2 {
+char const* example = R"(two1nine
+eightwothree
+abcone2threexyz
+xtwone3four
+4nineeightseven2
+zoneight234
+7pqrstsixteen)";
+}
+
 namespace part1 {
+    char const* example = R"(two1nine
+eightwothree
+abcone2threexyz
+xtwone3four
+4nineeightseven2
+zoneight234
+7pqrstsixteen)";
     char const* input = R"(threehqv2
 sxoneightoneckk9ldctxxnffqnzmjqvj
 1hggcqcstgpmg26lzxtltcgg
