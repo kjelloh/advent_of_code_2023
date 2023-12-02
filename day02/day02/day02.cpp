@@ -52,15 +52,14 @@ std::experimental::generator<IndexedToken> tokens(auto& token,char delimiter) {
 
 std::optional<int> to_number(auto const& s) {
     std::optional<int> result{};
-    if (std::ranges::all_of(s, [](char ch) {return std::isdigit(ch);})) {
+    if (!s.empty() and std::ranges::all_of(s, [](char ch) {return std::isdigit(ch);})) {
         result = std::stoi(s);
     }
     return result;
 }
 
 
-int main()
-{
+int main() {
   for (const char ch : letters('a') | std::views::take(26)) std::cout << ch << ' ';
   std::istringstream in{ example };
   std::string indent{ "\n" };
@@ -70,25 +69,53 @@ int main()
       for (auto const& token : tokens(token.second, ':')) {
           std::cout << indent << token.first << " : " << std::quoted(token.second);
           indent += '\t';
-          for (auto const& token : tokens(token.second, ';')) {
-              std::cout << indent << token.first << " : " << std::quoted(token.second);
+          switch (token.first) {
+          case 0: {
+              int count{};
               indent += '\t';
-              for (auto const& token : tokens(token.second, ',')) {
+              for (auto const& token : tokens(token.second, ' ')) {
+                  std::cout << indent << token.first << " : " << std::quoted(token.second);
+                  switch (token.first) {
+                  case 0: {/*skip*/} break;
+                  case 1: {
+                      if (auto number = to_number(token.second)) {
+                          count = *number;
+                          std::cout << indent << "==> Identified Game " << count;
+                      }
+                      else {
+                          std::cerr << indent << "Failed to identify game index from " << std::quoted(token.second);
+                      }
+                  } break;
+                  default: {
+                      std::cerr << indent << " extraneous game metadata " << std::quoted(token.second);
+                  } break;
+                  }
+              }
+              indent.erase(indent.end() - 1);
+          } break;
+          case 1: {
+              for (auto const& token : tokens(token.second, ';')) {
                   std::cout << indent << token.first << " : " << std::quoted(token.second);
                   indent += '\t';
-                  for (auto const& token : tokens(token.second, ' ')) {
+                  for (auto const& token : tokens(token.second, ',')) {
                       std::cout << indent << token.first << " : " << std::quoted(token.second);
+                      indent += '\t';
                       int count{};
-                      //if (auto number = to_number(token)) {
-                      //    count = *number;
-                      //}
-                      //else if (!token.empty()) {
-                      //    std::cout << indent << count << " " << token << " cube(s)";
-                      //}
+                      for (auto const& token : tokens(token.second, ' ')) {
+                          std::cout << indent << token.first << " : " << std::quoted(token.second);
+                          if (auto number = to_number(token.second)) {
+                              count = *number;
+                          }
+                          else if (!token.second.empty()) {
+                              std::cout << indent << "==> " <<  count << " " << token.second << " cube(s)";
+                          }
+                      }
+                      indent.erase(indent.end() - 1);
                   }
                   indent.erase(indent.end() - 1);
               }
-              indent.erase(indent.end() - 1);
+          } break;
+          default: std::cerr << "\nFailed to parse line " << token.first << " i.e., " << std::quoted(token.second); break;
           }
           indent.erase(indent.end() - 1);
       }
