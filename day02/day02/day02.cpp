@@ -10,6 +10,9 @@
 #include <algorithm>
 #include <cctype>
 #include <utility>
+#include <map>
+#include <vector>
+#include <numeric>
 
 auto example = R"(Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
 Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
@@ -63,6 +66,7 @@ int main() {
   for (const char ch : letters('a') | std::views::take(26)) std::cout << ch << ' ';
   std::istringstream in{ example };
   std::string indent{ "\n" };
+  std::vector<std::pair<int, std::vector<std::pair<int, std::string>>>> games{};
   for (auto const& token : lines(in)) {
       std::cout << indent << token.first << " : " << std::quoted(token.second) ;
       indent += '\t';
@@ -81,6 +85,8 @@ int main() {
                       if (auto number = to_number(token.second)) {
                           count = *number;
                           std::cout << indent << "==> Identified Game " << count;
+                          games.push_back({});
+                          games.back().first = count;
                       }
                       else {
                           std::cerr << indent << "Failed to identify game index from " << std::quoted(token.second);
@@ -94,6 +100,7 @@ int main() {
               indent.erase(indent.end() - 1);
           } break;
           case 1: {
+              games.back().second.push_back({});
               for (auto const& token : tokens(token.second, ';')) {
                   std::cout << indent << token.first << " : " << std::quoted(token.second);
                   indent += '\t';
@@ -108,6 +115,8 @@ int main() {
                           }
                           else if (!token.second.empty()) {
                               std::cout << indent << "==> " <<  count << " " << token.second << " cube(s)";
+                              games.back().second.back().first = count;
+                              games.back().second.back().second = token.second;
                           }
                       }
                       indent.erase(indent.end() - 1);
@@ -121,7 +130,15 @@ int main() {
       }
       indent.erase(indent.end() - 1);
   }
-  std::cout << '\n';
+  auto result = std::accumulate(games.begin(), games.end(), int{0}, [](auto acc,auto const& entry) {
+          if (std::ranges::all_of(entry.second, [](auto const& outcome){
+              return true;
+              })) {
+              acc += entry.first;
+          }
+          return acc;
+      });
+  std::cout << "\nAnswer = " << result;;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
