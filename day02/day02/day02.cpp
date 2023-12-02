@@ -71,8 +71,8 @@ int main() {
         ,{"blue",14}
     };
     for (const char ch : letters('a') | std::views::take(26)) std::cout << ch << ' ';
-    // std::istringstream in{ example };
-    std::istringstream in{ part1 };
+    std::istringstream in{ example };
+    // std::istringstream in{ part1 };
     std::string indent{ "\n" };
     std::vector<std::pair<int, std::vector<std::vector<std::pair<int, std::string>>>>> games{};
     for (auto const& token : lines(in)) {
@@ -141,7 +141,7 @@ int main() {
         }
         indent.erase(indent.end() - 1);
     }
-    auto result = std::accumulate(games.begin(), games.end(), int{ 0 }, [&BAGGED_CUBES](auto acc, auto const& game) {
+    auto result_part1 = std::accumulate(games.begin(), games.end(), int{ 0 }, [&BAGGED_CUBES](auto acc, auto const& game) {
         std::cout << "\nFilter Game " << game.first;
         if (std::ranges::all_of(game.second, [&BAGGED_CUBES](auto const& outcomes) {
             std::cout << "\n\tFilter grab outcome";
@@ -160,8 +160,31 @@ int main() {
         }
         return acc;
         });
-    std::cout << "\nAnswer = " << result;
-    // 3523 is too high! What games do I accept that I should NOT accept?
+    auto result_part2 = std::accumulate(games.begin(), games.end(), int{ 0 }, [&BAGGED_CUBES](auto acc, auto const& game) {
+        std::cout << "\nFilter Game " << game.first;
+        std::map<std::string,int> min_bag{};
+        if (std::ranges::all_of(game.second, [BAGGED_CUBES ,&min_bag](auto const& outcomes) {
+            std::cout << "\n\tFilter grab outcome";
+            bool result = std::ranges::all_of(outcomes, [BAGGED_CUBES ,&min_bag](auto const& outcome) {
+                min_bag[outcome.second] = std::max(outcome.first, min_bag[outcome.second]);
+                std::cout << "\n\t\trequired bag also for cube outcome " << outcome.first << " " << outcome.second << "  is " << min_bag[outcome.second];
+                return true; // accept all outcomes
+                });
+            return result;
+            })) {
+            std::cout << "\nGame " << game.first;
+            auto power = std::accumulate(min_bag.begin(), min_bag.end(), int{ 1 }, [](auto acc,auto const& entry) {
+                acc *= entry.second;
+                return acc;
+                });
+            std::cout << " has power " << power;
+            acc += power;
+            std::cout << " SUM:" << acc;
+        }
+        return acc;
+        });
+    std::cout << "\nAnswer part 1 = " << result_part1;
+    std::cout << "\nAnswer part 2 = " << result_part2;
 }
 
 char const* part1 = R"(Game 1: 12 red, 2 green, 5 blue; 9 red, 6 green, 4 blue; 10 red, 2 green, 5 blue; 8 blue, 9 red
