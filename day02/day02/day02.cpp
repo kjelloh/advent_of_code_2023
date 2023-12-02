@@ -71,8 +71,8 @@ int main() {
         ,{"blue",14}
     };
     for (const char ch : letters('a') | std::views::take(26)) std::cout << ch << ' ';
-    std::istringstream in{ example };
-    // std::istringstream in{ part1 };
+    // std::istringstream in{ example };
+    std::istringstream in{ part1 };
     std::string indent{ "\n" };
     std::vector<std::pair<int, std::vector<std::vector<std::pair<int, std::string>>>>> games{};
     for (auto const& token : lines(in)) {
