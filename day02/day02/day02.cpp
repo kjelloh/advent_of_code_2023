@@ -63,82 +63,94 @@ std::optional<int> to_number(auto const& s) {
 
 
 int main() {
-  for (const char ch : letters('a') | std::views::take(26)) std::cout << ch << ' ';
-  std::istringstream in{ example };
-  std::string indent{ "\n" };
-  std::vector<std::pair<int, std::vector<std::pair<int, std::string>>>> games{};
-  for (auto const& token : lines(in)) {
-      std::cout << indent << token.first << " : " << std::quoted(token.second) ;
-      indent += '\t';
-      for (auto const& token : tokens(token.second, ':')) {
-          std::cout << indent << token.first << " : " << std::quoted(token.second);
-          indent += '\t';
-          switch (token.first) {
-          case 0: {
-              int count{};
-              indent += '\t';
-              for (auto const& token : tokens(token.second, ' ')) {
-                  std::cout << indent << token.first << " : " << std::quoted(token.second);
-                  switch (token.first) {
-                  case 0: {/*skip*/} break;
-                  case 1: {
-                      if (auto number = to_number(token.second)) {
-                          count = *number;
-                          std::cout << indent << "==> Identified Game " << count;
-                          games.push_back({});
-                          games.back().first = count;
-                      }
-                      else {
-                          std::cerr << indent << "Failed to identify game index from " << std::quoted(token.second);
-                      }
-                  } break;
-                  default: {
-                      std::cerr << indent << " extraneous game metadata " << std::quoted(token.second);
-                  } break;
-                  }
-              }
-              indent.erase(indent.end() - 1);
-          } break;
-          case 1: {
-              games.back().second.push_back({});
-              for (auto const& token : tokens(token.second, ';')) {
-                  std::cout << indent << token.first << " : " << std::quoted(token.second);
-                  indent += '\t';
-                  for (auto const& token : tokens(token.second, ',')) {
-                      std::cout << indent << token.first << " : " << std::quoted(token.second);
-                      indent += '\t';
-                      int count{};
-                      for (auto const& token : tokens(token.second, ' ')) {
-                          std::cout << indent << token.first << " : " << std::quoted(token.second);
-                          if (auto number = to_number(token.second)) {
-                              count = *number;
-                          }
-                          else if (!token.second.empty()) {
-                              std::cout << indent << "==> " <<  count << " " << token.second << " cube(s)";
-                              games.back().second.back().first = count;
-                              games.back().second.back().second = token.second;
-                          }
-                      }
-                      indent.erase(indent.end() - 1);
-                  }
-                  indent.erase(indent.end() - 1);
-              }
-          } break;
-          default: std::cerr << "\nFailed to parse line " << token.first << " i.e., " << std::quoted(token.second); break;
-          }
-          indent.erase(indent.end() - 1);
-      }
-      indent.erase(indent.end() - 1);
-  }
-  auto result = std::accumulate(games.begin(), games.end(), int{0}, [](auto acc,auto const& entry) {
-          if (std::ranges::all_of(entry.second, [](auto const& outcome){
-              return true;
-              })) {
-              acc += entry.first;
-          }
-          return acc;
-      });
-  std::cout << "\nAnswer = " << result;;
+    std::map<std::string, int> const BAGGED_CUBES{
+         {"red",12}
+        ,{"green",13}
+        ,{"blue",14}
+    };
+    for (const char ch : letters('a') | std::views::take(26)) std::cout << ch << ' ';
+    std::istringstream in{ example };
+    std::string indent{ "\n" };
+    std::vector<std::pair<int, std::vector<std::pair<int, std::string>>>> games{};
+    for (auto const& token : lines(in)) {
+        std::cout << indent << token.first << " : " << std::quoted(token.second);
+        indent += '\t';
+        for (auto const& token : tokens(token.second, ':')) {
+            std::cout << indent << token.first << " : " << std::quoted(token.second);
+            indent += '\t';
+            switch (token.first) {
+            case 0: {
+                int count{};
+                indent += '\t';
+                for (auto const& token : tokens(token.second, ' ')) {
+                    std::cout << indent << token.first << " : " << std::quoted(token.second);
+                    switch (token.first) {
+                    case 0: {/*skip*/} break;
+                    case 1: {
+                        if (auto number = to_number(token.second)) {
+                            count = *number;
+                            std::cout << indent << "==> Identified Game " << count;
+                            games.push_back({});
+                            games.back().first = count;
+                        }
+                        else {
+                            std::cerr << indent << "Failed to identify game index from " << std::quoted(token.second);
+                        }
+                    } break;
+                    default: {
+                        std::cerr << indent << " extraneous game metadata " << std::quoted(token.second);
+                    } break;
+                    }
+                }
+                indent.erase(indent.end() - 1);
+            } break;
+            case 1: {
+                for (auto const& token : tokens(token.second, ';')) {
+                    games.back().second.push_back({});
+                    std::cout << indent << token.first << " : " << std::quoted(token.second);
+                    indent += '\t';
+                    for (auto const& token : tokens(token.second, ',')) {
+                        std::cout << indent << token.first << " : " << std::quoted(token.second);
+                        indent += '\t';
+                        int count{};
+                        for (auto const& token : tokens(token.second, ' ')) {
+                            std::cout << indent << token.first << " : " << std::quoted(token.second);
+                            if (auto number = to_number(token.second)) {
+                                count = *number;
+                            }
+                            else if (!token.second.empty()) {
+                                std::cout << indent << "==> " << count << " " << token.second << " cube(s)";
+                                games.back().second.back().first = count;
+                                games.back().second.back().second = token.second;
+                            }
+                        }
+                        indent.erase(indent.end() - 1);
+                    }
+                    indent.erase(indent.end() - 1);
+                }
+            } break;
+            default: std::cerr << "\nFailed to parse line " << token.first << " i.e., " << std::quoted(token.second); break;
+            }
+            indent.erase(indent.end() - 1);
+        }
+        indent.erase(indent.end() - 1);
+    }
+    auto result = std::accumulate(games.begin(), games.end(), int{ 0 }, [&BAGGED_CUBES](auto acc, auto const& game) {
+        std::cout << "\nFilter Game " << game.first;
+        if (std::ranges::all_of(game.second, [&BAGGED_CUBES](auto const& outcome) {
+            std::cout << "\n\tComparing outcome " << outcome.first << " " << outcome.second << " with bag count " << BAGGED_CUBES.at(outcome.second);
+            bool result = (outcome.first <= BAGGED_CUBES.at(outcome.second));
+            if (result) std::cout << " ok"; else std::cout << " UNACCEPATBLE";
+            return result;
+            // return false;
+            })) {
+            std::cout << "\nACCEPTED: Game " << game.first;
+            acc += game.first;
+            std::cout << " SUM:" << acc;
+        }
+        return acc;
+        });
+    std::cout << "\nAnswer = " << result;;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
