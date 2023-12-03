@@ -35,6 +35,7 @@ public:		// User declarations
 // BEGIN class c_LoggerIfc
 // public:
 void log(std::string const& s);
+void append(std::string s);
 // END class c_LoggerIfc
 };
 class LoggerHost : public c_LoggerIfc  {
@@ -44,6 +45,10 @@ public:
 	virtual void log(std::string s) {
 		host->log(s);
 	}
+	virtual void append(std::string s) {
+		host->append(s);
+    }
+
 
 private:
 	TForm1* host{};

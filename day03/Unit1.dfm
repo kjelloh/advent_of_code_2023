@@ -49,11 +49,8 @@ object Form1: TForm1
       Align = alClient
       Lines.Strings = (
         '')
+      ScrollBars = ssBoth
       TabOrder = 0
-      ExplicitLeft = 120
-      ExplicitTop = 56
-      ExplicitWidth = 185
-      ExplicitHeight = 89
     end
   end
   object Panel2: TPanel
@@ -92,11 +89,8 @@ object Form1: TForm1
       Width = 626
       Height = 424
       Align = alClient
+      ScrollBars = ssBoth
       TabOrder = 0
-      ExplicitLeft = 208
-      ExplicitTop = 232
-      ExplicitWidth = 185
-      ExplicitHeight = 89
     end
   end
   object MainMenu1: TMainMenu

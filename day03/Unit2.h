@@ -11,6 +11,7 @@
 class c_LoggerIfc {
 public:
 	virtual void log(std::string s) = 0;
+	virtual void append(std::string s) = 0;
 };
 
 class c_Solver {
