@@ -99,6 +99,7 @@ c_Solver::Result c_Solver::to_solution(std::istream& in) {
 		this->logger->log(entry.second);
 		return acc;
 	});
+	// 536655 is too low
 	this->logger->log("Answer:");
     this->logger->append(std::to_string(result));
 	return result;

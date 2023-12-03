@@ -70,6 +70,13 @@ object Form1: TForm1
       TabOrder = 0
       OnClick = Solve1Click
     end
+    object Edit1: TEdit
+      Left = 112
+      Top = 16
+      Width = 193
+      Height = 23
+      TabOrder = 1
+    end
   end
   object Panel3: TPanel
     Left = 0

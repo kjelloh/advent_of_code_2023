@@ -27,6 +27,7 @@ __published:	// IDE-managed Components
 	TPanel *Panel3;
 	TSplitter *Splitter2;
 	TMemo *Memo2;
+	TEdit *Edit1;
 	void __fastcall Exit1Click(TObject *Sender);
 	void __fastcall Solve1Click(TObject *Sender);
 private:	// User declarations

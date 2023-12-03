@@ -16,7 +16,7 @@ void TForm1::log(std::string const& s) {
 	Memo2->Lines->Add(s.c_str());
 }
 void TForm1::append(std::string s) {
-    Memo2->Text += s.c_str();
+	Memo2->Text += s.c_str();
 }
 
 // END class c_LoggerIfc
@@ -39,6 +39,7 @@ void __fastcall TForm1::Solve1Click(TObject *Sender)
 	std::istringstream in{s.c_str()};
 	c_Solver solver{host.get()};
 	auto answer = solver.to_solution(in);
+	Edit1->Text = answer;
 }
 //---------------------------------------------------------------------------
 
