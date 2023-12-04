@@ -62,6 +62,17 @@ c_Solver::Result c_Solver::to_solution(std::istream& in) {
 			}
 			++col;
 		}
+
+		if (number.size()>0) {
+			// number at end of line
+			this->logger->log("EOL NUMBER EOL NUMBER EOL NUMBER!!!!!!!!!!!!!!!!:'");
+			this->logger->append(number);
+			possible_numbers[Position{row,col-1}] = number;
+		}
+
+		// answer 536655 without numbers at end-of-line
+		// answer 536655 WITH numbers at end-of-line *sigh*
+        // TODO: Find out why I seem to fail to validate numbers at end-of-line?
 		++row;
 	}
 	std::map<Position,std::string> valid_numbers{};

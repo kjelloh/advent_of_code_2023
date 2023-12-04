@@ -13,10 +13,10 @@ TForm1 *Form1;
 // BEGIN class c_LoggerIfc
 // public:
 void TForm1::log(std::string const& s) {
-	Memo2->Lines->Add(s.c_str());
+	// Memo2->Lines->Add(s.c_str());
 }
 void TForm1::append(std::string s) {
-	Memo2->Text += s.c_str();
+	// Memo2->Text += s.c_str();
 }
 
 // END class c_LoggerIfc

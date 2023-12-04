@@ -41,6 +41,7 @@ object Form1: TForm1
     Align = alTop
     Caption = 'Panel1'
     TabOrder = 0
+    ExplicitWidth = 624
     object Memo1: TMemo
       Left = 1
       Top = 1
@@ -51,6 +52,7 @@ object Form1: TForm1
         '')
       ScrollBars = ssBoth
       TabOrder = 0
+      ExplicitWidth = 622
     end
   end
   object Panel2: TPanel
@@ -60,7 +62,8 @@ object Form1: TForm1
     Height = 58
     Align = alBottom
     TabOrder = 1
-    ExplicitTop = 384
+    ExplicitTop = 590
+    ExplicitWidth = 624
     object Button1: TButton
       Left = 16
       Top = 15
@@ -86,10 +89,8 @@ object Form1: TForm1
     Align = alClient
     Caption = 'Panel3'
     TabOrder = 2
-    ExplicitLeft = 224
-    ExplicitTop = 336
-    ExplicitWidth = 185
-    ExplicitHeight = 41
+    ExplicitWidth = 624
+    ExplicitHeight = 425
     object Memo2: TMemo
       Left = 1
       Top = 1
@@ -98,6 +99,8 @@ object Form1: TForm1
       Align = alClient
       ScrollBars = ssBoth
       TabOrder = 0
+      ExplicitWidth = 622
+      ExplicitHeight = 423
     end
   end
   object MainMenu1: TMainMenu
