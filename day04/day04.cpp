@@ -1,16 +1,16 @@
 // Guard for incompatible compiler and c++ library, see https://en.cppreference.com/w/cpp/coroutine
 #if (__cpp_impl_coroutine	< 201902L) // 	(C++20)	Coroutines (compiler support)
   // For gnu gcc support see https://gcc.gnu.org/wiki/cxx-coroutines
-#error insufficient coroutine support by compiler
+// #error insufficient coroutine support by compiler
 #endif
 #if (__cpp_lib_coroutine	< 201902L) // 	(C++20)	Coroutines (library support)
 // For gnu/gcc libstdc++ support status see https://gcc.gnu.org/onlinedocs/libstdc++/manual/status.html#status.iso.2020
-#error insufficient coroutine support by c++ library
+// #error insufficient coroutine support by c++ library
 #else
 #include <coroutine>
 #endif
 #if (__cpp_lib_generator < 202207L) //	(C++23)	std::generator: synchronous coroutine generator for ranges
-#error C++ library does not support std::generator
+// #error C++ library does not support std::generator
 #else
 #include <generator>
 #endif
@@ -33,23 +33,73 @@
 #include <numeric> // E.g., std::accumulate
 #include <limits> // E.g., std::numeric_limits
 #include <fstream>
-#include <coroutine>
-#include <generator>
+#include <experimental/generator> // supported by visual studio 2022 17.8.2 with project setting/compiler switch /std:c++latest
+#include <format>
+
+std::experimental::generator<std::string> lines(auto& in)
+{
+  std::string line{};
+  while (std::getline(in, line)) {
+    std::cout << "\nlines - " << line;
+    co_yield{ line };
+  }
+}
+
+std::experimental::generator<std::string> tokens(auto& token, char delimiter) {
+  std::string split{};
+  for (char ch : token) {
+    if (ch == delimiter) {
+      co_yield{ split };
+      split.clear();
+    }
+    else {
+      split += ch;
+    }
+  }
+  if (split.size()>0) co_yield{ split };
+}
 
 auto const NL = "\n";
+auto const T = "\t";
 auto const NT = "\n\t";
 
 using Integer = int; // int: 843 253 387 long int: 32 762 853 787 275 long long int: 32 762 853 787 275
 using Result = Integer;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
-using Model = std::vector<std::string>;
+using Model = std::vector<std::pair<std::string,std::pair<std::set<std::string>,std::set<std::string>>>>;
 
 Model parse(auto& in) {
     Model result{};
     std::string line{};
-    while (std::getline(in,line)) {
-        result.push_back(line);
+    for (auto const& line : lines(in)) {
+      result.push_back({});
+      std::cout << NL << std::quoted(line);
+      for (auto const& [index,token] : std::views::enumerate(tokens(line,':'))) {
+        switch (index) {
+        case 0: {
+          // card x
+          std::cout << NT << std::quoted(token);
+          result.back().first = token;
+        } break;
+        default: {
+          std::set<int> numbers{};
+          for (auto const& [index,token] : std::views::enumerate(tokens(token, '|'))) {
+            std::cout << NT << T << std::quoted(token);
+            for (auto const& number : tokens(token, ' ')) {
+              if (number.size()>0) {
+                std::cout << NT << T << T << number;
+                switch (index) {
+                case 0: result.back().second.first.insert(number); break;
+                case 1: result.back().second.second.insert(number); break;
+                default: std::cerr << NL << "Failed to parse input - More than one set of numbers found in card entry";
+                }
+              }
+            }
+          }
+        } break;
+        }
+      }
     }
     return result;
 }
@@ -57,7 +107,23 @@ Model parse(auto& in) {
 namespace part1 {
   Result solve_for(auto& in) {
       Result result{};
-      auto data_model = parse(in);
+      auto model = parse(in);
+        result = std::accumulate(model.begin(), model.end(), Result{ 0 }, [](auto acc, auto const& entry) {
+          std::set<std::string> intersection{};
+          std::set_intersection(
+              entry.second.first.begin(), entry.second.first.end()
+            , entry.second.second.begin(), entry.second.second.end()
+            , std::inserter(intersection, intersection.begin()));
+          std::cout << NL << T << "Intersection " << entry.first << " [";
+          auto result = std::accumulate(intersection.begin(), intersection.end(), Result{ 0 }, [](auto acc, auto const& entry) {
+            std::cout << " " << entry;
+            acc = (acc==0)?1:acc*2;
+            return acc;
+            });
+          std::cout << "] ==> Points:" << result;
+          acc += result;
+          return acc;
+        });
       return result;
   }
 }
@@ -65,7 +131,7 @@ namespace part1 {
 namespace part2 {
   Result solve_for(auto& in) {
       Result result{};
-      auto data_model = parse(in);
+      auto model = parse(in);
       return result;
   }
 }
