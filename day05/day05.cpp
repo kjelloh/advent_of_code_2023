@@ -64,7 +64,7 @@ public:
         // defined mapping
         has_mapping = true;
         result.insert({target_category,entry.target_begin + offset});
-        std::cout << NT << "entry.target_begin:" << entry.target_begin << "+" << offset << "=" << entry.target_begin + offset;
+        // std::cout << NT << "entry.target_begin:" << entry.target_begin << "+" << offset << "=" << entry.target_begin + offset;
       }
     }
     if (!has_mapping) result.insert({target_category,source});
@@ -76,18 +76,12 @@ private:
 };
 using Maps = std::map<Category,Map>;
 struct Model {
-  Values seeds;
+  std::vector<Integer> seeds;
   Maps maps;
 };
 
 Model parse(auto& in) {
     Model result{};
-    if (false) {
-      result.seeds = {{seed,79},{seed,14},{seed,55},{seed,13}};
-      result.maps.insert({seed,Map{soil,{{50,98,2},{52,50,48}}}});
-      result.maps.insert({soil,Map{fertilizer,{{0,15,37},{37,52,2},{39,0,15}}}});
-    }
-    // parse actual input
     std::string line{};
     while (std::getline(in,line)) {
       std::cout << NL << "parsing:" << std::quoted(line);
@@ -99,7 +93,7 @@ Model parse(auto& in) {
         std::string n;
         while (ss >> n) {
           std::cout << " value:" << n;
-          result.seeds.insert({seed,std::stoll(n)});
+          result.seeds.push_back(std::stoll(n));
         }
       }
       else if (line.starts_with("seed-to-soil map:")) mapping = {seed,soil};
@@ -127,49 +121,34 @@ Model parse(auto& in) {
     return result;
 }
 
-namespace part1 {
-    Values source_to_targets(Maps const& maps,Value const& source,Category end_category) {
-      Values result{};
-      /*
-        sources.push(source)
-        targets{}
-        do {
-          source = sources.pop()
-          source_map = maps[source.type]
-          targets = source_map[source]
-          if (targets.type != target_type) {
-            for each source in targets {
-              mapped = source_to_targets[source]
-              sources.push(mapped);
-            }
-          }
-        } while sources.size() > 0
-        return targets
-      */
-      std::queue<Value> unmapped{};unmapped.push(source);
-      while (unmapped.size()>0) {
-        auto current = unmapped.front(); unmapped.pop();
-        std::cout << NT << current.category << ":" << current.value << " --> ";
-        if (maps.contains(current.category)) {
-          auto map = maps.at(current.category);
-          auto mapped = map[current.value];
-          for (auto const& next : mapped) {
-            if (next.category == end_category) {
-              result.insert(next);
-              std::cout << " END " << next.category << ":" << next.value;
-            }
-            else {
-              std::cout << " NEXT " << next.category << ":" << next.value;
-              unmapped.push(next);
-            }
-          }
+Values source_to_targets(Maps const& maps,Value const& source,Category end_category) {
+  Values result{};
+  std::queue<Value> unmapped{};unmapped.push(source);
+  while (unmapped.size()>0) {
+    auto current = unmapped.front(); unmapped.pop();
+    // std::cout << NT << current.category << ":" << current.value << " --> ";
+    if (maps.contains(current.category)) {
+      auto map = maps.at(current.category);
+      auto mapped = map[current.value];
+      for (auto const& next : mapped) {
+        if (next.category == end_category) {
+          result.insert(next);
+          // std::cout << " END " << next.category << ":" << next.value;
         }
         else {
-          std::cout << NL << "ERROR: No mapping defined for source category " << current.category;
+          // std::cout << " NEXT " << next.category << ":" << next.value;
+          unmapped.push(next);
         }
       }
-      return result;
     }
+    else {
+      std::cout << NL << "ERROR: No mapping defined for source category " << current.category;
+    }
+  }
+  return result;
+}
+
+namespace part1 {
 
   Result solve_for(auto& in) {
       Result result{std::numeric_limits<Result>::max()};
@@ -231,36 +210,12 @@ namespace part1 {
         targets = source_map[source]
         answer = min(targets)
       }
-
-      hm...it seems we should just use recursion?
-
-      candidates = source_to_targets(seed)
-
-      source_to_targets: source -> target_type -> targets
-      {
-        sources.push(source)
-        targets{}
-        do {
-          source = sources.pop()
-          source_map = maps[source.type]
-          targets = source_map[source]
-          if (targets.type != target_type) {
-            for each source in targets {
-              mapped = source_to_targets[source]
-              sources.push(mapped);
-            }
-          }
-        } while sources.size() > 0
-        return targets
-      }
-
-      Lets try this approach :)
       */
       
-      for (auto const& seed : model.seeds) {
-        std::cout << NL << "seed:" << seed.value << std::flush;
+      for (auto const& value : model.seeds) {
+        // std::cout << NL << "seed:" << value << std::flush;
         // auto candidates = source_to_targets(model.maps,seed,fertilizer);
-        auto candidates = source_to_targets(model.maps,seed,location);
+        auto candidates = source_to_targets(model.maps,{seed,value},location);
 
         result = std::accumulate(candidates.begin(),candidates.end(),result,[](auto acc,auto const& candidate){
           acc = std::min(candidate.value,acc);
@@ -272,8 +227,19 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(auto& in) {
-      Result result{};
-      auto data_model = parse(in);
+      Result result{std::numeric_limits<Result>::max()};
+      auto model = parse(in);
+      for (auto i=0;i<model.seeds.size();i+=2) {
+        for (auto j=model.seeds[i];j<model.seeds[i+1];++j) {
+          // std::cout << NL << "seed:" << j << std::flush;
+          // auto candidates = source_to_targets(model.maps,seed,fertilizer);
+          auto candidates = source_to_targets(model.maps,{seed,j},location);
+
+          result = std::accumulate(candidates.begin(),candidates.end(),result,[](auto acc,auto const& candidate){
+            acc = std::min(candidate.value,acc);
+            return acc;});
+        }
+      }
       return result;
   }
 }
@@ -286,7 +252,8 @@ int main(int argc, char *argv[])
     std::cout << NL << "argv[" << i << "] : " << std::quoted(argv[i]);
     if (i>0) {
       std::ifstream in{argv[i]};
-      if (in) answers.push_back({argv[i],part1::solve_for(in)});
+      // if (in) answers.push_back({argv[i],part1::solve_for(in)}); // 57075758
+      if (in) answers.push_back({argv[i],part2::solve_for(in)});
       else answers.push_back({std::string{"Failed to open file "} + argv[i],-1});
     }
   }
