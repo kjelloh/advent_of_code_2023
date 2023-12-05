@@ -20,7 +20,7 @@
 auto const NL = "\n";
 auto const NT = "\n\t";
 
-using Integer = int; // int: 843 253 387 long int: 32 762 853 787 275 long long int: 32 762 853 787 275
+using Integer = long long; // int: 843 253 387 long int: 32 762 853 787 275 long long int: 32 762 853 787 275
 using Result = Integer;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
@@ -39,14 +39,14 @@ enum Category {
 };
 struct Value {
   Category category{undefined};
-  int value{};
+  Integer value{};
   bool operator<(Value const& other) const {return (category==other.category)?value < other.value:category<other.category;}
 };
 using Values = std::set<Value>;
 struct MapEntry {
-  int target_begin{};
-  int source_begin{};
-  int length{};
+  Integer target_begin{};
+  Integer source_begin{};
+  Integer length{};
 };
 using MapEntries = std::vector<MapEntry>;
 class Map {
@@ -55,11 +55,11 @@ public:
     :  target_category{target_category}
       ,entries{entries} {}
   Map() = default;
-  Values operator[](int source) const {
+  Values operator[](Integer source) const {
     Values result{};
     bool has_mapping{false};
     for (auto const& entry : entries) {
-      int offset = (source-entry.source_begin);
+      Integer offset = (source-entry.source_begin);
       if (offset>=0 and offset<entry.length) {
         // defined mapping
         has_mapping = true;
@@ -99,7 +99,7 @@ Model parse(auto& in) {
         std::string n;
         while (ss >> n) {
           std::cout << " value:" << n;
-          result.seeds.insert({seed,std::stoi(n)});
+          result.seeds.insert({seed,std::stoll(n)});
         }
       }
       else if (line.starts_with("seed-to-soil map:")) mapping = {seed,soil};
