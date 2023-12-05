@@ -57,17 +57,17 @@ public:
   Map() = default;
   Values operator[](int source) const {
     Values result{};
+    bool has_mapping{false};
     for (auto const& entry : entries) {
       int offset = (source-entry.source_begin);
       if (offset>=0 and offset<entry.length) {
         // defined mapping
+        has_mapping = true;
         result.insert({target_category,entry.target_begin + offset});
         std::cout << NT << "entry.target_begin:" << entry.target_begin << "+" << offset << "=" << entry.target_begin + offset;
       }
-      else {
-        result.insert({target_category,source});
-      }
     }
+    if (!has_mapping) result.insert({target_category,source});
     return result;
   }
 private:
