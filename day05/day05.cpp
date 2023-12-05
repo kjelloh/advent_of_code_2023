@@ -15,6 +15,7 @@
 #include <numeric> // E.g., std::accumulate
 #include <limits> // E.g., std::numeric_limits
 #include <fstream>
+#include <cstring>
 
 auto const NL = "\n";
 auto const NT = "\n\t";
@@ -23,69 +24,110 @@ using Integer = int; // int: 843 253 387 long int: 32 762 853 787 275 long long 
 using Result = Integer;
 using Answers = std::vector<std::pair<std::string,Result>>;
 
-using Model = std::vector<std::string>;
+enum Category {
+  undefined
+  ,seed
+  ,soil
+  ,fertilizer
+  ,water
+  ,light
+  ,temperature
+  ,humidity
+  ,location
+  ,unknown
+  
+};
+struct Value {
+  Category category{undefined};
+  int value{};
+  bool operator<(Value const& other) const {return (category==other.category)?value < other.value:category<other.category;}
+};
+using Values = std::set<Value>;
+struct MapEntry {
+  int target_begin{};
+  int source_begin{};
+  int length{};
+};
+using MapEntries = std::vector<MapEntry>;
+class Map {
+public:
+  Map(Category target_category,MapEntries entries) 
+    :  target_category{target_category}
+      ,entries{entries} {}
+  Map() = default;
+  Values operator[](int source) const {
+    Values result{};
+    for (auto const& entry : entries) {
+      int offset = (source-entry.source_begin);
+      if (offset>=0 and offset<entry.length) {
+        // defined mapping
+        result.insert({target_category,entry.target_begin + offset});
+        std::cout << NT << "entry.target_begin:" << entry.target_begin << "+" << offset << "=" << entry.target_begin + offset;
+      }
+      else {
+        result.insert({target_category,source});
+      }
+    }
+    return result;
+  }
+private:
+  Category target_category;
+  MapEntries entries{};
+};
+using Maps = std::map<Category,Map>;
+struct Model {
+  Values seeds;
+  Maps maps;
+};
 
 Model parse(auto& in) {
     Model result{};
+    if (false) {
+      result.seeds = {{seed,79},{seed,14},{seed,55},{seed,13}};
+      result.maps.insert({seed,Map{soil,{{50,98,2},{52,50,48}}}});
+      result.maps.insert({soil,Map{fertilizer,{{0,15,37},{37,52,2},{39,0,15}}}});
+    }
+    // parse actual input
     std::string line{};
     while (std::getline(in,line)) {
-        std::cout << NL << "in:" << std::quoted(line);
-        result.push_back(line);
+      std::cout << NL << "parsing:" << std::quoted(line);
+      std::pair<Category,Category> mapping{undefined,undefined};
+      if (line.starts_with("seeds:")) {
+        auto s = line.substr(std::strlen("seeds:")+1);
+        std::cout << " as seeds " << std::quoted(s) << "-->";
+        std::istringstream ss{s};
+        std::string n;
+        while (ss >> n) {
+          std::cout << " value:" << n;
+          result.seeds.insert({seed,std::stoi(n)});
+        }
+      }
+      else if (line.starts_with("seed-to-soil map:")) mapping = {seed,soil};
+      else if (line.starts_with("soil-to-fertilizer map:")) mapping = {soil,fertilizer};
+      else if (line.starts_with("fertilizer-to-water map:")) mapping = {fertilizer,water};
+      else if (line.starts_with("water-to-light map:")) mapping = {water,light};
+      else if (line.starts_with("light-to-temperature map:")) mapping = {light,temperature};
+      else if (line.starts_with("temperature-to-humidity map:")) mapping = {temperature,humidity};
+      else if (line.starts_with("humidity-to-location map:")) mapping = {humidity,location};
+
+      if (mapping.first != undefined and mapping.second != undefined) {
+        MapEntries entries{};
+        while (std::getline(in,line)) {
+          std::cout << NT << "entry:" << line;
+          if (line.empty()) break;
+          MapEntry entry{};
+          if (std::istringstream{line} >> entry.target_begin >> entry.source_begin >> entry.length) {
+            std::cout << " push";
+            entries.push_back(entry);
+          }
+        }
+        result.maps[mapping.first] = Map{mapping.second,entries};
+      }
     }
     return result;
 }
 
 namespace part1 {
-    enum Category {
-      undefined
-      ,seed
-      ,soil
-      ,fertilizer
-      ,water
-      ,light
-      ,temperature
-      ,humidity
-      ,location
-      ,unknown
-      
-    };
-    struct Value {
-      Category category{undefined};
-      int value{};
-      bool operator<(Value const& other) const {return (category==other.category)?value < other.value:category<other.category;}
-    };
-    using Values = std::set<Value>;
-    struct MapEntry {
-      int target_begin{};
-      int source_begin{};
-      int length{};
-    };
-    using MapEntries = std::vector<MapEntry>;
-    class Map {
-    public:
-      Map(Category target_category,MapEntries entries) 
-        :  target_category{target_category}
-          ,entries{entries} {}
-      Values operator[](int source) const {
-        Values result{};
-        for (auto const& entry : entries) {
-          auto offset = (source-entry.source_begin);
-          if (offset>=0 and offset<entry.length) {
-            // defined mapping
-            result.insert({target_category,entry.target_begin + offset});
-          }
-          else {
-            result.insert({target_category,source});
-          }
-        }
-        return result;
-      }
-    private:
-      Category target_category;
-      MapEntries entries{};
-    };
-    using Maps = std::map<Category,Map>;
-
     Values source_to_targets(Maps const& maps,Value const& source,Category end_category) {
       Values result{};
       /*
@@ -106,7 +148,7 @@ namespace part1 {
       */
       std::queue<Value> unmapped{};unmapped.push(source);
       while (unmapped.size()>0) {
-        auto current = unmapped.back(); unmapped.pop();
+        auto current = unmapped.front(); unmapped.pop();
         std::cout << NT << current.category << ":" << current.value << " --> ";
         if (maps.contains(current.category)) {
           auto map = maps.at(current.category);
@@ -117,8 +159,8 @@ namespace part1 {
               std::cout << " END " << next.category << ":" << next.value;
             }
             else {
-              unmapped.push(next);
               std::cout << " NEXT " << next.category << ":" << next.value;
+              unmapped.push(next);
             }
           }
         }
@@ -131,7 +173,7 @@ namespace part1 {
 
   Result solve_for(auto& in) {
       Result result{std::numeric_limits<Result>::max()};
-      auto data_model = parse(in);
+      auto model = parse(in);
       /*
       What is the lowest location number that corresponds to any of the initial seed numbers?
 
@@ -214,16 +256,11 @@ namespace part1 {
 
       Lets try this approach :)
       */
-
-      Values seeds = {{seed,79},{seed,14},{seed,55},{seed,13}};
-      Maps maps{};
-      maps.insert({seed,Map{soil,{{50,98,2},{52,50,48}}}});
-      maps.insert({soil,Map{fertilizer,{{0,15,37},{37,52,2},{39,0,15}}}});
       
-      for (auto const& seed : seeds) {
+      for (auto const& seed : model.seeds) {
         std::cout << NL << "seed:" << seed.value << std::flush;
-        auto candidates = source_to_targets(maps,seed,fertilizer);
-        // auto candidates = source_to_targets(maps,seed,location);
+        // auto candidates = source_to_targets(model.maps,seed,fertilizer);
+        auto candidates = source_to_targets(model.maps,seed,location);
 
         result = std::accumulate(candidates.begin(),candidates.end(),result,[](auto acc,auto const& candidate){
           acc = std::min(candidate.value,acc);
