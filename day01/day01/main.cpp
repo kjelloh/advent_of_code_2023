@@ -25,7 +25,7 @@ namespace part1 {
         Answer answer{};
         while (std::getline(in,entry) and (entry.size()>0)) {
             using Digit = char;
-            std::vector<Digit> digits{};
+            std::vector<Digit> digits{}; // TODO: We cant buffer and delete as written numbers may overlap (e.g., "eightwo")
             for (auto const& ch : entry) {
                 if (std::isdigit(ch)) {
                     digits.push_back(ch);
