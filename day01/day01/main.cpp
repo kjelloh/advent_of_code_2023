@@ -35,7 +35,7 @@ namespace part1 {
         Answer answer{};
         while (std::getline(in,entry) and (entry.size()>0)) {
             using Digit = char;
-            std::vector<Digit> digits{}; // TODO: We cant buffer and delete as written numbers may overlap (e.g., "eightwo")
+            std::vector<Digit> digits{};
             for (auto const& ch : entry) {
                 if (std::isdigit(ch)) {
                     digits.push_back(ch);
@@ -59,7 +59,6 @@ namespace part1 {
 namespace part2 {
     auto parse(auto& in) {
       Model result{};
-      std::cout << NL << "Parse advent of code 2023 day02";
       auto to_digit = [](std::string_view const& sv) ->std::optional<Digit> {
         std::optional<Digit> result{};
         std::map<std::string, Digit> digit_map{
@@ -93,7 +92,7 @@ namespace part2 {
             result.back().push_back(ch);
           }
           else {
-            std::string_view at_i{ entry.begin() + i,entry.end() };
+            std::string_view at_i{entry.c_str() + i};
             if (auto digit = to_digit(at_i)) {
               std::cout << NT << std::quoted(at_i) << " is digit " << *digit;
               result.back().push_back(*digit);
@@ -123,14 +122,14 @@ namespace part2 {
           break;
         }
       }
-      return answer;
+      return answer; // 53514 is too low
     }
 }
 
 int main(int argc, const char * argv[]) {
     // auto part1_answer = part1::solve();
     // std::cout << "\nPart 1 = " << part1_answer;
-    auto part2_answer = part2::solve(example);
+    auto part2_answer = part2::solve(puzzle);
     std::cout << "\nPart 2 = " << part2_answer;
     std::cout << "\nBYE :)\n";
     return 0;
@@ -143,7 +142,7 @@ xtwone3four
 4nineeightseven2
 zoneight234
 7pqrstsixteen)";
-/*
+
 char const* puzzle = R"(threehqv2
 sxoneightoneckk9ldctxxnffqnzmjqvj
 1hggcqcstgpmg26lzxtltcgg
@@ -1144,4 +1143,4 @@ nine1ztqbs
 eightndxxqxtwo3cqz47
 fiveeight792eightqskstrftdpccsrgskrhc
 26fmrrhhpthree6b)";
-*/
+
