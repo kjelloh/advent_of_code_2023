@@ -128,7 +128,7 @@ namespace part2 {
           }
         }
       }
-      result = candidate_range.second - candidate_range.first + 1;
+      result = candidate_range.second - candidate_range.first + 1; // 30565288
       return result;
   }
 }
