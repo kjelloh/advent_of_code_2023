@@ -73,7 +73,7 @@ namespace part1 {
         }
       }
       result = std::accumulate(candidate_count.begin(),candidate_count.end(),Result{1},std::multiplies{});
-      return result;
+      return result; // 1413720
   }
 }
 
