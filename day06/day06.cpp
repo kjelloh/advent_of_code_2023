@@ -16,6 +16,7 @@
 #include <limits> // E.g., std::numeric_limits
 #include <fstream>
 #include <cstring>
+#include <functional>
 
 auto const NL = "\n";
 auto const NT = "\n\t";
@@ -38,13 +39,13 @@ Model parse(auto& in) {
         std::cout << NT << "token:" << std::quoted(token);
         if (j>0) {
           if (i==0) {
-            std::cout << " first";
+            std::cout << j-1 << " first " << std::stoi(token);
             result.push_back({});
-            result[j].first = std::stoi(token);
+            result[j-1].first = std::stoi(token);
           }
           else {
-            std::cout << " second";
-            result[j].second = std::stoi(token);
+            std::cout << j-1 << " second " << std::stoi(token);
+            result[j-1].second = std::stoi(token);
           }
         }
       }      
@@ -56,6 +57,22 @@ namespace part1 {
   Result solve_for(Model const& model) {
       // Result result{std::numeric_limits<Result>::max()};
       Result result{};
+      std::vector<Result> candidate_count{};
+      for (auto const& entry : model) {
+        candidate_count.push_back({});
+        for (Integer button_hold_time=0;button_hold_time <= entry.first;++button_hold_time) {
+          auto race_time = entry.first-button_hold_time;
+          std::cout << NT << "hold:" << button_hold_time << " ms race:" << race_time << " ms";
+          auto speed = button_hold_time;
+          auto distance = speed*race_time;
+          std::cout << " speed:" << speed << " ==> distance:" << distance;
+          if (distance>entry.second) {
+            std::cout << " *CANDIDATE*";
+            ++candidate_count.back();
+          }
+        }
+      }
+      result = std::accumulate(candidate_count.begin(),candidate_count.end(),Result{1},std::multiplies{});
       return result;
   }
 }
