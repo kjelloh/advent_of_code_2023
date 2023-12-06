@@ -91,10 +91,44 @@ namespace part1 {
 }
 
 namespace part2 {
-  Result solve_for(Part2Model const& model) {
+  Result solve_for(Part2Model const& entry) {
       // Result result{std::numeric_limits<Result>::max()};
       Result result{};
-      std::cout << NL << "part2 - race time:" << model.first << " record distance:" << model.second;
+      std::cout << NL << "part2 - race time:" << entry.first << " record distance:" << entry.second;
+      // reduce seach space by finding the range of race distances above record (searching from front and back)
+      std::pair<bool,bool> boundary{};
+      std::pair<Integer,Integer> candidate_range{};
+      for (Integer i=0;i<entry.first and (boundary.first==false or boundary.second==false);++i) {
+        // try button hold time = i
+        {
+          auto button_hold_time = i;
+          auto race_time = entry.first-button_hold_time;
+          // std::cout << NT << "hold:" << button_hold_time << " ms race:" << race_time << " ms";
+          auto speed = button_hold_time;
+          auto distance = speed*race_time;
+          // std::cout << " speed:" << speed << " ==> distance:" << distance;
+          if (distance>entry.second) {
+            std::cout << NL << " *CANDIDATES FIRST* " << button_hold_time;
+            candidate_range.first = button_hold_time;
+            boundary.first = true;
+          }
+        }
+        // try button hold time = race time - i
+        {
+          auto button_hold_time = entry.first - i;
+          auto race_time = entry.first-button_hold_time;
+          // std::cout << NT << "hold:" << button_hold_time << " ms race:" << race_time << " ms";
+          auto speed = button_hold_time;
+          auto distance = speed*race_time;
+          // std::cout << " speed:" << speed << " ==> distance:" << distance;
+          if (distance>entry.second) {
+            std::cout << NL << " *CANDIDATES LAST* " << button_hold_time;
+            candidate_range.second = button_hold_time;
+            boundary.second = true;
+          }
+        }
+      }
+      result = candidate_range.second - candidate_range.first + 1;
       return result;
   }
 }
