@@ -14,13 +14,23 @@
 #include <optional>
 #include <map>
 #include <algorithm>
+#include <string_view>
+
+auto const NL = "\n";
+auto const T = "\t";
+auto const NT = "\n\t";
+
+extern char const* example;
+extern char const* puzzle;
 
 using Answer = int;
+using Digit = char;
+using Entry = std::vector<Digit>;
+using Model = std::vector<Entry>;
 
 namespace part1 {
-    extern char const* input;
-    Answer solve() {
-        std::istringstream in{part1::input};
+    Answer solve(auto const& input) {
+        std::istringstream in{input};
         std::string entry{};
         Answer answer{};
         while (std::getline(in,entry) and (entry.size()>0)) {
@@ -47,11 +57,12 @@ namespace part1 {
 }
 
 namespace part2 {
-    extern char const* example;
-    using Digit = char;
-    std::optional<Digit> to_digit(std::string const& s) {
+    auto parse(auto& in) {
+      Model result{};
+      std::cout << NL << "Parse advent of code 2023 day02";
+      auto to_digit = [](std::string_view const& sv) ->std::optional<Digit> {
         std::optional<Digit> result{};
-        std::map<std::string,Digit> digit_map {
+        std::map<std::string, Digit> digit_map{
             {"one",'1'}
             ,{"two",'2'}
             ,{"three",'3'}
@@ -62,66 +73,69 @@ namespace part2 {
             ,{"eight",'8'}
             ,{"nine",'9'}
         };
-        auto iter = std::find_if(digit_map.begin(), digit_map.end(), [s](auto const& entry) {
-            return (s.find(entry.first) != std::string::npos);
-        });
+        auto iter = std::find_if(digit_map.begin(), digit_map.end(), [&sv](auto const& entry) {
+          return sv.starts_with(entry.first);
+          });
         if (iter != digit_map.end()) {
-            result = iter->second;
+          result = iter->second;
         }
         return result;
-    }
-    Answer solve() {
-        // std::istringstream in{part2::example};
-        std::istringstream in{part1::input};
-        std::string entry{};
-        Answer answer{};
-        while (std::getline(in,entry) and (entry.size()>0)) {
-            std::cout << "\n" << std::quoted(entry);
-            std::vector<Digit> digits{};
-            std::string so_far{};
-            for (auto const& ch : entry) {
-                if (std::isdigit(ch)) {
-                    std::cout << "\n\tch '" << ch << "' is digit " << ch;
-                    digits.push_back(ch);
-                    so_far.clear();
-                }
-                else {
-                    so_far += ch;
-                    std::cout << "\n\tso_far " << std::quoted(so_far);
-                    if (auto digit = to_digit(so_far)) {
-                        std::cout << " is digit " << *digit;
-                        digits.push_back(*digit);
-                        so_far.clear();
-                    }
-                }
+        };
+
+      std::string entry{};
+      while (std::getline(in, entry) and (entry.size() > 0)) {
+        result.push_back({});
+        std::cout << "\n" << std::quoted(entry);
+        for (int i = 0; i < entry.size(); ++i) {
+          auto ch = entry[i];
+          if (std::isdigit(ch)) {
+            std::cout << NT << "ch '" << ch << "' is digit " << ch;
+            result.back().push_back(ch);
+          }
+          else {
+            std::string_view at_i{ entry.begin() + i,entry.end() };
+            if (auto digit = to_digit(at_i)) {
+              std::cout << NT << std::quoted(at_i) << " is digit " << *digit;
+              result.back().push_back(*digit);
             }
-            if (digits.size()>0) {
-                auto [first,last] = std::pair<Digit,Digit>({digits[0],digits.back()});
-                std::cout << "\n\t== " << "[" << first << "," << last << "]";
-                Answer calibration_value = (first - '0')*10 + (last-'0');
-                std::cout << " calibration value " << calibration_value;
-                answer += calibration_value;
-            }
-            else {
-                std::cerr << "\nNo digits in entry " << std::quoted(entry);
-                break;
-            }
+          }
         }
-        return answer;
+      }
+      std::cout << NL << "result.size() = " << result.size();
+      return result;
+    }
+
+    Answer solve(auto const& input) {
+      Answer answer{ -1 };
+      std::istringstream in{ input };
+      auto model = part2::parse(in);
+
+      for (auto const& digits : model) {
+        if (digits.size() > 0) {
+          auto [first, last] = std::pair<Digit, Digit>({ digits[0],digits.back() });
+          std::cout << "\n\t== " << "[" << first << "," << last << "]";
+          Answer calibration_value = (first - '0') * 10 + (last - '0');
+          std::cout << " calibration value " << calibration_value;
+          answer += calibration_value;
+        }
+        else {
+          std::cerr << "\nNo digits in entry ";
+          break;
+        }
+      }
+      return answer;
     }
 }
-
 
 int main(int argc, const char * argv[]) {
     // auto part1_answer = part1::solve();
     // std::cout << "\nPart 1 = " << part1_answer;
-    auto part2_answer = part2::solve();
+    auto part2_answer = part2::solve(example);
     std::cout << "\nPart 2 = " << part2_answer;
     std::cout << "\nBYE :)\n";
     return 0;
 }
 
-namespace part2 {
 char const* example = R"(two1nine
 eightwothree
 abcone2threexyz
@@ -129,17 +143,8 @@ xtwone3four
 4nineeightseven2
 zoneight234
 7pqrstsixteen)";
-}
-
-namespace part1 {
-    char const* example = R"(two1nine
-eightwothree
-abcone2threexyz
-xtwone3four
-4nineeightseven2
-zoneight234
-7pqrstsixteen)";
-    char const* input = R"(threehqv2
+/*
+char const* puzzle = R"(threehqv2
 sxoneightoneckk9ldctxxnffqnzmjqvj
 1hggcqcstgpmg26lzxtltcgg
 nrhoneightkmrjkd7fivesixklvvfnmhsldrc
@@ -1139,4 +1144,4 @@ nine1ztqbs
 eightndxxqxtwo3cqz47
 fiveeight792eightqskstrftdpccsrgskrhc
 26fmrrhhpthree6b)";
-}
+*/
