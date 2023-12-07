@@ -26,7 +26,7 @@ auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = int; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
+using Integer = std::int_fast64_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
 template <typename Int>
 auto to_int(auto const& s) {
   if constexpr (std::is_convertible<Int, int>::value == true) {
@@ -74,7 +74,7 @@ auto parse(auto& in) {
       std::cout << NL << std::format("hand:{} bid:{}", result.back().hand, result.back().bid);
     }
   }
-  return result;
+  return result; // answer 251334749 too high
 }
 
 using Result = Integer;
@@ -227,7 +227,7 @@ int main(int argc, char* argv[])
       std::ifstream in{ argv[i] };
       if (in) {
         auto model = parse(in);
-        if (in) answers.push_back({ argv[i],part1::solve_for(model) });
+        answers.push_back({ argv[i],part1::solve_for(model) });
       }
       else answers.push_back({ std::string{"Failed to open file "} + argv[i],-1 });
     }
