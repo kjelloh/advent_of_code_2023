@@ -74,7 +74,7 @@ auto parse(auto& in) {
       std::cout << NL << std::format("hand:{} bid:{}", result.back().hand, result.back().bid);
     }
   }
-  return result; // answer 251334749 too high
+  return result;  // puzzle answer 251106089
 }
 
 using Result = Integer;
@@ -138,7 +138,9 @@ namespace part1 {
     for (auto const& card : hand) {
       if (card_counts[card] == 2) ++pair_counts[card];
     }
-    return (pair_counts.size() == 1) and card_counts.size()==3; // only one pair but three differect card types
+    auto result =  (pair_counts.size() == 1) and card_counts.size()==4; // only one pair but three differect card types
+    // std::cout << NL << std::format("One_Pair({}) = {}. pair_counts.size():{} card_counts.size():{}",hand,result, pair_counts.size(), card_counts.size());
+    return result;
   }
   bool High_card(Hand const& hand) // where all cards' labels are distinct: 23456
   {
@@ -166,6 +168,9 @@ namespace part1 {
     else if (Two_pair(hand)) result = RankType::Two_pair;
     else if (One_pair(hand)) result = RankType::One_pair;
     else if (High_card(hand)) result = RankType::High_card;
+    else {
+      std::cerr << NL << "ERROR: Failed to recognise type of hand " << std::quoted(hand);
+    }
     return (result!=RankType::undefined)?result:RankType::unknown;
    };
 
