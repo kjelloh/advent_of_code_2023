@@ -39,6 +39,7 @@ KK677 28
 KTJJT 220
 QQQJA 483)";
 using Hand = std::string;
+using Card = char;
 using Bid = Integer;
 struct Game {
   Hand hand{};
@@ -81,27 +82,102 @@ using Answers = std::vector<std::pair<std::string, Result>>;
 
 
 namespace part1 {
+
   std::string const CARDS{"AKQJT98765432"};
   enum class RankType {
     undefined
+      // Every hand is exactly one type. From strongest to weakest, they are:
+      ,Five_of_a_kind // where all five cards have the same label: AAAAA
+      ,Four_of_a_kind // where four cards have the same label and one card has a different label: AA8AA
+      ,Full_house // where three cards have the same label, and the remaining two cards share a different label: 23332
+      ,Three_of_a_kind // where three cards have the same label, and the remaining two cards are each different from any other card in the hand: TTT98
+      ,Two_pair // where two cards share one label, two other cards share a second label, and the remaining card has a third label: 23432
+      ,One_pair // where two cards share one label, and the other three cards have a different label from the pair and each other: A23A4
+      ,High_card // where all cards' labels are distinct: 23456
     , unknown
   };
-  auto to_rank(Hand const& hand) {
+  auto to_counted_cards(Hand const& hand) {
+    std::map<Card, Integer> result;
+    for (auto const& card : hand) {
+      ++result[card];
+    }
+    return result;
+  }
+  bool Five_of_a_kind(Hand const& hand) // where all five cards have the same label: AAAAA
+  {
+    return to_counted_cards(hand).size()==1;
+  }
+  bool Four_of_a_kind(Hand const& hand) // where four cards have the same label and one card has a different label: AA8AA
+  {
+    auto card_counts = to_counted_cards(hand);
+    return std::any_of(hand.begin(), hand.end(), [&card_counts](Card card) {return card_counts[card] == 4; });
+  }
+  bool Full_house(Hand const& hand) // where three cards have the same label, and the remaining two cards share a different label: 23332
+  {
+    auto card_counts = to_counted_cards(hand);
+    return std::any_of(hand.begin(), hand.end(), [&card_counts](Card card) {return card_counts[card] == 3; }) and card_counts.size()==2;
+  }
+  bool Three_of_a_kind(Hand const& hand) // where three cards have the same label, and the remaining two cards are each different from any other card in the hand: TTT98
+  {
+    auto card_counts = to_counted_cards(hand);
+    return std::any_of(hand.begin(), hand.end(), [&card_counts](Card card) {return card_counts[card] == 3; }) and card_counts.size() == 3;
+  }
+  bool Two_pair(Hand const& hand) // where two cards share one label, two other cards share a second label, and the remaining card has a third label: 23432
+  {
+    auto card_counts = to_counted_cards(hand);
+    std::map<Card, Integer> pair_counts{};
+    for (auto const& card : hand) {
+      if (card_counts[card] == 2) ++pair_counts[card];
+    }
+    return pair_counts.size() == 2;
+  }
+  bool One_pair(Hand const& hand) // where two cards share one label, and the other three cards have a different label from the pair and each other: A23A4
+  {
+    auto card_counts = to_counted_cards(hand);
+    std::map<Card, Integer> pair_counts{};
+    for (auto const& card : hand) {
+      if (card_counts[card] == 2) ++pair_counts[card];
+    }
+    return (pair_counts.size() == 1) and card_counts.size()==3; // only one pair but three differect card types
+  }
+  bool High_card(Hand const& hand) // where all cards' labels are distinct: 23456
+  {
+    auto card_counts = to_counted_cards(hand);
+    return card_counts.size()==5;
+  }
+
+  auto to_type(Hand const& hand) {
+    RankType result{ RankType::undefined };
     /*
-    *
+      Every hand is exactly one type. From strongest to weakest, they are:
+
+      Five of a kind, where all five cards have the same label: AAAAA
+      Four of a kind, where four cards have the same label and one card has a different label: AA8AA
+      Full house, where three cards have the same label, and the remaining two cards share a different label: 23332
+      Three of a kind, where three cards have the same label, and the remaining two cards are each different from any other card in the hand: TTT98
+      Two pair, where two cards share one label, two other cards share a second label, and the remaining card has a third label: 23432
+      One pair, where two cards share one label, and the other three cards have a different label from the pair and each other: A23A4
+      High card, where all cards' labels are distinct: 23456
     */
-    return RankType::undefined;
+    if (Five_of_a_kind(hand)) result = RankType::Five_of_a_kind;
+    else if (Four_of_a_kind(hand)) result = RankType::Four_of_a_kind;
+    else if (Full_house(hand)) result = RankType::Full_house;
+    else if (Three_of_a_kind(hand)) result = RankType::Three_of_a_kind;
+    else if (Two_pair(hand)) result = RankType::Two_pair;
+    else if (One_pair(hand)) result = RankType::One_pair;
+    else if (High_card(hand)) result = RankType::High_card;
+    return (result!=RankType::undefined)?result:RankType::unknown;
    };
 
-  auto to_rank(char card) {
+  auto to_weight(char card) {
     return CARDS.find(card);
   }
-  auto card_rank_compare(Hand const& first, Hand const& second) {
+  auto hand_weight_compare(Hand const& first, Hand const& second) {
     // If two hands have the same type, a second ordering rule takes effect.
     std::pair<int, int> rank{};
     for (int i = 0; i < first.size(); ++i) {
-      rank = { to_rank(first[i]),to_rank(second[i]) };
-      if (rank.first != rank.second) return (rank.first < rank.second);
+      rank = { to_weight(first[i]),to_weight(second[i]) };
+      if (rank.first != rank.second) return (rank.first > rank.second);
     }
     std::cerr << NL << std::format("card_rank_compare({},{}) failed - Hands have equal ranking {}", first, second, rank.first);
   };
@@ -110,16 +186,19 @@ namespace part1 {
     std::cout << NL << "<part1>";
     Result result{};
     Model sorted = model;
-    auto rank_compare = [](Hand const& first, Hand const& second) {
-      std::pair<RankType,RankType> rank{ to_rank(first),to_rank(second) };
+    auto hand_compare = [](Hand const& first, Hand const& second) {
+      std::pair<RankType,RankType> type{ to_type(first),to_type(second) };
       // Hands are primarily ordered based on type;
       // If two hands have the same type, a second ordering rule takes effect.
-      return (rank.first == rank.second) ? card_rank_compare(first,second) : rank.first < rank.second;
+      return (type.first == type.second) ? hand_weight_compare(first,second) : type.first > type.second;
       };
-    std::ranges::sort(sorted, rank_compare, [](Game const& game) {return game.hand;});
-    std::cout << NL << "<sorted games>";
-    for (auto const& game : sorted) {
-      std::cout << NT << std::format("hand:{} rank:{}", game.hand, static_cast<int>(to_rank(game.hand)));
+    std::ranges::sort(sorted, hand_compare, [](Game const& game) {return game.hand;});
+    std::cout << NL << std::format("Games sorted on hand ranking and card ranking {}",CARDS);    
+    for (auto const& [index,game] : sorted | std::views::enumerate) {
+      auto rank = index + 1;
+      auto winning = rank * game.bid;
+      std::cout << NT << std::format("hand:{} type:{} rank:{} bid:{} = winning:{}", game.hand, static_cast<int>(to_type(game.hand)),rank,game.bid,winning);
+      result += winning;
     }
     return result;
   }
