@@ -431,6 +431,7 @@ int main(int argc, char* argv[])
     std::istringstream in{example};
     auto model = parse(in);
     answers.push_back({ "Example",part1::solve_for(model)});
+    answers.push_back({ "Example",part2::solve_for(model) });
   }
   else for (int i = 0; i < argc; ++i) {
     std::cout << NL << "argv[" << i << "] : " << std::quoted(argv[i]);
@@ -438,7 +439,7 @@ int main(int argc, char* argv[])
       std::ifstream in{ argv[i] };
       if (in) {
         auto model = parse(in);
-        // answers.push_back({ argv[i],part1::solve_for(model) });
+        answers.push_back({ argv[i],part1::solve_for(model) });
         answers.push_back({ argv[i],part2::solve_for(model) });
       }
       else answers.push_back({ std::string{"Failed to open file "} + argv[i],-1 });
