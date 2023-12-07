@@ -520,11 +520,47 @@ Distance:  9  40  200)";
   }
 };
 
+template <>
+class Parser<7> {
+private:
+  using Integer = int;
+public:
+  char const* input = R"(32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483)";
+  using Hand = std::string;
+  using Bid = Integer;
+  struct Game {
+    Hand hand{};
+    Bid bid;
+  };
+  using Model = std::vector<Game>;
+  auto parse(auto& in) {
+    Model result{};
+    std::string line{};
+    while (std::getline(in, line)) {
+      result.push_back({});
+      auto mid = line.find(" ");
+      result.back().hand = line.substr(0, mid);
+      result.back().bid = std::stoi(line.substr(mid+1));
+      std::cout << NL << std::format("hand:{} bid:{}", result.back().hand, result.back().bid);
+    }
+    return result;
+  }
+  auto parse() {
+    std::istringstream in{ input };
+    return parse(in);
+  }
+};
+
+
 int main(int argc, char* argv[])
 {
   std::cout << NL << "Called with argc=" << argc << " arguments";
   for (int i = 0; i < argc; ++i) {
     std::cout << NT << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
-  auto model = Parser<6>{}.parse();
+  auto model = Parser<7>{}.parse();
 }
