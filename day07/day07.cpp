@@ -81,11 +81,45 @@ using Answers = std::vector<std::pair<std::string, Result>>;
 
 
 namespace part1 {
+  std::string const CARDS{"AKQJT98765432"};
+  enum class RankType {
+    undefined
+    , unknown
+  };
+  auto to_rank(Hand const& hand) {
+    /*
+    *
+    */
+    return RankType::undefined;
+   };
+
+  auto to_rank(char card) {
+    return CARDS.find(card);
+  }
+  auto card_rank_compare(Hand const& first, Hand const& second) {
+    // If two hands have the same type, a second ordering rule takes effect.
+    std::pair<int, int> rank{};
+    for (int i = 0; i < first.size(); ++i) {
+      rank = { to_rank(first[i]),to_rank(second[i]) };
+      if (rank.first != rank.second) return (rank.first < rank.second);
+    }
+    std::cerr << NL << std::format("card_rank_compare({},{}) failed - Hands have equal ranking {}", first, second, rank.first);
+  };
+
   Result solve_for(Model const& model) {
     std::cout << NL << "<part1>";
     Result result{};
-    for (auto const& game : model) {
-      std::cout << NT << std::format("hand:{} bid:{}", game.hand, game.bid);
+    Model sorted = model;
+    auto rank_compare = [](Hand const& first, Hand const& second) {
+      std::pair<RankType,RankType> rank{ to_rank(first),to_rank(second) };
+      // Hands are primarily ordered based on type;
+      // If two hands have the same type, a second ordering rule takes effect.
+      return (rank.first == rank.second) ? card_rank_compare(first,second) : rank.first < rank.second;
+      };
+    std::ranges::sort(sorted, rank_compare, [](Game const& game) {return game.hand;});
+    std::cout << NL << "<sorted games>";
+    for (auto const& game : sorted) {
+      std::cout << NT << std::format("hand:{} rank:{}", game.hand, static_cast<int>(to_rank(game.hand)));
     }
     return result;
   }
