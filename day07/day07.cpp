@@ -362,19 +362,38 @@ namespace part2 {
       if (hand[i] == 'J') joker_indicies.push_back(i);
     }
     if (joker_indicies.size()>0) {
-      std::cerr << NL << std::format("DESIGN INSUFFICIENCY: Hand {} contains {} joker(s) but search for best joker hand not yet implemented.",hand, joker_indicies.size());
-      auto permutations = generate_permutations(CARDS.begin(), CARDS.end(), joker_indicies.size());
-      Hand candidate{ hand };
-      // Apply the generated permutations to the hand
-      for (const auto& perm : permutations) {
-        std::cout << NT << "Candiate Jokers:" << std::quoted(perm);
-        for (int i = 0; i < perm.size(); ++i) {
-          candidate[joker_indicies[i]] = perm[i];
+      std::cerr << NL << std::format("Hand {} contains {} joker(s)",hand, joker_indicies.size());
+      if (joker_indicies.size() == 5) {
+        // Simply pick the known best hand!
+        result = "AAAAA";
+      }
+      else if (joker_indicies.size() == 4) {
+        // Simply make the hand a five-of-a-kind!
+        Card non_joker{};
+        for (auto card : result) {
+          if (card != 'J') {
+            non_joker = card;
+            break;
+          }
         }
-        std::cout << " candidate hand:" << std::quoted(candidate);
-        if (hand_compare(JokerHand{ hand,result },JokerHand{ hand,candidate })) {
-          std::cout << " BETTER!";
-          result = candidate;
+        for (int i = 0; i < joker_indicies.size(); ++i) {
+          result[joker_indicies[i]] = non_joker;
+        }
+      }
+      else {
+        auto permutations = generate_permutations(CARDS.begin(), CARDS.end(), joker_indicies.size());
+        Hand candidate{ hand };
+        // Apply the generated permutations to the hand
+        for (const auto& perm : permutations) {
+          std::cout << NT << "Candiate Jokers:" << std::quoted(perm);
+          for (int i = 0; i < perm.size(); ++i) {
+            candidate[joker_indicies[i]] = perm[i];
+          }
+          std::cout << " candidate hand:" << std::quoted(candidate);
+          if (hand_compare(JokerHand{ hand,result }, JokerHand{ hand,candidate })) {
+            std::cout << " BETTER!";
+            result = candidate;
+          }
         }
       }
     }
