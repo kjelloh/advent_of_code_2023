@@ -323,7 +323,7 @@ namespace part2 {
       std::cerr << NL << "ERROR: Failed to recognise type of hand " << std::quoted(hand);
     }
     result = (result != RankType::undefined) ? result : RankType::unknown;
-    std::cout << std::format(" to_type({}) = {}", hand, static_cast<int>(result));
+    // std::cout << std::format(" to_type({}) = {}", hand, static_cast<int>(result));
     return result;
   };
 
@@ -362,13 +362,13 @@ namespace part2 {
       if (hand[i] == 'J') joker_indicies.push_back(i);
     }
     if (joker_indicies.size()>0) {
-      std::cerr << NL << std::format("Hand {} contains {} joker(s)",hand, joker_indicies.size());
+      // std::cout << NL << std::format("Hand {} contains {} joker(s)",hand, joker_indicies.size());
       if (joker_indicies.size() == 5) {
         // Simply pick the known best hand!
         result = "AAAAA";
       }
       else if (joker_indicies.size() == 4) {
-        // Simply make the hand a five-of-a-kind!
+        // Simply make the hand into a five-of-a-kind = the best hand!
         Card non_joker{};
         for (auto card : result) {
           if (card != 'J') {
@@ -385,13 +385,13 @@ namespace part2 {
         Hand candidate{ hand };
         // Apply the generated permutations to the hand
         for (const auto& perm : permutations) {
-          std::cout << NT << "Candiate Jokers:" << std::quoted(perm);
+          // std::cout << NT << "Candiate Jokers:" << std::quoted(perm);
           for (int i = 0; i < perm.size(); ++i) {
             candidate[joker_indicies[i]] = perm[i];
           }
-          std::cout << " candidate hand:" << std::quoted(candidate);
+          // std::cout << " candidate hand:" << std::quoted(candidate);
           if (hand_compare(JokerHand{ hand,result }, JokerHand{ hand,candidate })) {
-            std::cout << " BETTER!";
+            // std::cout << " BETTER!";
             result = candidate;
           }
         }
@@ -418,7 +418,7 @@ namespace part2 {
       std::cout << NT << std::format("given:{} best:{} type:{} rank:{} bid:{} = winning:{}", game.hand.given,game.hand.best, static_cast<int>(to_type(game.hand.best)), rank, game.bid, winning);
       result += winning;
     }
-    return result;
+    return result; // 249620106
   }
 }
 
