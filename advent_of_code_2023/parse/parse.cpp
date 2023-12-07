@@ -1,4 +1,4 @@
-// This project is a study on parsing the input of advent of code 2023 puzzles
+// This project is a study on parsing the example of advent of code 2023 puzzles
 // created in visual studio 2022 professional
 
 #include <cctype>
@@ -44,7 +44,7 @@ namespace streams {
 template <int DAY>
 class Parser {
 public:
-  char const* input = R"()";
+  char const* example = R"()";
   using Model = int;
   auto parse(auto& in) {
     Model result{};
@@ -52,7 +52,7 @@ public:
     return result;
   }
   auto parse() {
-    std::istringstream in{ input };
+    std::istringstream in{ example };
     return parse(in);
   }
 };
@@ -64,7 +64,7 @@ public:
   using Digit = char;
   using Entry = std::vector<Digit>;
   using Model = std::vector<Entry>;
-  char const* input = R"(char const* example = R"(two1nine
+  char const* example = R"(char const* example = R"(two1nine
 eightwothree
 abcone2threexyz
 xtwone3four
@@ -72,7 +72,7 @@ xtwone3four
 zoneight234
 7pqrstsixteen)";
   auto parse() {
-    std::istringstream in{input};
+    std::istringstream in{example};
     return parse(in);
   }
 
@@ -167,7 +167,7 @@ private:
   }
 
 public:
-  char const* input = R"(Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+  char const* example = R"(Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
 Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
 Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
 Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
@@ -246,7 +246,7 @@ Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green)";
     return result;
   }
   auto parse() {
-    std::istringstream in{ input };
+    std::istringstream in{ example };
     return parse(in);
   }
 };
@@ -277,7 +277,7 @@ private:
     if (split.size() > 0) co_yield{ split };
   }
 public:
-  char const* input = R"(Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
+  char const* example = R"(Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
 Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
 Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
 Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
@@ -308,7 +308,7 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11)";
                 switch (index) {
                 case 0: result.back().second.first.insert(number); break;
                 case 1: result.back().second.second.insert(number); break;
-                default: std::cerr << NL << "Failed to parse input - More than one set of numbers found in card entry";
+                default: std::cerr << NL << "Failed to parse example - More than one set of numbers found in card entry";
                 }
               }
             }
@@ -320,7 +320,7 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11)";
     return result;
   }
   auto parse() {
-    std::istringstream in{ input };
+    std::istringstream in{ example };
     return parse(in);
   }
 };
@@ -377,7 +377,7 @@ private:
       return result;
     }
   private:
-    Category target_category;
+    Category target_category{};
     MapEntries entries{};
   };
   using Maps = std::map<Category, Map>;
@@ -387,7 +387,7 @@ private:
   };
 
 public:
-  char const* input = R"(seeds: 79 14 55 13
+  char const* example = R"(seeds: 79 14 55 13
 
 seed-to-soil map:
 50 98 2
@@ -461,7 +461,7 @@ humidity-to-location map:
     return result;
   }
   auto parse() {
-    std::istringstream in{ input };
+    std::istringstream in{ example };
     return parse(in);
   }
 };
@@ -469,7 +469,7 @@ humidity-to-location map:
 template <>
 class Parser<6> {
 public:
-  char const* input = R"(Time:      7  15   30
+  char const* example = R"(Time:      7  15   30
 Distance:  9  40  200)";
   using Integer = std::int64_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
   using Result = Integer;
@@ -515,17 +515,16 @@ Distance:  9  40  200)";
     return result;
   }
   auto parse() {
-    std::istringstream in{ input };
+    std::istringstream in{ example };
     return parse(in);
   }
 };
 
 template <>
 class Parser<7> {
-private:
-  using Integer = int;
 public:
-  char const* input = R"(32T3K 765
+  using Integer = int;
+  char const* example = R"(32T3K 765
 T55J5 684
 KK677 28
 KTJJT 220
@@ -534,23 +533,41 @@ QQQJA 483)";
   using Bid = Integer;
   struct Game {
     Hand hand{};
-    Bid bid;
+    Bid bid{};
   };
   using Model = std::vector<Game>;
+  template <class P = std::pair<std::string_view, std::string_view>>
+  auto to_pair(std::string_view const& text, auto const& delimiter) {
+    std::cout << NL << "to_pair(" << std::quoted(text) << ")";
+    auto mid = text.find(delimiter);
+    return P(text.substr(0, mid), text.substr(mid + 1)); // pair-constructable required ;, i.e., two member intiliazier list)
+  }
   auto parse(auto& in) {
     Model result{};
+    auto to_game = [](auto const& p) {
+      auto const& [first, second] = p;
+      return Game{ std::string{first},std::stoi(std::string{second}) };
+      };
     std::string line{};
     while (std::getline(in, line)) {
-      result.push_back({});
-      auto mid = line.find(" ");
-      result.back().hand = line.substr(0, mid);
-      result.back().bid = std::stoi(line.substr(mid+1));
-      std::cout << NL << std::format("hand:{} bid:{}", result.back().hand, result.back().bid);
+      if (true) {
+        // can we make a fancier parse?
+        auto game = to_game(to_pair<>(line,' '));
+        std::cout << T << std::format("hand:{} bid:{}", game.hand, game.bid);
+        result.push_back(game);
+      }
+      else {
+        result.push_back({});
+        auto mid = line.find(" ");
+        result.back().hand = line.substr(0, mid);
+        result.back().bid = std::stoi(line.substr(mid + 1));
+        std::cout << NL << std::format("hand:{} bid:{}", result.back().hand, result.back().bid);
+      }
     }
     return result;
   }
   auto parse() {
-    std::istringstream in{ input };
+    std::istringstream in{ example };
     return parse(in);
   }
 };
