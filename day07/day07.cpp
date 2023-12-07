@@ -211,6 +211,30 @@ namespace part1 {
 
 namespace part2 {
   std::string const CARDS{ "AKQT98765432J" };
+
+  // generate_permutations based on sugestion from ChatGPT 3
+  template <typename BidirIt>
+  std::vector<std::string> generate_permutations(BidirIt first, BidirIt last, int length) {
+    std::vector<std::string> result;
+
+    // Base case: empty string
+    if (length == 0) {
+      result.push_back("");
+      return result;
+    }
+
+    // Recursive case
+    for (BidirIt it = first; it != last; ++it) {
+      auto remaining_permutations = generate_permutations(first, last, length - 1);
+
+      for (const auto& perm : remaining_permutations) {
+        result.push_back(*it + perm);
+      }
+    }
+
+    return result;
+  }
+
   enum class RankType {
     undefined
     // Every hand is exactly one type. From strongest to weakest, they are:
@@ -298,33 +322,64 @@ namespace part2 {
     else {
       std::cerr << NL << "ERROR: Failed to recognise type of hand " << std::quoted(hand);
     }
-    return (result != RankType::undefined) ? result : RankType::unknown;
+    result = (result != RankType::undefined) ? result : RankType::unknown;
+    std::cout << std::format(" to_type({}) = {}", hand, static_cast<int>(result));
+    return result;
   };
 
   auto to_weight(char card) {
     return CARDS.find(card);
   }
-  auto hand_weight_compare(Hand const& first, Hand const& second) {
+  bool hand_weight_compare(Hand const& first, Hand const& second) {
+    // true if first is less-than second
     // If two hands have the same type, a second ordering rule takes effect.
     std::pair<int, int> rank{};
     for (int i = 0; i < first.size(); ++i) {
       rank = { to_weight(first[i]),to_weight(second[i]) };
-      if (rank.first != rank.second) return (rank.first > rank.second);
+      if (rank.first != rank.second) return (rank.first > rank.second); // Note that enums increase in value with lower "weight"
     }
-    std::cerr << NL << std::format("card_rank_compare({},{}) failed - Hands have equal ranking {}", first, second, rank.first);
+    return false; // equal is possible outcome when applying jokers
   };
-  Hand to_best_hand(Hand const& hand) {
-    Hand result{ hand };
-    // search hand for jokers and the permutate the jokers to get the best hand possible
-    if (hand.contains('J')) {
-      std::cerr << NL << std::format("DESIGN INSUFFICIENCY: Hand {} contains joker(s) but search for best joker hand not yet implemented.",hand);
-    }
-    return hand;
-  }
   struct JokerHand {
     Hand given{};
     Hand best{};
   };
+  bool hand_compare(JokerHand const& first, JokerHand const& second) {
+    // return true if first is less-than second
+    // For hands with jokers the hand type is based on the best possible hand
+    std::pair<RankType, RankType> type{ to_type(first.best),to_type(second.best) };
+    // Hands are primarily ordered based on type;
+    // If two hands have the same type, a second ordering rule takes effect.
+    // For hands with jokers the hand weight is still based on jokers being themselves
+    return (type.first == type.second) ? hand_weight_compare(first.given, second.given) : type.first > type.second;
+  };
+
+  Hand to_best_hand(Hand const& hand) {
+    Hand result{ hand };
+    // search hand for jokers and the permutate the jokers to get the best hand possible
+    std::vector<int> joker_indicies{};
+    for (int i = 0; i < hand.size(); ++i) {
+      if (hand[i] == 'J') joker_indicies.push_back(i);
+    }
+    if (joker_indicies.size()>0) {
+      std::cerr << NL << std::format("DESIGN INSUFFICIENCY: Hand {} contains {} joker(s) but search for best joker hand not yet implemented.",hand, joker_indicies.size());
+      auto permutations = generate_permutations(CARDS.begin(), CARDS.end(), joker_indicies.size());
+      Hand candidate{ hand };
+      // Apply the generated permutations to the hand
+      for (const auto& perm : permutations) {
+        std::cout << NT << "Candiate Jokers:" << std::quoted(perm);
+        for (int i = 0; i < perm.size(); ++i) {
+          candidate[joker_indicies[i]] = perm[i];
+        }
+        std::cout << " candidate hand:" << std::quoted(candidate);
+        if (hand_compare(JokerHand{ hand,result },JokerHand{ hand,candidate })) {
+          std::cout << " BETTER!";
+          result = candidate;
+        }
+      }
+    }
+    return result;
+  }
   struct JokerGame {
     JokerHand hand{};
     Bid bid{};
@@ -336,14 +391,6 @@ namespace part2 {
     std::transform(model.begin(), model.end(), std::back_inserter(sorted), [](Game const& game) {
       return JokerGame{ JokerHand{game.hand,to_best_hand(game.hand)},game.bid};
       });
-    auto hand_compare = [](JokerHand const& first, JokerHand const& second) {
-      // For hands with jokers the hand type is based on the best possible
-      std::pair<RankType, RankType> type{ to_type(first.best),to_type(second.best) };
-      // Hands are primarily ordered based on type;
-      // If two hands have the same type, a second ordering rule takes effect.
-      // For hands with jokers the hand weight is still based on jokers being themselves
-      return (type.first == type.second) ? hand_weight_compare(first.given, second.given) : type.first > type.second;
-      };
     std::ranges::sort(sorted, hand_compare, [](JokerGame const& game) {return game.hand; });
     std::cout << NL << std::format("Games sorted on hand ranking and card ranking {}", CARDS);
     for (auto const& [index, game] : sorted | std::views::enumerate) {
