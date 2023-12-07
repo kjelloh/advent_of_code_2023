@@ -20,38 +20,80 @@
 #include <experimental/generator> // supported by visual studio 2022 17.8.2 with project setting/compiler switch /std:c++latest
 #include <format>
 #include <optional>
+#include <type_traits> // E.g., std::is_convertible
 
 auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = std::int64_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
-using Result = Integer;
-using Answers = std::vector<std::pair<std::string, Result>>;
-
-using Model = std::vector<std::string>;
-
-Model parse(auto& in) {
+using Integer = int; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
+template <typename Int>
+auto to_int(auto const& s) {
+  if constexpr (std::is_convertible<Int, int>::value == true) {
+    return std::stoi(std::string{s});
+    }
+}
+char const* example = R"(32T3K 765
+T55J5 684
+KK677 28
+KTJJT 220
+QQQJA 483)";
+using Hand = std::string;
+using Bid = Integer;
+struct Game {
+  Hand hand{};
+  Bid bid{};
+};
+using Model = std::vector<Game>;
+template <class P = std::pair<std::string_view, std::string_view>>
+auto to_pair(std::string_view const& text, auto const& delimiter) {
+  std::cout << NL << "to_pair(" << std::quoted(text) << ")";
+  auto mid = text.find(delimiter);
+  return P(text.substr(0, mid), text.substr(mid + 1)); // pair-constructable required ;, i.e., two member intiliazier list)
+}
+auto parse(auto& in) {
   Model result{};
+  auto to_game = [](auto const& p) {
+    auto const& [first, second] = p;
+    return Game{ std::string{first},to_int<Bid>(std::string{second}) };
+    };
   std::string line{};
   while (std::getline(in, line)) {
-    result.push_back(line);
+    if (true) {
+      // can we make a fancier parse?
+      auto game = to_game(to_pair<>(line, ' '));
+      std::cout << T << std::format("hand:{} bid:{}", game.hand, game.bid);
+      result.push_back(game);
+    }
+    else {
+      result.push_back({});
+      auto mid = line.find(" ");
+      result.back().hand = line.substr(0, mid);
+      result.back().bid = std::stoi(line.substr(mid + 1));
+      std::cout << NL << std::format("hand:{} bid:{}", result.back().hand, result.back().bid);
+    }
   }
   return result;
 }
 
+using Result = Integer;
+using Answers = std::vector<std::pair<std::string, Result>>;
+
+
 namespace part1 {
-  Result solve_for(auto& in) {
+  Result solve_for(Model const& model) {
+    std::cout << NL << "<part1>";
     Result result{};
-    auto data_model = parse(in);
+    for (auto const& game : model) {
+      std::cout << NT << std::format("hand:{} bid:{}", game.hand, game.bid);
+    }
     return result;
   }
 }
 
 namespace part2 {
-  Result solve_for(auto& in) {
+  Result solve_for(Model const& model) {
     Result result{};
-    auto data_model = parse(in);
     return result;
   }
 }
@@ -60,11 +102,20 @@ int main(int argc, char* argv[])
 {
   Answers answers{};
   std::cout << NL << "argc : " << argc;
-  for (int i = 0; i < argc; ++i) {
+  if (argc == 1) {
+    std::cout << NL << "no data file provided ==> WIll use hard coded example input";
+    std::istringstream in{example};
+    auto model = parse(in);
+    answers.push_back({ "Example",part1::solve_for(model)});
+  }
+  else for (int i = 0; i < argc; ++i) {
     std::cout << NL << "argv[" << i << "] : " << std::quoted(argv[i]);
     if (i > 0) {
       std::ifstream in{ argv[i] };
-      if (in) answers.push_back({ argv[i],part1::solve_for(in) });
+      if (in) {
+        auto model = parse(in);
+        if (in) answers.push_back({ argv[i],part1::solve_for(model) });
+      }
       else answers.push_back({ std::string{"Failed to open file "} + argv[i],-1 });
     }
   }
