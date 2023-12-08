@@ -46,7 +46,7 @@ namespace ranges {
   // And each string fed to transform splits each such string into a pair.
   // The resulting range is then a range of pairs?
 
-    auto keyValuePairs = std::views::split(input, '&') |
+    auto keyValuePairs = std::views::split(example, '&') |
       std::views::transform([](auto&& range) {
       return splitOn('=', range);
         });
@@ -592,7 +592,7 @@ QQQJA 483)";
 template <>
 class Parser<8> {
 public:
-  char const* input = R"(RL
+  char const* example = R"(RL
 
 AAA = (BBB, CCC)
 BBB = (DDD, EEE)
@@ -611,10 +611,10 @@ ZZZ = (ZZZ, ZZZ))";
     std::string turns{};
     AdjList adj{};
   };
-  auto parse(auto& input) {
+  auto parse(auto& example) {
     Model result{};
     std::string line;
-    std::getline(input, line);
+    std::getline(example, line);
     result.turns = line;
     std::cout << NL << "turns:" << std::quoted(result.turns);
 
@@ -622,7 +622,7 @@ ZZZ = (ZZZ, ZZZ))";
     std::regex pattern(R"(\s*(\w+)\s*=\s*\((\w+),\s*(\w+)\)\s*)");
 
     // Iterating over matches
-    while (std::getline(input, line)) {
+    while (std::getline(example, line)) {
       std::smatch match;
       if (std::regex_match(line, match, pattern)) {
         std::string key = match[1].str();
@@ -639,7 +639,7 @@ ZZZ = (ZZZ, ZZZ))";
     }    return result;
   }
   auto parse() {
-    std::istringstream in{ input };
+    std::istringstream in{ example };
     return parse(in);
   }
 };
