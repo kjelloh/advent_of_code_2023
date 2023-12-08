@@ -91,9 +91,9 @@ int main(int argc, char *argv[])
         part1_answer = { std::string{"Failed to open file "} + argv[i],-1 };
         part2_answer = { std::string{"Failed to open file "} + argv[i],-1 };
       }
+      solution.part1.push_back(part1_answer);
+      solution.part2.push_back(part2_answer);
     }
-    solution.part1.push_back(part1_answer);
-    solution.part2.push_back(part2_answer);
   }
   std::cout << NL << NL << "------------ REPORT----------------";
   std::cout << NL << "<Part 1>";

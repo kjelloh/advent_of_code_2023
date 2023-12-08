@@ -84,6 +84,20 @@ auto parse(auto& in) {
 namespace part1 {
   Result solve_for(Model& model) {
     Result result{};
+    // Traverse the graph according to the turns string until we reach the ZZZ-node
+    Node end{"ZZZ"};
+    Node current{ "AAA" };
+    int step_ix{ 0 };
+    Result count{ 0 };
+    while (current != end) {
+      auto turn = model.turns[step_ix];
+      auto next = (turn == 'R') ? model.adj[current].right : model.adj[current].left;
+      std::cout << NT << std::format("step:{} at:{} turn:{} --> next:{}",step_ix,current,turn,next);
+      current = next;
+      step_ix = (step_ix == model.turns.size()-1) ? 0 : ++step_ix;
+      ++count;
+    }
+    result = count;
     return result;
   }
 }
@@ -123,9 +137,9 @@ int main(int argc, char *argv[])
         part1_answer = { std::string{"Failed to open file "} + argv[i],-1 };
         part2_answer = { std::string{"Failed to open file "} + argv[i],-1 };
       }
+      solution.part1.push_back(part1_answer);
+      solution.part2.push_back(part2_answer);
     }
-    solution.part1.push_back(part1_answer);
-    solution.part2.push_back(part2_answer);
   }
   std::cout << NL << NL << "------------ REPORT----------------";
   std::cout << NL << "<Part 1>";
