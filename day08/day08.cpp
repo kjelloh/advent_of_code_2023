@@ -90,15 +90,15 @@ namespace part1 {
     int step_ix{ 0 };
     Result count{ 0 };
     while (current != end) {
+      ++count;
       auto turn = model.turns[step_ix];
       auto next = (turn == 'R') ? model.adj[current].right : model.adj[current].left;
-      std::cout << NT << std::format("step:{} at:{} turn:{} --> next:{}",step_ix,current,turn,next);
+      std::cout << NT << std::format("step:{} at:{} turn[{}]:{} --> next:{}",count,current,step_ix,turn,next);
       current = next;
       step_ix = (step_ix == model.turns.size()-1) ? 0 : ++step_ix;
-      ++count;
     }
     result = count;
-    return result;
+    return result; // 12361
   }
 }
 
