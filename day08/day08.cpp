@@ -116,18 +116,23 @@ namespace part2 {
     Node current;
     int step_ix{ 0 };
     int ghost_ix;
+    using State = std::pair<int, Node>;
+    std::set<State> visited{};
+    bool at_end{};
     bool operator++() {
-      auto turn = model.turns[step_ix];
-      auto next = (turn == 'R') ? model.adj.at(current).right : model.adj.at(current).left;
-      current = next;
-      step_ix = (step_ix == model.turns.size() - 1) ? 0 : ++step_ix;
-      auto result = is_end(current);
-      if (result) {
-        // std::cout << NL << std::format("ghosts[{}] at end:{}",ghost_ix,current);
+      if (visited.contains({ step_ix,current })) {
+        at_end = true; // Break on coming back to a previously visitided node
       }
-      return result;
+      else {
+        visited.insert({ step_ix,current });
+        auto turn = model.turns[step_ix];
+        auto next = (turn == 'R') ? model.adj.at(current).right : model.adj.at(current).left;
+        current = next;
+        step_ix = (step_ix == model.turns.size() - 1) ? 0 : ++step_ix;
+        at_end = is_end(current);
+      }
+      return at_end;
     }
-    bool at_end() const { return is_end(current); }
   };
   using Ghosts = std::vector<Ghost>;
   Result solve_for(Model& model) {
@@ -143,14 +148,14 @@ namespace part2 {
     }
     Result count{ 0 };
     while (std::any_of(ghosts.begin(), ghosts.end(), [&count](Ghost& ghost) {
-      auto result = !ghost.at_end();
+      auto result = !ghost.at_end;
       if (result) {
         std::cout << NL << std::format("at step:{} Ghost:{} is at node:{} = NOT END", count, ghost.ghost_ix, ghost.current);
       }
       return result;
       })) {
       int ghost_not_at_end_count{};
-      std::for_each(ghosts.begin(), ghosts.end(), [&ghost_not_at_end_count](Ghost& ghost) {++ghost; if (!ghost.at_end()) ++ghost_not_at_end_count; });
+      std::for_each(ghosts.begin(), ghosts.end(), [&ghost_not_at_end_count](Ghost& ghost) {++ghost; if (!ghost.at_end) ++ghost_not_at_end_count; });
       std::cout << std::format(" ghost_not_at_end_count:{}", ghost_not_at_end_count);
       ++count;
     }
