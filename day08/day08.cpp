@@ -103,8 +103,55 @@ namespace part1 {
 }
 
 namespace part2 {
+  bool is_start(Node const& node) {
+    return node.back() == 'A';
+  }
+  bool is_end(Node const& node) {
+    return node.back() == 'Z';
+  }
+  struct Ghost {
+    static inline int ghost_count{ 0 };
+    Ghost(Model const& model, Node current) : model{ model }, current{ current }, ghost_ix{++ghost_count} {}
+    Model const& model;
+    Node current;
+    int step_ix{ 0 };
+    int ghost_ix;
+    bool operator++() {
+      auto turn = model.turns[step_ix];
+      auto next = (turn == 'R') ? model.adj.at(current).right : model.adj.at(current).left;
+      current = next;
+      step_ix = (step_ix == model.turns.size() - 1) ? 0 : ++step_ix;
+      auto result = is_end(current);
+      if (result) {
+        // std::cout << NL << std::format("ghosts[{}] at end:{}",ghost_ix,current);
+      }
+      return result;
+    }
+  };
+  using Ghosts = std::vector<Ghost>;
   Result solve_for(Model& model) {
     Result result{};
+    Ghosts ghosts{};
+    for (auto const& entry : model.adj) {
+      if (is_start(entry.first)) {
+        std::cout << NT << std::format("START {}", entry.first);
+        ghosts.push_back({model,entry.first});
+      }
+      else if (is_end(entry.first)) std::cout << NT << std::format("{} END", entry.first);
+      else std::cout << NL << std::format("{}", entry.first);
+    }
+    Result count{ 0 };
+    while (std::any_of(ghosts.begin(), ghosts.end(), [&count](Ghost& ghost) {
+      auto result = is_end(ghost.current) == false;
+      if (result) {
+        std::cout << NL << std::format("at step:{} Ghost:{} is at node:{} = NOT END", count, ghost.ghost_ix, ghost.current);
+      }
+      return result;
+      })) {
+      std::for_each(ghosts.begin(), ghosts.end(), [](Ghost& ghost) {++ghost; });
+      ++count;
+    }
+    result = count;
     return result;
   }
 }
@@ -116,12 +163,12 @@ int main(int argc, char *argv[])
   Answer part1_answer{"Failed to obtain any input",0};
   Answer part2_answer{ "Failed to obtain any input",0 };
   if (argc == 1) {
-    std::cout << NL << "no data file provided ==> WIll use hard coded example input";
+    std::cout << NL << "no data file provided ==> Will use hard coded example input";
     std::istringstream in{ example };
     auto model = parse(in);
-    part1_answer = { "Example",part1::solve_for(model)};
+    // part1_answer = { "Example",part1::solve_for(model)};
     part2_answer = { "Example",part2::solve_for(model)};
-    solution.part1.push_back(part1_answer);
+    // solution.part1.push_back(part1_answer);
     solution.part2.push_back(part2_answer);
   }
   else for (int i = 0; i < argc; ++i) {
@@ -130,14 +177,14 @@ int main(int argc, char *argv[])
       std::ifstream in{ argv[i] };
       if (in) {
         auto model = parse(in);
-        part1_answer = {argv[i],part1::solve_for(model)};
+        // part1_answer = {argv[i],part1::solve_for(model)};
         part2_answer = { argv[i],part2::solve_for(model) };
       }
       else {
-        part1_answer = { std::string{"Failed to open file "} + argv[i],-1 };
+        // part1_answer = { std::string{"Failed to open file "} + argv[i],-1 };
         part2_answer = { std::string{"Failed to open file "} + argv[i],-1 };
       }
-      solution.part1.push_back(part1_answer);
+      // solution.part1.push_back(part1_answer);
       solution.part2.push_back(part2_answer);
     }
   }
