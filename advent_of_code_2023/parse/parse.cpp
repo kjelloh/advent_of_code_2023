@@ -10,6 +10,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <unordered_map>
 #include <stack>
 #include <queue>
 #include <deque>
@@ -29,6 +30,103 @@ auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
+namespace regex {
+
+  template <int DAY>
+  class Parser {
+  public:
+    char const* example = R"()";
+    using Model = int;
+    auto parse(auto& in) {
+      Model result{};
+      std::cerr << NL << "No parser defined for DAY " << DAY;
+      return result;
+    }
+    auto parse() {
+      std::istringstream in{ example };
+      return parse(in);
+    }
+  };
+
+  template <>
+  class Parser<8> {
+  public:
+    char const* example = R"(RL
+
+AAA = (BBB, CCC)
+BBB = (DDD, EEE)
+CCC = (ZZZ, GGG)
+DDD = (DDD, DDD)
+EEE = (EEE, EEE)
+GGG = (GGG, GGG)
+ZZZ = (ZZZ, ZZZ))";
+    using Node = std::string;
+    struct LRNodes {
+      Node left;
+      Node right;
+    };
+    using AdjList = std::map<Node, LRNodes>;
+    struct Model {
+      std::string turns{};
+      AdjList adj{};
+    };
+    auto parse(auto& example) {
+      Model result{};
+      std::string line;
+      std::getline(example, line);
+      result.turns = line;
+      std::cout << NL << "turns:" << std::quoted(result.turns);
+
+      // Regular expression pattern for parsing adjacent node list
+      // std::regex pattern(R"(\s*(\w+)\s*=\s*\((\w+),\s*(\w+)\)\s*)");
+      std::regex pattern(R"((\w+)\s*=\s*\(([^)]+)\))");
+      /*
+      The regular expression pattern used in the code is designed to match lines in the input text that contain variable assignments with their relationships. Let's break down the components of the pattern:
+
+      (\w+): This part captures one or more word characters (alphanumeric characters and underscores). This corresponds to the variable name on the left side of the assignment.
+      \s*=\s*: This part matches the equals sign (=) with optional whitespace characters (\s*) before and after it. This allows for flexibility in the formatting of the assignment.
+      \(([^)]+)\): This part captures the contents within parentheses. Here's the breakdown:
+      \(: Matches an opening parenthesis.
+      ([^)]+): This is a capturing group that matches one or more characters that are not a closing parenthesis ([^)]+). This captures the comma-separated relationships within the parentheses.
+      \): Matches a closing parenthesis.
+      Putting it all together, the entire pattern matches lines in the form "VariableName = (Relationship1, Relationship2, ...)" and captures the variable name and its relationships.
+
+      Here's an example of how the pattern matches a line:
+
+      AAA = (BBB, CCC)
+
+      Match 1 (the entire match): AAA = (BBB, CCC)
+      Submatch 1 (variable name): AAA
+      Submatch 2 (relationships): BBB, CCC
+      The code then extracts the variable name and tokenizes the relationships into a vector.      */
+
+
+      // Iterating over matches
+      while (std::getline(example, line)) {
+        std::smatch match;
+        if (std::regex_match(line, match, pattern)) {
+          std::string key = match[1].str();
+          std::string value1 = match[2].str();
+          std::string value2 = match[3].str();
+
+          result.adj[key] = { value1, value2 };
+        }
+      }
+
+      // Printing the result
+      for (const auto& entry : result.adj) {
+        std::cout << NL << std::quoted(entry.first) << " --> left:" << std::quoted(entry.second.left) << ", right:" << std::quoted(entry.second.right);
+      }    return result;
+    }
+    auto parse() {
+      std::istringstream in{ example };
+      return parse(in);
+    }
+  };
+
+
+
+}
 namespace combinators {
 
 }
@@ -40,17 +138,23 @@ namespace coroutes {
 namespace ranges {
   // How can we parse with ranges?
 
-  /*
-  // It seems we can use views::transform to introduce a new level into generated structure?
-  // In the proposed example below the "split" creates a range of strings.
-  // And each string fed to transform splits each such string into a pair.
-  // The resulting range is then a range of pairs?
+  template <int DAY>
+  class Parser {
+  public:
+    char const* example = R"()";
+    using Model = int;
+    auto parse(auto& in) {
+      Model result{};
+      std::cerr << NL << "No parser defined for DAY " << DAY;
+      return result;
+    }
+    auto parse() {
+      std::istringstream in{ example };
+      return parse(in);
+    }
+  };
 
-    auto keyValuePairs = std::views::split(example, '&') |
-      std::views::transform([](auto&& range) {
-      return splitOn('=', range);
-        });
-  */
+
 
 }
 namespace streams {
@@ -652,5 +756,5 @@ int main(int argc, char* argv[])
   for (int i = 0; i < argc; ++i) {
     std::cout << NT << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
-  auto model = Parser<8>{}.parse();
+  auto model = regex::Parser<8>{}.parse();
 }
