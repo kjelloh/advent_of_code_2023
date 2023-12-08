@@ -111,56 +111,136 @@ namespace part2 {
   }
   struct Ghost {
     static inline int ghost_count{ 0 };
-    Ghost(Model const& model, Node current) : model{ model }, current{ current }, ghost_ix{++ghost_count} {}
+    Ghost(Model const& model, Node start) : model{ model }, current{ start }, ghost_ix{ ghost_count++ } { path.push_back(start); }
     Model const& model;
     Node current;
     int step_ix{ 0 };
     int ghost_ix;
-    using State = std::pair<int, Node>;
-    std::set<State> visited{};
-    bool at_end{};
+    using State = std::pair<Result, Node>;
+    std::map<State,std::vector<Result>> steps{}; // Record the steps each time we reach the same state
+    bool full_cycle{false};
+    Result step_count{ 0 };
+    struct Cycle {
+      Result offset{};
+      Result length{};
+    };
+    Cycle cycle{};
+    std::vector<Node> path{};
     bool operator++() {
-      if (visited.contains({ step_ix,current })) {
-        at_end = true; // Break on coming back to a previously visitided node
-      }
-      else {
-        visited.insert({ step_ix,current });
+      // We expect to step through one or more potential end nodes.
+      // We also expect to come back to one of these at some point (we expect a cycle)
+      // But we do not know where the cycle starts if there are several possible end nodes on our path.
+      static int call_count;
+      if (!full_cycle) {
+        ++step_count;
+        if (call_count++ % 10000 == 0) std::cout << NL << std::format("step:{} ghost:{}", step_count, ghost_ix);
         auto turn = model.turns[step_ix];
+        // Next
         auto next = (turn == 'R') ? model.adj.at(current).right : model.adj.at(current).left;
-        current = next;
+        // std::cout << std::format(" turn:{} current:{} --> next:{}",ghost_ix,turn,current,next);
         step_ix = (step_ix == model.turns.size() - 1) ? 0 : ++step_ix;
-        at_end = is_end(current);
+        current = next;
+        path.push_back(current);
+        State current_state{ step_ix,current };
+        if (is_end(current)) {
+          std::cout << std::format(" Candidate end state step_ix:{} pushed steps:{}", step_ix,step_count);
+          steps[current_state].push_back(step_count);
+        }
+        full_cycle = steps.contains(current_state) and steps[current_state].size() == 2; // We came here two times
+        if (full_cycle) {
+          // We now know that we have made a full cycle back to to the current state (which is also and end state)
+          // The offset is the number of steps it took us to reach this state the first time
+          // The cycle is the number of steps until we came back again!
+          cycle.offset = steps[current_state][0];
+          cycle.length = steps[current_state][1] - cycle.offset;
+        }
       }
-      return at_end;
+      return full_cycle;
     }
   };
   using Ghosts = std::vector<Ghost>;
+  
+  // Least Common Multiplier of a vector of integer T:s
+  template <typename T>
+  T lcm(std::vector<T> numbers) {
+    if (numbers.empty()) {
+      // Handle the case when the vector is empty
+      return 0;
+    }
+    // Use std::accumulate with std::lcm to find the LCM of all numbers
+    // NOTE: std::accumulate returns the type of provided initial value (important to provide T{ 1 } and not literal '1' which have a much smaller int type)
+    auto result = std::accumulate(numbers.begin(), numbers.end(), T{ 1 }, [](T acc, T val) {
+      auto result = std::lcm(acc, val);
+      return result;
+      });
+    return result;
+  }
+
   Result solve_for(Model& model) {
     Result result{};
     Ghosts ghosts{};
     for (auto const& entry : model.adj) {
       if (is_start(entry.first)) {
-        std::cout << NT << std::format("START {}", entry.first);
         ghosts.push_back({model,entry.first});
       }
-      else if (is_end(entry.first)) std::cout << NT << std::format("{} END", entry.first);
-      else std::cout << NL << std::format("{}", entry.first);
     }
-    Result count{ 0 };
-    while (std::any_of(ghosts.begin(), ghosts.end(), [&count](Ghost& ghost) {
-      auto result = !ghost.at_end;
-      if (result) {
-        std::cout << NL << std::format("at step:{} Ghost:{} is at node:{} = NOT END", count, ghost.ghost_ix, ghost.current);
-      }
-      return result;
-      })) {
-      int ghost_not_at_end_count{};
-      std::for_each(ghosts.begin(), ghosts.end(), [&ghost_not_at_end_count](Ghost& ghost) {++ghost; if (!ghost.at_end) ++ghost_not_at_end_count; });
-      std::cout << std::format(" ghost_not_at_end_count:{}", ghost_not_at_end_count);
-      ++count;
+    while (std::any_of(ghosts.begin(), ghosts.end(), [](Ghost& ghost) {return (ghost.full_cycle==false); })) {
+      // For each ghost it takes some initial steps to reach its first end-node. We can call this the initial offset
+      // Then, for each ghost it takes some other number of steps to come back to its start state. This is the cycle length for this ghost to wrap-around and repeat its path of nodes
+      // Given these two parameters for each ghost we can calculate how many steps is required for all ghosts to reach their end states at the same time.
+      std::for_each(ghosts.begin(), ghosts.end(), [](auto& ghost) {++ghost; });
     }
-    result = count;
-    return result;
+
+    std::vector<Result> cycleLengths{};
+    std::vector<Result> initialOffsets{};
+    for (auto const& ghost : ghosts) {
+      std::cout << NT << std::format("ghost:{} cycle:(offset:{},length:{})",ghost.ghost_ix,ghost.cycle.offset,ghost.cycle.length);
+      // std::cout << NT << "path:";
+      // for (auto const& node : ghost.path) std::cout << " " << node;
+      initialOffsets.push_back(ghost.cycle.offset);
+      cycleLengths.push_back(ghost.cycle.length);
+    }
+
+    auto cyclesLCM = lcm(cycleLengths);
+    std::cout << NL << std::format("All ghosts share the overall cycle of {} steps", cyclesLCM);
+    auto offsetsLCM = lcm(initialOffsets);
+    std::cout << NL << std::format("the LCM of all ghost initial offset to cycled end node is {} steps ", offsetsLCM);
+    auto overallLCM = std::lcm(offsetsLCM, cyclesLCM);
+    std::cout << NL << std::format("the LCM of all offsets and cycles is {} steps ", overallLCM);
+    if (offsetsLCM <= overallLCM) {
+      std::cout << NL << std::format("all ghosts should be be at an end-node after {} steps", overallLCM);
+    }
+    else {
+      std::cerr << NL << std::format("ERROR: There seems to be no way to have the offsets with LCM {} to line up within overall cycle LCM {}?", offsetsLCM, overallLCM);
+    }
+
+    /* For part 2 example
+    * 
+      Candidate end state step_ix:1 pushed steps:9
+              ghost:0 cycle:(offset:2,length:2)
+              ghost:1 cycle:(offset:3,length:6)
+      All ghosts share the overall cycle of 6 steps
+      the LCM of all ghost initial offset to cycled end node is 6 steps
+      the LCM of all offsets and cycles is 6 steps
+      all ghosts should be be at an end-node after 6 steps
+    */
+
+    /* For part puzzle input
+              ghost:0 cycle:(offset:12361,length:12361)
+              ghost:1 cycle:(offset:20777,length:20777)
+              ghost:2 cycle:(offset:16043,length:16043)
+              ghost:3 cycle:(offset:19199,length:19199)
+              ghost:4 cycle:(offset:18673,length:18673)
+              ghost:5 cycle:(offset:15517,length:15517)
+      All ghosts share the overall cycle of 18215611419223 steps
+      the LCM of all ghost initial offset to cycled end node is 18215611419223 steps
+      the LCM of all offsets and cycles is 18215611419223 steps
+      all ghosts should be be at an end-node after 18215611419223 steps
+    */
+
+    result = overallLCM;
+
+    return result; // 18 215 611 419 223
   }
 }
 
