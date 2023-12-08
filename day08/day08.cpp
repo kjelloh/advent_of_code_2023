@@ -127,6 +127,7 @@ namespace part2 {
       }
       return result;
     }
+    bool at_end() const { return is_end(current); }
   };
   using Ghosts = std::vector<Ghost>;
   Result solve_for(Model& model) {
@@ -142,13 +143,15 @@ namespace part2 {
     }
     Result count{ 0 };
     while (std::any_of(ghosts.begin(), ghosts.end(), [&count](Ghost& ghost) {
-      auto result = is_end(ghost.current) == false;
+      auto result = !ghost.at_end();
       if (result) {
         std::cout << NL << std::format("at step:{} Ghost:{} is at node:{} = NOT END", count, ghost.ghost_ix, ghost.current);
       }
       return result;
       })) {
-      std::for_each(ghosts.begin(), ghosts.end(), [](Ghost& ghost) {++ghost; });
+      int ghost_not_at_end_count{};
+      std::for_each(ghosts.begin(), ghosts.end(), [&ghost_not_at_end_count](Ghost& ghost) {++ghost; if (!ghost.at_end()) ++ghost_not_at_end_count; });
+      std::cout << std::format(" ghost_not_at_end_count:{}", ghost_not_at_end_count);
       ++count;
     }
     result = count;
