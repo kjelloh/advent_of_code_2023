@@ -111,7 +111,7 @@ namespace part2 {
   }
   struct Ghost {
     static inline int ghost_count{ 0 };
-    Ghost(Model const& model, Node start) : model{ model }, current{ start }, ghost_ix{ ghost_count++ } { path.push_back(start); }
+    Ghost(Model const& model, Node start) : model{ model }, current{ start }, ghost_ix{ ghost_count++ } {}
     Model const& model;
     Node current;
     int step_ix{ 0 };
@@ -125,25 +125,24 @@ namespace part2 {
       Result length{};
     };
     Cycle cycle{};
-    std::vector<Node> path{};
     bool operator++() {
       // We expect to step through one or more potential end nodes.
       // We also expect to come back to one of these at some point (we expect a cycle)
       // But we do not know where the cycle starts if there are several possible end nodes on our path.
       static int call_count;
+      bool do_log(call_count++ % 10000 == 0);
       if (!full_cycle) {
         ++step_count;
-        if (call_count++ % 10000 == 0) std::cout << NL << std::format("step:{} ghost:{}", step_count, ghost_ix);
+        if (do_log) std::cout << NL << std::format("step:{} ghost:{}", step_count, ghost_ix);
         auto turn = model.turns[step_ix];
         // Next
         auto next = (turn == 'R') ? model.adj.at(current).right : model.adj.at(current).left;
         // std::cout << std::format(" turn:{} current:{} --> next:{}",ghost_ix,turn,current,next);
         step_ix = (step_ix == model.turns.size() - 1) ? 0 : ++step_ix;
         current = next;
-        path.push_back(current);
         State current_state{ step_ix,current };
         if (is_end(current)) {
-          std::cout << std::format(" Candidate end state step_ix:{} pushed steps:{}", step_ix,step_count);
+          if (do_log) std::cout << std::format(" Candidate end state step_ix:{} pushed steps:{}", step_ix,step_count);
           steps[current_state].push_back(step_count);
         }
         full_cycle = steps.contains(current_state) and steps[current_state].size() == 2; // We came here two times
@@ -169,10 +168,7 @@ namespace part2 {
     }
     // Use std::accumulate with std::lcm to find the LCM of all numbers
     // NOTE: std::accumulate returns the type of provided initial value (important to provide T{ 1 } and not literal '1' which have a much smaller int type)
-    auto result = std::accumulate(numbers.begin(), numbers.end(), T{ 1 }, [](T acc, T val) {
-      auto result = std::lcm(acc, val);
-      return result;
-      });
+    auto result = std::accumulate(numbers.begin(), numbers.end(), T{ 1 }, [](T acc, T val) {return std::lcm(acc, val);;});
     return result;
   }
 
@@ -195,8 +191,6 @@ namespace part2 {
     std::vector<Result> initialOffsets{};
     for (auto const& ghost : ghosts) {
       std::cout << NT << std::format("ghost:{} cycle:(offset:{},length:{})",ghost.ghost_ix,ghost.cycle.offset,ghost.cycle.length);
-      // std::cout << NT << "path:";
-      // for (auto const& node : ghost.path) std::cout << " " << node;
       initialOffsets.push_back(ghost.cycle.offset);
       cycleLengths.push_back(ghost.cycle.length);
     }
@@ -254,9 +248,9 @@ int main(int argc, char *argv[])
     std::cout << NL << "no data file provided ==> Will use hard coded example input";
     std::istringstream in{ example };
     auto model = parse(in);
-    // part1_answer = { "Example",part1::solve_for(model)};
+    part1_answer = { "Example",part1::solve_for(model)};
     part2_answer = { "Example",part2::solve_for(model)};
-    // solution.part1.push_back(part1_answer);
+    solution.part1.push_back(part1_answer);
     solution.part2.push_back(part2_answer);
   }
   else for (int i = 0; i < argc; ++i) {
@@ -265,14 +259,14 @@ int main(int argc, char *argv[])
       std::ifstream in{ argv[i] };
       if (in) {
         auto model = parse(in);
-        // part1_answer = {argv[i],part1::solve_for(model)};
+        part1_answer = {argv[i],part1::solve_for(model)};
         part2_answer = { argv[i],part2::solve_for(model) };
       }
       else {
-        // part1_answer = { std::string{"Failed to open file "} + argv[i],-1 };
+        part1_answer = { std::string{"Failed to open file "} + argv[i],-1 };
         part2_answer = { std::string{"Failed to open file "} + argv[i],-1 };
       }
-      // solution.part1.push_back(part1_answer);
+      solution.part1.push_back(part1_answer);
       solution.part2.push_back(part2_answer);
     }
   }
