@@ -23,10 +23,15 @@
 #include <experimental/generator> // supported by visual studio 2022 17.8.2 with project setting/compiler switch /std:c++latest
 #include <format>
 #include <optional>
+#include <regex>
 
 auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
+
+namespace combinators {
+
+}
 
 namespace coroutes {
   // How can we parse with coroutines?
@@ -34,8 +39,20 @@ namespace coroutes {
 
 namespace ranges {
   // How can we parse with ranges?
-}
 
+  /*
+  // It seems we can use views::transform to introduce a new level into generated structure?
+  // In the proposed example below the "split" creates a range of strings.
+  // And each string fed to transform splits each such string into a pair.
+  // The resulting range is then a range of pairs?
+
+    auto keyValuePairs = std::views::split(input, '&') |
+      std::views::transform([](auto&& range) {
+      return splitOn('=', range);
+        });
+  */
+
+}
 namespace streams {
   // how can we parse with streams
 }
@@ -572,6 +589,62 @@ QQQJA 483)";
   }
 };
 
+template <>
+class Parser<8> {
+public:
+  char const* input = R"(RL
+
+AAA = (BBB, CCC)
+BBB = (DDD, EEE)
+CCC = (ZZZ, GGG)
+DDD = (DDD, DDD)
+EEE = (EEE, EEE)
+GGG = (GGG, GGG)
+ZZZ = (ZZZ, ZZZ))";
+  using Node = std::string;
+  struct LRNodes {
+    Node left;
+    Node right;
+  };
+  using AdjList = std::map<Node,LRNodes>;
+  struct Model {
+    std::string turns{};
+    AdjList adj{};
+  };
+  auto parse(auto& input) {
+    Model result{};
+    std::string line;
+    std::getline(input, line);
+    result.turns = line;
+    std::cout << NL << "turns:" << std::quoted(result.turns);
+
+    // Regular expression pattern for parsing adjacent node list
+    std::regex pattern(R"(\s*(\w+)\s*=\s*\((\w+),\s*(\w+)\)\s*)");
+
+    // Iterating over matches
+    while (std::getline(input, line)) {
+      std::smatch match;
+      if (std::regex_match(line, match, pattern)) {
+        std::string key = match[1].str();
+        std::string value1 = match[2].str();
+        std::string value2 = match[3].str();
+
+        result.adj[key] = { value1, value2 };
+      }
+    }
+
+    // Printing the result
+    for (const auto& entry : result.adj) {
+      std::cout << NL << std::quoted(entry.first) << " --> left:" << std::quoted(entry.second.left) << ", right:" << std::quoted(entry.second.right);
+    }    return result;
+  }
+  auto parse() {
+    std::istringstream in{ input };
+    return parse(in);
+  }
+};
+
+
 
 int main(int argc, char* argv[])
 {
@@ -579,5 +652,5 @@ int main(int argc, char* argv[])
   for (int i = 0; i < argc; ++i) {
     std::cout << NT << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
-  auto model = Parser<7>{}.parse();
+  auto model = Parser<8>{}.parse();
 }
