@@ -124,6 +124,10 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/await %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="example.txt" />
+    <Text Include="puzzle.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
