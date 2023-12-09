@@ -21,15 +21,18 @@
 #include <format>
 #include <optional>
 #include <regex>
+#include <iterator>
 
 
-char const* example = R"()";
+char const* example = R"(0 3 6 9 12 15
+1 3 6 10 15 21
+10 13 16 21 30 45)";
 
 auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = std::int64_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
+using Integer = std::int32_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
@@ -38,20 +41,94 @@ struct Solution {
   Answers part2{};
 };
 
-using Model = std::vector<std::string>;
+using Model = std::vector<std::vector<Integer>>;
 
-Model parse(auto& in) {
-    Model result{};
-    std::string line{};
-    while (std::getline(in,line)) {
-        result.push_back(line);
+Model parse(std::istream& input) {
+  Model result;
+
+  std::string line;
+  while (std::getline(input, line)) {
+    std::cout << NL << "line:" << std::quoted(line);
+    std::istringstream line_stream(line);
+    std::vector<Integer> row;
+
+    Integer value;
+    while (line_stream >> value) {
+      std::cout << NT << "value:" << value;
+      row.push_back(value);
     }
-    return result;
+
+    // Check for parsing failure
+    if (line_stream.eof()) {
+      result.push_back(std::move(row));
+    }
+    else {
+      // You might want to handle the parsing failure here
+      // For simplicity, we'll assume the input is well-formed
+      throw std::runtime_error("Failed to parse the input.");
+    }
+  }
+
+  return result;
 }
 
 namespace part1 {
+  using TriangleRow = std::vector<Integer>;
+
+  std::vector<TriangleRow> generatePascalsTriangle(const std::vector<Integer>& bottomRow) {
+    /* Represent a triangle, e.g.,
+    0   3   6   9  12  15
+      3   3   3   3   3
+        0   0   0   0
+
+    As a matrix:
+    row matrix
+    0   0   3   6   9  12  15
+    1   0   3   3   3   3   3 
+    2   0   0   0   0   0   0
+
+    Eqach value on row 1 is the difference of "value above it" - "value to the left of above it value"
+    If we call the matrix m, then m[row][col] = m[row-1][col] - m[row-1][col-1]
+    In effect, each row contains the triangle row alligned to the right.
+        
+    */
+    std::vector<TriangleRow> triangle;
+    triangle.push_back(bottomRow);
+
+    while (std::any_of(triangle.back().begin(), triangle.back().end(), [](Integer value) { return value > 0; })) {
+      const auto& prevRow = triangle.back();
+      TriangleRow newRow(prevRow.size());
+      // Shift the range we traverse in the previous row one to the right
+      auto row_ix = triangle.size() - 1;
+      auto rangeBegin = prevRow.begin() + row_ix;
+      auto rangeEnd = prevRow.end();
+      auto newrowBegin = newRow.begin() + row_ix;
+      // Always place next row in the triangle to the left (newRow.begin())
+      std::adjacent_difference(rangeBegin, rangeEnd, newrowBegin);
+      *newrowBegin = 0; // remove the value copied from previoues row by adjacent_difference *sigh*
+      triangle.push_back(newRow);
+    }
+
+    return triangle;
+  }
+
   Result solve_for(Model& model) {
       Result result{};
+      for (auto const& entry : model) {
+        std::cout << NL << "<Triangle>";
+        auto triangle = generatePascalsTriangle(entry);
+        // Print Pascal's Triangle
+        std::string row_indent{ NT };
+        for (int row = 0; row < triangle.size();++row) {
+          std::cout << row_indent;
+          auto values = triangle[row];
+          for (int col = 0; col < values.size();++col) {
+            auto value = values[col];
+            if (col >= row) std::cout << value << "....";
+          }
+          row_indent += "   ";
+        }
+      }
       return result;
   }
 }
