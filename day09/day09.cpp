@@ -74,60 +74,61 @@ Model parse(std::istream& input) {
   return result;
 }
 
+using TriangleRow = std::vector<Integer>;
+using Triangle = std::vector<TriangleRow>;
+
+void print_triangle(Triangle const& triangle) {
+  // Print Pascal's Triangle
+  std::string row_indent{ NT };
+  for (int row = 0; row < triangle.size(); ++row) {
+    std::cout << row_indent;
+    auto values = triangle[row];
+    for (int col = 0; col < values.size(); ++col) {
+      auto value = values[col];
+      if (col >= row) std::cout << value << "....";
+    }
+    row_indent += "   ";
+  }
+}
+
+Triangle generatePascalsTriangle(TriangleRow const& bottomRow) {
+  /* Represent a triangle, e.g.,
+  0   3   6   9  12  15
+    3   3   3   3   3
+      0   0   0   0
+
+  As a matrix:
+  row matrix
+  0   0   3   6   9  12  15
+  1   0   3   3   3   3   3
+  2   0   0   0   0   0   0
+
+  Eqach value on row 1 is the difference of "value above it" - "value to the left of above it value"
+  If we call the matrix m, then m[row][col] = m[row-1][col] - m[row-1][col-1]
+  In effect, each row contains the triangle row alligned to the right.
+
+  */
+  Triangle triangle;
+  triangle.push_back(bottomRow);
+
+  while (std::any_of(triangle.back().begin(), triangle.back().end(), [](Integer value) { return value != 0; })) {
+    const auto& prevRow = triangle.back();
+    TriangleRow newRow(prevRow.size());
+    // Shift the range we traverse in the previous row one to the right
+    auto row_ix = triangle.size() - 1;
+    auto rangeBegin = prevRow.begin() + row_ix;
+    auto rangeEnd = prevRow.end();
+    auto newrowBegin = newRow.begin() + row_ix;
+    // Always place next row in the triangle to the left (newRow.begin())
+    std::adjacent_difference(rangeBegin, rangeEnd, newrowBegin);
+    *newrowBegin = 0; // remove the value copied from previoues row by adjacent_difference *sigh*
+    triangle.push_back(newRow);
+  }
+
+  return triangle;
+}
+
 namespace part1 {
-  using TriangleRow = std::vector<Integer>;
-  using Triangle = std::vector<TriangleRow>;
-
-  void print_triangle(Triangle const& triangle) {
-    // Print Pascal's Triangle
-    std::string row_indent{ NT };
-    for (int row = 0; row < triangle.size(); ++row) {
-      std::cout << row_indent;
-      auto values = triangle[row];
-      for (int col = 0; col < values.size(); ++col) {
-        auto value = values[col];
-        if (col >= row) std::cout << value << "....";
-      }
-      row_indent += "   ";
-    }
-  }
-
-  Triangle generatePascalsTriangle(TriangleRow const& bottomRow) {
-    /* Represent a triangle, e.g.,
-    0   3   6   9  12  15
-      3   3   3   3   3
-        0   0   0   0
-
-    As a matrix:
-    row matrix
-    0   0   3   6   9  12  15
-    1   0   3   3   3   3   3 
-    2   0   0   0   0   0   0
-
-    Eqach value on row 1 is the difference of "value above it" - "value to the left of above it value"
-    If we call the matrix m, then m[row][col] = m[row-1][col] - m[row-1][col-1]
-    In effect, each row contains the triangle row alligned to the right.
-        
-    */
-    Triangle triangle;
-    triangle.push_back(bottomRow);
-
-    while (std::any_of(triangle.back().begin(), triangle.back().end(), [](Integer value) { return value != 0; })) {
-      const auto& prevRow = triangle.back();
-      TriangleRow newRow(prevRow.size());
-      // Shift the range we traverse in the previous row one to the right
-      auto row_ix = triangle.size() - 1;
-      auto rangeBegin = prevRow.begin() + row_ix;
-      auto rangeEnd = prevRow.end();
-      auto newrowBegin = newRow.begin() + row_ix;
-      // Always place next row in the triangle to the left (newRow.begin())
-      std::adjacent_difference(rangeBegin, rangeEnd, newrowBegin);
-      *newrowBegin = 0; // remove the value copied from previoues row by adjacent_difference *sigh*
-      triangle.push_back(newRow);
-    }
-
-    return triangle;
-  }
 
   Triangle to_expanded(Triangle const& triangle) {
     Triangle result{ triangle };
@@ -210,8 +211,98 @@ namespace part1 {
 }
 
 namespace part2 {
+  char const* example = R"(10  13  16  21  30  45
+  3   3   5   9  15
+   0   2   4   6
+      2   2   2
+        0   0)";
+
+  Triangle to_expanded(Triangle const& triangle) {
+    Triangle result{ triangle };
+    /*
+    We are to expand the triangle with a longer bottom row - one more element - to the left (part 2)
+    So for,
+
+    10  13  16  21  30  45
+      3   3   5   9  15
+       0   2   4   6
+          2   2   2
+            0   0
+
+    We want to get
+
+    5  10  13  16  21  30  45
+      5   3   3   5   9  15
+       -2   0   2   4   6
+          2   2   2   2
+            0   0   0
+
+    We do this with the contraint that the "top row" must still contain only zeroes.
+
+    So 1) Extend the last row by inserting a zero (at *)
+
+    As a matrix:
+            0   1   2   3   4   5
+    0       10  13  16  21  30  45
+    1       0   3   3   5   9  15
+    2       0   0   0   2   4   6
+    3       0   0   0   2   2   2
+    4   0   0   0   0   *   0   0
+
+    2) Insert new required values a..d (* is new 0) to the row above it (contrained by the value being a pascals-triangle-value)
+
+    As a matrix:
+
+        0   1   2   3   4   5   6
+    0   d   10  13  16  21  30  45
+    1   0   c   3   3   5   9   15
+    2   0   0   b   0   2   4   6
+    3   0   0   0   a   2   2   2
+    4   0   0   0   0   *   0   0
+
+    Hm...finding the location where to insert new digits is not so straight forward?
+    In this example we have first expanded the matrix to its new size.
+    The new base width = 7 base row values and height = 5 rows (unchanged).
+    This gives us row index 0..4 and column index 0..6.
+    So the width of row 4 is base width - row index (7 - 4) == 3;
+    This gives us the column index of '*' is (end - row 4 width) = 7 - 3 = 4.
+
+    */
+    // begin by pushing a zero at the beginning of each triangle row
+    for (auto& row : result) row.insert(row.begin(),0);
+    if (result.size() < 2) throw std::runtime_error("Encountered a triangle with less that two rows!");
+    auto base_width = result[0].size();
+    for (int row = result.size() - 2; row >= 0; --row) {
+      auto row_width = base_width - row; // row 0 is base, row 1 is one shorter than base, row n is n shorter than base
+      auto col = base_width - row_width; // column 0 for base row and then 1..n for followig rows.
+      auto value_below = result[row + 1][col+1];
+      auto value_right = result[row][col + 1];
+      auto value_left = value_right - value_below; // value_right - value_left = value_below
+      result[row][col] = value_left;
+      std::cout << NT << std::format("row:{} insert left value:({})-({})={}", row, value_right, value_below, value_left);
+    }
+    std::cout << NT << "new triangle>";
+    print_triangle(result);
+    return result;
+  }
   Result solve_for(Model& model) {
       Result result{};
+      using Triangles = std::vector<Triangle>;
+      Triangles expanded_triangles{};
+      for (auto const& entry : model) {
+        std::cout << NL << "<Triangle>";
+        auto triangle = generatePascalsTriangle(entry);
+        // Print Pascal's Triangle
+        print_triangle(triangle);
+        auto expanded_triangle = to_expanded(triangle);
+        expanded_triangles.push_back(expanded_triangle);
+      }
+      result = std::accumulate(expanded_triangles.begin(), expanded_triangles.end(), Result{ 0 }, [](auto acc, auto const& triangle) {
+        auto extrapolated = triangle[0][0];
+        acc += extrapolated;
+        std::cout << NT << "extrapolated:" << extrapolated << " sum:" << acc;
+        return acc;
+        });
       return result;
   }
 }

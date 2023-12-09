@@ -3,9 +3,9 @@ My C++20 solutions to advent of code 2023 puzzles
 
 # Some C++ traps I encountered this year...
 
-day09
+# day09
 
-I got the semantics of std::adjacent_difference wrong.
+* I got the semantics of std::adjacent_difference wrong.
 
 I expected it to write to the output the difference of a two value window of the input starting at (begin,begin+1) and end at (last-1,last).
 In effect producing one less value that in the input!
@@ -16,3 +16,10 @@ I found that out after reading the specification.
 "If [first, last) is not empty, computes the differences between the second and the first of each adjacent pair of its elements and writes the differences to the range beginning at d_first + 1. An unmodified copy of *first is written to *d_first"
 
 Ok, as usuall there may be a good reason for it behaves like this. But it violated the sematics of "adjacent difference" that I found natural...
+
+* I used unsigned integer in looping down and failed to terminate the loop on i>=0
+
+    for (auto row = result.size() - 2; row >= 0; --row)
+
+    This loop will never end as size() returns a size_t which is unsigned, causing --row to overflow on 0 so the break condition >=0 will always be TRUE!!
+* I used auto from a size() call and fed into a 
