@@ -28,6 +28,8 @@ char const* example = R"(0 3 6 9 12 15
 1 3 6 10 15 21
 10 13 16 21 30 45)";
 
+char const* test = R"(-6 -9 -13 -18 -24 -31 -39 -48 -58 -69 -81 -94 -108 -123 -139 -156 -174 -193 -213 -234 -256)";
+
 auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
@@ -110,7 +112,7 @@ namespace part1 {
     Triangle triangle;
     triangle.push_back(bottomRow);
 
-    while (std::any_of(triangle.back().begin(), triangle.back().end(), [](Integer value) { return value > 0; })) {
+    while (std::any_of(triangle.back().begin(), triangle.back().end(), [](Integer value) { return value != 0; })) {
       const auto& prevRow = triangle.back();
       TriangleRow newRow(prevRow.size());
       // Shift the range we traverse in the previous row one to the right
@@ -162,6 +164,7 @@ namespace part1 {
 
     */
     result.back().push_back(0);
+    if (result.size() < 2) throw std::runtime_error("Encountered a triangle with less that two rows!");
     for (int row = result.size() - 2; row >= 0; --row) {
       auto value_below = result[row + 1].back();
       auto value_left = result[row].back();
@@ -201,7 +204,8 @@ namespace part1 {
         std::cout << NT << "extrapolated:" << triangle[0].back() << " sum:" << acc;
         return acc;
         });
-      return result; // 1 642 024 222 too low
+      return result; // 1 642 024 222 too high (failed to handle negative numbers correctly - see git log)
+                     // 1 641 934 234 OK!
   }
 }
 
@@ -220,7 +224,8 @@ int main(int argc, char *argv[])
   Answer part2_answer{ "Failed to obtain any input",0 };
   if (argc == 1) {
     std::cout << NL << "no data file provided ==> WIll use hard coded example input";
-    std::istringstream in{ example };
+    // std::istringstream in{ example };
+    std::istringstream in{ test };
     auto model = parse(in);
     part1_answer = { "Example",part1::solve_for(model) };
     part2_answer = { "Example",part2::solve_for(model) };
