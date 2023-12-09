@@ -748,6 +748,65 @@ ZZZ = (ZZZ, ZZZ))";
   }
 };
 
+template <>
+class Parser<9> {
+public:
+  char const* example = R"(0 3 6 9 12 15
+1 3 6 10 15 21
+10 13 16 21 30 45)";
+
+  using Integer = int;
+  using Model = std::vector<std::vector<Integer>>;
+
+  Model parse(std::istream& input) {
+    Model result;
+
+    std::string line;
+    while (std::getline(input, line)) {
+      std::cout << NL << "line:" << std::quoted(line);
+      std::istringstream line_stream(line);
+      std::vector<Integer> row;
+
+      Integer value;
+      while (line_stream >> value) {
+        std::cout << NT << "value:" << value;
+        row.push_back(value);
+      }
+
+      // Check for parsing failure
+      if (line_stream.eof()) {
+        result.push_back(std::move(row));
+      }
+      else {
+        // You might want to handle the parsing failure here
+        // For simplicity, we'll assume the input is well-formed
+        throw std::runtime_error("Failed to parse the input.");
+      }
+    }
+
+    return result;
+  }
+
+  auto parse() {
+    std::istringstream in{ example };
+    try {
+      Model result = parse(in);
+
+      std::cout << "Successfully parsed the input:\n";
+      for (const auto& row : result) {
+        for (Integer value : row) {
+          std::cout << value << ' ';
+        }
+        std::cout << '\n';
+      }
+      return result;
+    }
+    catch (const std::runtime_error& e) {
+      std::cout << e.what() << '\n';
+    }
+  }
+};
+
 
 
 int main(int argc, char* argv[])
@@ -756,5 +815,5 @@ int main(int argc, char* argv[])
   for (int i = 0; i < argc; ++i) {
     std::cout << NT << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
-  auto model = regex::Parser<8>{}.parse();
+  auto model = Parser<9>{}.parse();
 }
