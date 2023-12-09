@@ -50,13 +50,13 @@ Model parse(std::istream& input) {
 
   std::string line;
   while (std::getline(input, line)) {
-    std::cout << NL << "line:" << std::quoted(line);
+    // std::cout << NL << "line:" << std::quoted(line);
     std::istringstream line_stream(line);
     std::vector<Integer> row;
 
     Integer value;
     while (line_stream >> value) {
-      std::cout << NT << "value:" << value;
+      // std::cout << NT << "value:" << value;
       row.push_back(value);
     }
 
@@ -85,7 +85,9 @@ void print_triangle(Triangle const& triangle) {
     auto values = triangle[row];
     for (int col = 0; col < values.size(); ++col) {
       auto value = values[col];
-      if (col >= row) std::cout << value << "....";
+      if (col >= row) {
+        std::cout << value << "....";
+      }
     }
     row_indent += "   ";
   }
@@ -166,47 +168,38 @@ namespace part1 {
     */
     result.back().push_back(0);
     if (result.size() < 2) throw std::runtime_error("Encountered a triangle with less that two rows!");
-    for (int row = result.size() - 2; row >= 0; --row) {
+    for (auto row = static_cast<int>(result.size() - 2); row >= 0; --row) {
       auto value_below = result[row + 1].back();
       auto value_left = result[row].back();
       auto value = value_left + value_below;
       result[row].push_back(value);
-      std::cout << NT << std::format("row:{} push value:{}+{}={}",row,value_left,value_below,value);
+      // std::cout << NT << std::format("row:{} push value:{}+{}={}",row,value_left,value_below,value);
     }
-    std::cout << NT << "new triangle>";
-    print_triangle(result);
     return result;
   }
 
   Result solve_for(Model& model) {
-      Result result{};
-      using Triangles = std::vector<Triangle>;
-      Triangles expanded_triangles{};
-      for (auto const& entry : model) {
-        std::cout << NL << "<Triangle>";
-        auto triangle = generatePascalsTriangle(entry);
-        // Print Pascal's Triangle
-        std::string row_indent{ NT };
-        for (int row = 0; row < triangle.size();++row) {
-          std::cout << row_indent;
-          auto values = triangle[row];
-          for (int col = 0; col < values.size();++col) {
-            auto value = values[col];
-            if (col >= row) std::cout << value << "....";
-          }
-          row_indent += "   ";
-        }
-        auto expanded_triangle = to_expanded(triangle);
-        expanded_triangles.push_back(expanded_triangle);
-      }
-      result = std::accumulate(expanded_triangles.begin(), expanded_triangles.end(), Result{0}, [](auto acc, auto const& triangle) {
-        auto extrapolated = triangle[0].back();
-        acc += extrapolated;
-        std::cout << NT << "extrapolated:" << triangle[0].back() << " sum:" << acc;
-        return acc;
-        });
-      return result; // 1 642 024 222 too high (failed to handle negative numbers correctly - see git log)
-                     // 1 641 934 234 OK!
+    std::cout << NL << "<Part 1>";
+    Result result{};
+    using Triangles = std::vector<Triangle>;
+    Triangles expanded_triangles{};
+    for (auto const& entry : model) {
+      auto triangle = generatePascalsTriangle(entry);
+      std::cout << NL << "<Triangle>";
+      // print_triangle(triangle);
+      auto expanded_triangle = to_expanded(triangle);
+      expanded_triangles.push_back(expanded_triangle);
+      std::cout << NL << " --> <Left Expanded Triangle>";
+      // print_triangle(expanded_triangle);
+    }
+    result = std::accumulate(expanded_triangles.begin(), expanded_triangles.end(), Result{0}, [](auto acc, auto const& triangle) {
+      auto extrapolated = triangle[0].back();
+      acc += extrapolated;
+      std::cout << NT << "extrapolated:" << triangle[0].back() << " sum:" << acc;
+      return acc;
+      });
+    return result; // 1 642 024 222 too high (failed to handle negative numbers correctly - see git log)
+                    // 1 641 934 234 OK!
   }
 }
 
@@ -272,38 +265,38 @@ namespace part2 {
     for (auto& row : result) row.insert(row.begin(),0);
     if (result.size() < 2) throw std::runtime_error("Encountered a triangle with less that two rows!");
     auto base_width = result[0].size();
-    for (int row = result.size() - 2; row >= 0; --row) {
+    for (auto row = static_cast<int>(result.size() - 2); row >= 0; --row) {
       auto row_width = base_width - row; // row 0 is base, row 1 is one shorter than base, row n is n shorter than base
       auto col = base_width - row_width; // column 0 for base row and then 1..n for followig rows.
       auto value_below = result[row + 1][col+1];
       auto value_right = result[row][col + 1];
       auto value_left = value_right - value_below; // value_right - value_left = value_below
       result[row][col] = value_left;
-      std::cout << NT << std::format("row:{} insert left value:({})-({})={}", row, value_right, value_below, value_left);
+      // std::cout << NT << std::format("row:{} insert left value:({})-({})={}", row, value_right, value_below, value_left);
     }
-    std::cout << NT << "new triangle>";
-    print_triangle(result);
     return result;
   }
   Result solve_for(Model& model) {
-      Result result{};
-      using Triangles = std::vector<Triangle>;
-      Triangles expanded_triangles{};
-      for (auto const& entry : model) {
-        std::cout << NL << "<Triangle>";
-        auto triangle = generatePascalsTriangle(entry);
-        // Print Pascal's Triangle
-        print_triangle(triangle);
-        auto expanded_triangle = to_expanded(triangle);
-        expanded_triangles.push_back(expanded_triangle);
-      }
-      result = std::accumulate(expanded_triangles.begin(), expanded_triangles.end(), Result{ 0 }, [](auto acc, auto const& triangle) {
-        auto extrapolated = triangle[0][0];
-        acc += extrapolated;
-        std::cout << NT << "extrapolated:" << extrapolated << " sum:" << acc;
-        return acc;
-        });
-      return result;
+    std::cout << NL << "<Part 2>";
+    Result result{};
+    using Triangles = std::vector<Triangle>;
+    Triangles expanded_triangles{};
+    for (auto const& entry : model) {
+      auto triangle = generatePascalsTriangle(entry);
+      std::cout << NL << "<Triangle>";
+      // print_triangle(triangle);
+      auto expanded_triangle = to_expanded(triangle);
+      expanded_triangles.push_back(expanded_triangle);
+      std::cout << NL << " --> <Left Expanded Triangle>";
+      // print_triangle(expanded_triangle);
+    }
+    result = std::accumulate(expanded_triangles.begin(), expanded_triangles.end(), Result{ 0 }, [](auto acc, auto const& triangle) {
+      auto extrapolated = triangle[0][0];
+      acc += extrapolated;
+      std::cout << NT << "extrapolated:" << extrapolated << " sum:" << acc;
+      return acc;
+      });
+    return result; // 975
   }
 }
 
@@ -352,5 +345,14 @@ int main(int argc, char *argv[])
     else std::cout << NT << "answer[" << answer.first << "] " << " NO OPERATION ";
   }
   std::cout << "\n\n";
+  /*
+------------ REPORT----------------
+<Part 1>
+        answer[example.txt] 114
+        answer[puzzle.txt] 1641934234
+<Part 2>
+        answer[example.txt] 2
+        answer[puzzle.txt] 975
+  */
   return 0;
 }
