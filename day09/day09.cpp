@@ -74,8 +74,23 @@ Model parse(std::istream& input) {
 
 namespace part1 {
   using TriangleRow = std::vector<Integer>;
+  using Triangle = std::vector<TriangleRow>;
 
-  std::vector<TriangleRow> generatePascalsTriangle(const std::vector<Integer>& bottomRow) {
+  void print_triangle(Triangle const& triangle) {
+    // Print Pascal's Triangle
+    std::string row_indent{ NT };
+    for (int row = 0; row < triangle.size(); ++row) {
+      std::cout << row_indent;
+      auto values = triangle[row];
+      for (int col = 0; col < values.size(); ++col) {
+        auto value = values[col];
+        if (col >= row) std::cout << value << "....";
+      }
+      row_indent += "   ";
+    }
+  }
+
+  Triangle generatePascalsTriangle(TriangleRow const& bottomRow) {
     /* Represent a triangle, e.g.,
     0   3   6   9  12  15
       3   3   3   3   3
@@ -92,7 +107,7 @@ namespace part1 {
     In effect, each row contains the triangle row alligned to the right.
         
     */
-    std::vector<TriangleRow> triangle;
+    Triangle triangle;
     triangle.push_back(bottomRow);
 
     while (std::any_of(triangle.back().begin(), triangle.back().end(), [](Integer value) { return value > 0; })) {
@@ -112,8 +127,57 @@ namespace part1 {
     return triangle;
   }
 
+  Triangle to_expanded(Triangle const& triangle) {
+    Triangle result{ triangle };
+    /*
+    We are to expand the triangle with a longer bottom row - one more element to the right
+    So for,
+    0   3   6   9  12  15
+      3   3   3   3   3
+        0   0   0   0
+
+    We want to get
+
+    0   3   6   9  12  15  ?
+      3   3   3   3   3   ?
+        0   0   0   0   ?
+
+    We do this with the contraint that the "top row" must still contain onlye zeroes.
+
+    So 1) Extend the last row with a zero
+
+    As a matrix:
+    row matrix
+    0   0   3   6   9  12  15
+    1   0   3   3   3   3   3
+    2   0   0   0   0   0   0 0
+
+    2) Add the required value to the row above it (contrained by the value being a pascals-triangle-value)
+
+    As a matrix:
+    row matrix
+    0   0   3   6   9  12  15   15+3
+    1   0   3   3   3   3   3   0+3
+    2   0   0   0   0   0   0   0
+
+    */
+    result.back().push_back(0);
+    for (int row = result.size() - 2; row >= 0; --row) {
+      auto value_below = result[row + 1].back();
+      auto value_left = result[row].back();
+      auto value = value_left + value_below;
+      result[row].push_back(value);
+      std::cout << NT << std::format("row:{} push value:{}+{}={}",row,value_left,value_below,value);
+    }
+    std::cout << NT << "new triangle>";
+    print_triangle(result);
+    return result;
+  }
+
   Result solve_for(Model& model) {
       Result result{};
+      using Triangles = std::vector<Triangle>;
+      Triangles expanded_triangles{};
       for (auto const& entry : model) {
         std::cout << NL << "<Triangle>";
         auto triangle = generatePascalsTriangle(entry);
@@ -128,7 +192,15 @@ namespace part1 {
           }
           row_indent += "   ";
         }
+        auto expanded_triangle = to_expanded(triangle);
+        expanded_triangles.push_back(expanded_triangle);
       }
+      result = std::accumulate(expanded_triangles.begin(), expanded_triangles.end(), Result{0}, [](auto acc, auto const& triangle) {
+        auto extrapolated = triangle[0].back();
+        acc += extrapolated;
+        std::cout << NT << "extrapolated:" << triangle[0].back() << " sum:" << acc;
+        return acc;
+        });
       return result;
   }
 }
