@@ -32,7 +32,7 @@ auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = std::int32_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
+using Integer = std::int64_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
@@ -201,7 +201,7 @@ namespace part1 {
         std::cout << NT << "extrapolated:" << triangle[0].back() << " sum:" << acc;
         return acc;
         });
-      return result;
+      return result; // 1 642 024 222 too low
   }
 }
 
