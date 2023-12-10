@@ -118,6 +118,91 @@ namespace part1 {
     }
   };
 
+  class CC {
+  private:
+    std::vector<bool> marked; // marked[v] = has vertex v been marked?
+    std::vector<int> id; // id[v] = id of connected component containing v
+    std::vector<int> size; // size[id] = number of vertices in component id
+    int count; // number of connected components
+
+  public:
+    CC(const Graph& graph) {
+      marked.resize(graph.getVertexCount(), false);
+      id.resize(graph.getVertexCount());
+      size.resize(graph.getVertexCount());
+      count = 0;
+
+      for (int v = 0; v < graph.getVertexCount(); ++v) {
+        if (!marked[v]) {
+          dfs(graph, v);
+          ++count;
+        }
+      }
+    }
+
+    bool connected(int v, int w) const {
+      return id[v] == id[w];
+    }
+
+    int getCount() const {
+      return count;
+    }
+
+    int getId(int v) const {
+      return id[v];
+    }
+
+    int getSize(int id) const {
+      return size[id];
+    }
+
+  private:
+    void dfs(const Graph& graph, int v) {
+      marked[v] = true;
+      id[v] = count;
+      ++size[count];
+
+      for (int w : graph.getAdjacentVertices(v)) {
+        if (!marked[w]) {
+          dfs(graph, w);
+        }
+      }
+    }
+  };
+
+  class Cycle {
+  private:
+    std::vector<bool> marked{}; // marked[v] = has vertex v been visited?
+    bool has_cycle{false}; // does the graph have a cycle?
+
+  public:
+    Cycle(const Graph& graph) {
+      marked.resize(graph.getVertexCount(), false);
+
+      for (int v = 0; v < graph.getVertexCount(); ++v) {
+        if (!marked[v]) {
+          dfs(graph, v, v);
+        }
+      }
+    }
+
+    bool hasCycle() const {
+      return has_cycle;
+    }
+
+  private:
+    void dfs(const Graph& graph, int v, int u) {
+      marked[v] = true;
+      for (int w : graph.getAdjacentVertices(v)) {
+        if (!marked[w]) {
+          dfs(graph, w, v);
+        } else if (w != u) {
+          has_cycle = true;
+        }
+      }
+    }
+  };
+
   /**
    * @brief Represents a position in 2D with x being east and y being south.
    */
@@ -259,8 +344,42 @@ namespace part1 {
     Result result{};
     std::cout << NL << "Solver for part 1";
     // transform the model into a graph
-    auto graph_and_positions = to_graph_and_positions(model);
-    print_graph(graph_and_positions.first,graph_and_positions.second);
+    auto const& [graph, positions] = to_graph_and_positions(model);
+    print_graph(graph, positions);
+    CC connected_components(graph);
+    auto component_count = connected_components.getCount();
+    std::cout << NL << "Number of connected components : " << component_count;
+    // create a vector of graphs for each connected component
+    std::vector<Graph> graphs(component_count);
+    for (int v = 0; v < graph.getVertexCount(); v++) {
+      auto component_id = connected_components.getId(v);
+      auto adjacent_vertices = graph.getAdjacentVertices(v);
+      for (auto const& adjacent_vertex : adjacent_vertices) {
+        graphs[component_id].addEdge(v, adjacent_vertex);
+      }
+    }
+    std::cout << NL << "created " << graphs.size() << " separated graphs";
+    // find the graph with a cycle
+    for (auto const& graph : graphs) {
+      Cycle cycle(graph);
+      if (cycle.hasCycle()) {
+        std::cout << NL << "found a cycle";
+        // find the length of the cycle
+        std::cout << NL << "assuming the graph contains only one cycle and all vertices are part of the cycle";
+        std::cout << NL << "the length of the cycle is the number of vertices divided by 2";
+        std::cout << NL << "The vertex count is " << graph.getVertexCount();
+        // Assume the graph contains only one cycle = all vertices are part of the cycle
+        if (graph.getVertexCount() % 2 == 0) {
+          result = graph.getVertexCount() / 2;
+          std::cout << NL << "The vertex count is even so the furthest away point is half way " << result << " steps away from any start position";
+        }
+        else {
+          result = graph.getVertexCount()-1 / 2;
+          std::cout << NL << "ERROR: The vertex count is odd so the furthest away point is " << result << " steps away from any start position";
+        }
+        break;
+      }
+    }
     return result;
   }
 }
