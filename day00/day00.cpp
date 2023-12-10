@@ -17,7 +17,7 @@
 #include <numeric> // E.g., std::accumulate
 #include <limits> // E.g., std::numeric_limits
 #include <fstream>
-#include <experimental/generator> // supported by visual studio 2022 17.8.2 with project setting/compiler switch /std:c++latest
+// #include <experimental/generator> // supported by visual studio 2022 17.8.2 with project setting/compiler switch /std:c++latest
 #include <format>
 #include <optional>
 #include <regex>
@@ -29,7 +29,7 @@ auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = std::int64_t; // 16 bit int: ± 3.27 · 10^4, 32 bit int: ± 2.14 · 10^9, 64 bit int: ± 9.22 · 10^18
+using Integer = int64_t; // 16 bit int: ï¿½ 3.27 ï¿½ 10^4, 32 bit int: ï¿½ 2.14 ï¿½ 10^9, 64 bit int: ï¿½ 9.22 ï¿½ 10^18
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
