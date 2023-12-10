@@ -245,9 +245,19 @@ private:
   }
 };
 
-  /**
-   * @brief Represents a position in 2D with x being east and y being south.
-   */
+class Delta {
+  public:
+    int delta_x; /**< The change in x-coordinate representing east/west. */
+    int delta_y; /**< The change in y-coordinate representing south/north. */
+
+    /**
+     * @brief Constructs a Delta object with the given change in x and y coordinates.
+     * @param delta_x The change in x-coordinate representing east/west.
+     * @param delta_y The change in y-coordinate representing south/north.
+     */
+    Delta(int delta_x, int delta_y) : delta_x(delta_x), delta_y(delta_y) {}
+  };
+
   class Position {
   public:
     int x; /**< The x-coordinate representing east. */
@@ -268,21 +278,19 @@ private:
     bool operator==(const Position& other) const {
       return x == other.x && y == other.y;
     }
-  };
-  using Positions = std::vector<Position>;
-
-  class Delta {
-  public:
-    int delta_x; /**< The change in x-coordinate representing east/west. */
-    int delta_y; /**< The change in y-coordinate representing south/north. */
 
     /**
-     * @brief Constructs a Delta object with the given change in x and y coordinates.
-     * @param delta_x The change in x-coordinate representing east/west.
-     * @param delta_y The change in y-coordinate representing south/north.
+     * @brief Addition operator to add a Delta to a Position.
+     * @param delta The Delta to add.
+     * @return The resulting Position after adding the Delta.
      */
-    Delta(int delta_x, int delta_y) : delta_x(delta_x), delta_y(delta_y) {}
+    Position operator+(const Delta& delta) const {
+      return Position(x + delta.delta_x, y + delta.delta_y);
+    }
+
+    
   };
+  using Positions = std::vector<Position>;
 
   using MapEdge = std::pair<Position, Delta>;
   using MapEdges = std::vector<MapEdge>;
@@ -368,11 +376,13 @@ private:
         auto symbol = model[y][x];
         auto map_edges = to_map_edges(pos,symbol);
         for (auto const& [pos,delta] : map_edges) {
-          std::cout << NL << "map_edge (" << pos.x << "," << pos.y << ") (" << delta.delta_x << "," << delta.delta_y << ")" << std::flush;
-          auto src = pos;
-          auto dest = Position(src.x + delta.delta_x, src.y + delta.delta_y);
-          auto edge = Graph::Edge(to_vertex(src,positions), to_vertex(dest,positions));
-          graph.addEdge(edge);
+          if (pos.x > 0 and pos.y > 0) {
+            std::cout << NL << "map_edge (" << pos.x << "," << pos.y << ") (" << delta.delta_x << "," << delta.delta_y << ")" << std::flush;
+            auto src = pos;
+            auto dest = Position(src.x + delta.delta_x, src.y + delta.delta_y);
+            auto edge = Graph::Edge(to_vertex(src,positions), to_vertex(dest,positions));
+            graph.addEdge(edge); 
+          }          
         }
       }
     }
@@ -392,12 +402,32 @@ private:
     }
   }
 
+  int dfs(Graph const& graph, int current_vertex, int start_vertex, std::vector<bool>& visited) {
+    visited[current_vertex] = true;
+    int max_steps = 0;
+    auto adjacent_vertices = graph.getAdjacentVertices(current_vertex);
+    for (auto const& adjacent_vertex : adjacent_vertices) {
+      if (!visited[adjacent_vertex]) {
+        int steps = dfs(graph, adjacent_vertex, start_vertex, visited);
+        max_steps = std::max(max_steps, steps + 1);
+      } else if (adjacent_vertex == start_vertex) {
+        max_steps = std::max(max_steps, 1);
+      }
+    }
+    visited[current_vertex] = false;
+    return max_steps;
+  }  
+
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << "Solver for part 1";
     auto start = Position(0, 0);
     int width = model[0].size();
     int height = model.size();
+    // Find the start vertex
+    // NOTE: For my input the start vertex is (0,0)!
+    // But in the examples it is a bit more complicated...
+    // Anyhow...
     bool found_start = false;
     for (int distance = 0; distance < width + height;++distance and !found_start) {
       for (int x = 0; x <= std::min(width,distance) and !found_start; ++x) {
@@ -416,44 +446,14 @@ private:
     // transform the model into a graph
     auto const& [graph, positions] = to_graph_and_positions(model);
     print_graph(graph, positions);
-    // Find the start vertex
-    // NOTE: For my input the start vertex is (0,0)!
-    // But in the examples it is a bit more complicated...
-    // Anyhow...
-    CC connected_components(graph);
-    auto component_count = connected_components.getCount();
-    std::cout << NL << "Number of connected components : " << component_count << std::flush;
-    // create a vector of graphs for each connected component
-    std::vector<Graph> graphs(component_count);
-    for (int v = 0; v < graph.getVertexCount(); v++) {
-      auto component_id = connected_components.getId(v);
-      auto adjacent_vertices = graph.getAdjacentVertices(v);
-      for (auto const& adjacent_vertex : adjacent_vertices) {
-        graphs[component_id].addEdge(v, adjacent_vertex);
-      }
-    }
-    std::cout << NL << "created " << graphs.size() << " separated graphs" << std::flush;
-    // find the graph with a cycle
-    // NOTE: It turns out all edges connect so there is in fact only one graph.
-    // Anyhow...
-    for (auto const& graph : graphs) {
-      Cycle cycle(graph);
-      if (cycle.hasCycle()) {
-        std::cout << NL << "found a cycle" << std::flush;
-        // find the length of the cycle
-        auto s = to_vertex(start, positions);
-        Paths paths(graph, s);
-        if (paths.hasPathTo(s)) {
-          auto path = paths.pathTo(s);
-          std::cout << NL << "found a path to start vertex" << std::flush;
-          std::cout << NL << "path length : " << path.size() << std::flush;
-          result = path.size() / 2;
-        }
-        else {
-          std::cout << NL << "failed to find a path to start vertex";
-        }
-        // break;
-      }
+    std::vector<bool> visited(graph.getVertexCount(), false);
+    std::cout << NL << "graph has cycle" << std::flush;
+    try {
+      int max_steps = dfs(graph, 0, 0, visited); // max steps to loop
+      std::cout << NL << "max steps : " << max_steps << std::flush;
+      result = max_steps / 2;
+    } catch (std::runtime_error const& e) {
+      std::cout << NL << "runtime error : " << e.what() << std::flush;
     }
     return result;
   }
