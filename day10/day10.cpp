@@ -120,8 +120,18 @@ class Delta {
   const Delta NORTH(0, -1);
 
   struct Walker {
+    Walker(Position const& position, Delta const& direction, bool on_route = true) 
+      : position{ position }, direction{ direction }, on_route{ on_route } {}
+    Result step_count{ 0 };
+    Result operator++() {
+      ++step_count;
+      position = position + direction;
+      return step_count;
+    }
     Position position;
     Delta direction;
+    bool on_route{true};
+    operator bool() const { return on_route; }
   };
 
   /*
@@ -138,59 +148,84 @@ class Delta {
   */
   const std::string SYMBOLS{"|-LJ7FS."};
 
-  Walker move(Walker const& walker, char symbol) {
+  Walker init_walker(Position const& position, char symbol) {
+    switch (symbol) {
+    case '|':
+      return Walker{ position, NORTH };
+      break;
+    case '-':
+      return Walker{ position, EAST };
+      break;
+    case 'L':
+      return Walker{ position, EAST };
+      break;
+    case 'J':
+      return Walker{ position, WEST };
+      break;
+    case '7':
+      return Walker{ position, SOUTH };
+      break;
+    case 'F':     
+      return Walker{ position, EAST };
+      break;
+    default:
+      std::cout << NL << "Unknown symbol: " << symbol;
+      return Walker{ position, EAST ,false};
+      break;
+    }
+  }
+
+  Walker aligned(Walker const& walker, char symbol) {
     Walker result{ walker };
-    bool valid_move = false;
     switch (symbol) {
     case '|':
       if (walker.direction == NORTH || walker.direction == SOUTH) {
-        result.position = walker.position + walker.direction;
+        result.on_route = true;
       }
-      else valid_move = false;
       break;
     case '-':
       if (walker.direction == EAST || walker.direction == WEST) {
-        result.position = walker.position + walker.direction;
+        result.on_route = true;
       }
       break;
     case 'L':
       if (walker.direction == SOUTH) {
         result.direction = EAST;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
       else if (walker.direction == WEST) {
         result.direction = NORTH;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
       break;
     case 'J':
       if (walker.direction == SOUTH) {
         result.direction = WEST;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
       else if (walker.direction == EAST) {
         result.direction = NORTH;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
       break;
     case '7':
       if (walker.direction == NORTH) {
         result.direction = WEST;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
       else if (walker.direction == EAST) {
         result.direction = SOUTH;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
       break;
     case 'F':
       if (walker.direction == NORTH) {
         result.direction = EAST;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
-      else if (walker.direction == EAST) {
+      else if (walker.direction == WEST) {
         result.direction = SOUTH;
-        result.position = walker.position + result.direction;
+        result.on_route = true;
       }
       break;
     case '.':
@@ -199,37 +234,41 @@ class Delta {
       std::cout << NL << "Unknown symbol: " << symbol;
       break;
     }
-    if (!valid_move) std::cout << NL << "Invalid move " << symbol << " at position " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y << " and symbol " << symbol;
+    if (!result.on_route) std::cout << NL << "Walk invalid at pipe " << symbol << " at position " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y << " and symbol " << symbol;
     return result;
+  }
+
+  bool on_map(Model const& model, Position const& position) {
+    return position.y >= 0 && position.y < model.size() && position.x >= 0 && position.x < model[position.y].size();
   }
 
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << "Solver for part 1";
-    
-    // find the start position
-    Position start_position{0,0};
-    int min_distance = std::numeric_limits<int>::max();
-    for (int y = 0; y < model.size() and y < min_distance; ++y) {
-      for (int x = 0; x < model[y].size() and x+y < min_distance; ++x) {
-        if (model[y][x] == 'S') {
-          model[y][x] = 'F';
-        }
-        if (model[y][x] == 'F') {
-          int distance = std::abs(x) + std::abs(y);
-          if (distance < min_distance) {
-            min_distance = distance;
-            start_position = Position(x, y);
+
+    std::set<Walker> visited{};
+    // Find the loop by trying out all possible start positions
+    for (int y = 0; y < model.size() and result==0; ++y) {
+      for (int x = 0; x < model[y].size() and result==0; ++x) {
+        if (model[y][x] != '.') {
+          Position start_position{ x,y };
+          auto symbol = model[y][x];
+          Walker walker = init_walker(start_position, symbol);
+          if (visited.contains(walker)) continue;
+          do {
+            visited.insert(walker);
+            std::cout << NL << "walker: " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y;
+            ++walker;
+            walker.on_route = on_map(model, walker.position);
+            char symbol = model[walker.position.y][walker.position.x];
+            walker = aligned(walker, symbol);
+          } while (walker.on_route && walker.position != start_position);
+          if (walker.on_route) {
+            std::cout << NL << "Found loop at " << walker.position.x << "," << walker.position.y;
+            result = walker.step_count;            
           }
         }
       }
-      std::cout << NL << "start_position: " << start_position.x << "," << start_position.y;
-      Walker walker{ start_position, EAST };
-      do {
-        char symbol = model[walker.position.y][walker.position.x];
-        walker = move(walker, symbol);
-        std::cout << NL << "walker: " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y;
-      } while (walker.position != start_position);
     }
     
     // walk the "pipe" clockwise until we are back at start
