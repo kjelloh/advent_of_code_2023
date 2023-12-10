@@ -77,6 +77,10 @@ class Delta {
     bool operator==(const Delta& other) const {
       return delta_x == other.delta_x && delta_y == other.delta_y;
     }
+
+    bool operator<(const Delta& other) const {
+      return delta_x < other.delta_x || (delta_x == other.delta_x && delta_y < other.delta_y);
+    }
   };
 
   class Position {
@@ -242,42 +246,90 @@ class Delta {
     return position.y >= 0 && position.y < model.size() && position.x >= 0 && position.x < model[position.y].size();
   }
 
+  std::vector<char> to_pipe_candidates(Position const& position, Model const& model) {
+    std::cout << NL << "to_pipe_candidates for " << position.x << "," << position.y;
+    std::string const NORTH_CONNECTABLE = { '|','7','F'};
+    std::string const SOUTH_CONNECTABLE = { '|','L','J'};
+    std::string const WEST_CONNECTABLE = { '-','L','F'};
+    std::string const EAST_CONNECTABLE = { '-','7','J'};
+    std::vector<char> result{};
+    std::map<Delta, bool> connectable{};
+    for (auto const& delta : { NORTH, EAST, SOUTH, WEST }) {
+      Position candidate = position + delta;
+      if (on_map(model, candidate)) {
+        char symbol = model[candidate.y][candidate.x];
+        connectable[delta] = 
+             (delta == NORTH and std::any_of(NORTH_CONNECTABLE.begin(), NORTH_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
+          or (delta == SOUTH and std::any_of(SOUTH_CONNECTABLE.begin(), SOUTH_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
+          or (delta == WEST and std::any_of(WEST_CONNECTABLE.begin(), WEST_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
+          or (delta == EAST and std::any_of(EAST_CONNECTABLE.begin(), EAST_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }));
+      }
+    }
+    for (int i=0;i<connectable.size();++i) {
+      for (int j=i;j<connectable.size();++j) {
+        auto [delta1,flag1] = *std::next(connectable.begin(), i);
+        auto [delta2, flag2] = *std::next(connectable.begin(), j);
+        if (flag1 and flag2) {
+               if (delta1 == NORTH and delta2 == EAST) result.push_back('L');
+          else if (delta1 == NORTH and delta2 == WEST) result.push_back('J');
+          else if (delta1 == NORTH and delta2== SOUTH) result.push_back('|');
+          else if (delta1 == SOUTH and delta2 == EAST) result.push_back('F');
+          else if (delta1 == SOUTH and delta2 == WEST) result.push_back('7');
+          else if (delta1 == SOUTH and delta2 == NORTH) result.push_back('|');
+          else if (delta1 == EAST and delta2 == WEST) result.push_back('-');          
+          else if (delta1 == EAST and delta2 == NORTH) result.push_back('L');
+          else if (delta1 == EAST and delta2 == SOUTH) result.push_back('F');
+          else if (delta1 == WEST and delta2 == NORTH) result.push_back('J');
+          else if (delta1 == WEST and delta2 == SOUTH) result.push_back('7');
+          else if (delta1 == WEST and delta2 == EAST) result.push_back('-');
+        }
+      }
+    }
+    for (auto candidate : result) std::cout << NT << "Candidate: " << candidate;
+    return result;
+  }
+
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << "Solver for part 1";
 
-    std::set<Walker> visited{};
-    // Find the loop by trying out all possible start positions
     for (int y = 0; y < model.size() and result==0; ++y) {
       for (int x = 0; x < model[y].size() and result==0; ++x) {
-        if (model[y][x] != '.') {
+        if (model[y][x] == 'S') {          
           Position start_position{ x,y };
-          auto symbol = model[y][x];
-          Walker walker = init_walker(start_position, symbol);
-          if (visited.contains(walker)) continue;
-          do {
-            visited.insert(walker);
-            std::cout << NL << "walker: " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y;
-            ++walker;
-            walker.on_route = on_map(model, walker.position);
-            char symbol = model[walker.position.y][walker.position.x];
-            walker = aligned(walker, symbol);
-          } while (walker.on_route && walker.position != start_position);
-          if (walker.on_route) {
-            std::cout << NL << "Found loop at " << walker.position.x << "," << walker.position.y;
-            result = walker.step_count;            
+          // Fix the pipe with each candidate
+          auto candidates = to_pipe_candidates(start_position, model);
+          for (auto const& candidate : candidates) {
+            std::cout << NL << "Candidate for S is " << candidate << std::flush;
+            Walker walker = init_walker(start_position, candidate);
+            do {
+              std::cout << NL << "walker: " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y << std::flush;
+              ++walker;
+              walker.on_route = on_map(model, walker.position);
+              char symbol = model[walker.position.y][walker.position.x];
+              walker = aligned(walker, symbol);
+            } while (walker.on_route && walker.position != start_position);
+            if (walker.on_route) {
+              std::cout << NL << "Found loop at " << walker.position.x << "," << walker.position.y;
+              result = std::max(result,walker.step_count);
+              break;
+            }
+            else {
+              std::cout << NL << "No loop found";
+            }
           }
         }
       }
     }
-    
-    // walk the "pipe" clockwise until we are back at start
-    struct State {
-      Position position;
-      Delta direction;
-    };
-    
-    return result;
+    if (result % 2 == 0 ) {
+      std::cout << NL << "Step count is even: " << result;
+      result = result / 2;
+    }
+    else {
+      std::cout << NL << "Result is odd: " << result;
+      result = (result -1) / 2;
+    }
+    return result; // to high 13514
   }
 }
 
