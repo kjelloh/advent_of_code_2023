@@ -203,6 +203,48 @@ namespace part1 {
     }
   };
 
+class Paths {
+private:
+  std::vector<bool> marked; // marked[v] = is there a path from source to v?
+  std::vector<int> edgeTo; // edgeTo[v] = last edge on path from source to v
+  int source; // source vertex
+
+public:
+  Paths(const Graph& graph, int source) : marked(graph.getVertexCount(), false), edgeTo(graph.getVertexCount()), source(source) {
+    dfs(graph, source);
+  }
+
+  bool hasPathTo(int v) const {
+    return marked[v];
+  }
+
+  std::vector<int> pathTo(int v) const {
+    std::cout << NL << "pathTo" << std::flush;
+    if (!hasPathTo(v)) {
+      return {}; // No path exists
+    }
+
+    std::vector<int> path;
+    for (int x = v; x != source; x = edgeTo[x]) {
+      path.push_back(x);
+    }
+    path.push_back(source);
+    std::reverse(path.begin(), path.end());
+    return path;
+  }
+
+private:
+  void dfs(const Graph& graph, int v) {
+    marked[v] = true;
+    for (int w : graph.getAdjacentVertices(v)) {
+      if (!marked[w]) {
+        edgeTo[w] = v;
+        dfs(graph, w);
+      }
+    }
+  }
+};
+
   /**
    * @brief Represents a position in 2D with x being east and y being south.
    */
@@ -288,13 +330,23 @@ namespace part1 {
     return result;
   }
 
-  int to_vertex(Position pos,Positions& positions) {
+  int to_vertex(Position const& pos,Positions& positions) {
     std::cout << NL << "to_vertex"  << std::flush;
     auto iter = std::find(positions.begin(), positions.end(), pos);
     if (iter == positions.end()) {
       std::cout << NL << "new position" << std::flush;
       positions.push_back(pos);
       return positions.size() - 1; // return index of new position
+    }
+    std::cout << NL << "existing position" << std::flush;
+    return std::distance(positions.begin(), iter);
+  }
+
+  int to_vertex(Position const& pos,Positions const& positions) {
+    std::cout << NL << "to_vertex"  << std::flush;
+    auto iter = std::find(positions.begin(), positions.end(), pos);
+    if (iter == positions.end()) {
+      throw std::runtime_error("vertex not found");
     }
     std::cout << NL << "existing position" << std::flush;
     return std::distance(positions.begin(), iter);
@@ -343,12 +395,34 @@ namespace part1 {
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << "Solver for part 1";
+    auto start = Position(0, 0);
+    int width = model[0].size();
+    int height = model.size();
+    bool found_start = false;
+    for (int distance = 0; distance < width + height;++distance and !found_start) {
+      for (int x = 0; x <= std::min(width,distance) and !found_start; ++x) {
+        int y = std::min(height,std::abs(distance - x));
+        if (model[y][x] == 'S') {
+          model[y][x] = 'F';
+          // repair example map
+        }
+        if (model[y][x] == 'F') {
+          std::cout << NL << "Found start vertex at (" << x << "," << y << ")" << std::flush;
+          start = Position(x, y);
+          found_start = true;
+        }
+      }
+    }
     // transform the model into a graph
     auto const& [graph, positions] = to_graph_and_positions(model);
     print_graph(graph, positions);
+    // Find the start vertex
+    // NOTE: For my input the start vertex is (0,0)!
+    // But in the examples it is a bit more complicated...
+    // Anyhow...
     CC connected_components(graph);
     auto component_count = connected_components.getCount();
-    std::cout << NL << "Number of connected components : " << component_count;
+    std::cout << NL << "Number of connected components : " << component_count << std::flush;
     // create a vector of graphs for each connected component
     std::vector<Graph> graphs(component_count);
     for (int v = 0; v < graph.getVertexCount(); v++) {
@@ -358,26 +432,27 @@ namespace part1 {
         graphs[component_id].addEdge(v, adjacent_vertex);
       }
     }
-    std::cout << NL << "created " << graphs.size() << " separated graphs";
+    std::cout << NL << "created " << graphs.size() << " separated graphs" << std::flush;
     // find the graph with a cycle
+    // NOTE: It turns out all edges connect so there is in fact only one graph.
+    // Anyhow...
     for (auto const& graph : graphs) {
       Cycle cycle(graph);
       if (cycle.hasCycle()) {
-        std::cout << NL << "found a cycle";
+        std::cout << NL << "found a cycle" << std::flush;
         // find the length of the cycle
-        std::cout << NL << "assuming the graph contains only one cycle and all vertices are part of the cycle";
-        std::cout << NL << "the length of the cycle is the number of vertices divided by 2";
-        std::cout << NL << "The vertex count is " << graph.getVertexCount();
-        // Assume the graph contains only one cycle = all vertices are part of the cycle
-        if (graph.getVertexCount() % 2 == 0) {
-          result = graph.getVertexCount() / 2;
-          std::cout << NL << "The vertex count is even so the furthest away point is half way " << result << " steps away from any start position";
+        auto s = to_vertex(start, positions);
+        Paths paths(graph, s);
+        if (paths.hasPathTo(s)) {
+          auto path = paths.pathTo(s);
+          std::cout << NL << "found a path to start vertex" << std::flush;
+          std::cout << NL << "path length : " << path.size() << std::flush;
+          result = path.size() / 2;
         }
         else {
-          result = graph.getVertexCount()-1 / 2;
-          std::cout << NL << "ERROR: The vertex count is odd so the furthest away point is " << result << " steps away from any start position";
+          std::cout << NL << "failed to find a path to start vertex";
         }
-        break;
+        // break;
       }
     }
     return result;
@@ -413,6 +488,7 @@ int main(int argc, char *argv[])
       std::ifstream in{ argv[i] };
       if (in) {
         auto model = parse(in);
+        printModel(model);
         part1_answer = { argv[i],part1::solve_for(model) };
         part2_answer = { argv[i],part2::solve_for(model) };
       }
