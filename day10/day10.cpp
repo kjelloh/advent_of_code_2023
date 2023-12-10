@@ -60,234 +60,234 @@ void printModel(Model const& model) {
   }
 }
 
-namespace part1 {
-
 class Delta {
-  public:
-    int delta_x; /**< The change in x-coordinate representing east/west. */
-    int delta_y; /**< The change in y-coordinate representing south/north. */
+public:
+  int delta_x; /**< The change in x-coordinate representing east/west. */
+  int delta_y; /**< The change in y-coordinate representing south/north. */
 
-    /**
-     * @brief Constructs a Delta object with the given change in x and y coordinates.
-     * @param delta_x The change in x-coordinate representing east/west.
-     * @param delta_y The change in y-coordinate representing south/north.
-     */
-    Delta(int delta_x, int delta_y) : delta_x(delta_x), delta_y(delta_y) {}
+  /**
+   * @brief Constructs a Delta object with the given change in x and y coordinates.
+   * @param delta_x The change in x-coordinate representing east/west.
+   * @param delta_y The change in y-coordinate representing south/north.
+   */
+  Delta(int delta_x, int delta_y) : delta_x(delta_x), delta_y(delta_y) {}
 
-    bool operator==(const Delta& other) const {
-      return delta_x == other.delta_x && delta_y == other.delta_y;
-    }
-
-    bool operator<(const Delta& other) const {
-      return delta_x < other.delta_x || (delta_x == other.delta_x && delta_y < other.delta_y);
-    }
-  };
-
-  class Position {
-  public:
-    int x; /**< The x-coordinate representing east. */
-    int y; /**< The y-coordinate representing south. */
-
-    /**
-     * @brief Constructs a Position object with the given x and y coordinates.
-     * @param x The x-coordinate representing east.
-     * @param y The y-coordinate representing south.
-     */
-    Position(int x, int y) : x(x), y(y) {}
-
-    /**
-     * @brief Equality comparison operator for Position objects.
-     * @param other The Position object to compare with.
-     * @return True if the Position objects are equal, false otherwise.
-     */
-    bool operator==(const Position& other) const {
-      return x == other.x && y == other.y;
-    }
-
-    /**
-     * @brief Addition operator to add a Delta to a Position.
-     * @param delta The Delta to add.
-     * @return The resulting Position after adding the Delta.
-     */
-    Position operator+(const Delta& delta) const {
-      return Position(x + delta.delta_x, y + delta.delta_y);
-    }
-
-    
-  };
-
-  using Positions = std::vector<Position>;
-
-  const Delta EAST(1, 0);
-  const Delta WEST(-1, 0);
-  const Delta SOUTH(0, 1);
-  const Delta NORTH(0, -1);
-
-  struct Walker {
-    Walker(Position const& position, Delta const& direction, bool on_route = true) 
-      : position{ position }, direction{ direction }, on_route{ on_route } {}
-    Result step_count{ 0 };
-    Result operator++() {
-      ++step_count;
-      position = position + direction;
-      return step_count;
-    }
-    Position position;
-    Delta direction;
-    bool on_route{true};
-    operator bool() const { return on_route; }
-  };
-
-  /*
-    The pipes are arranged in a two-dimensional grid of tiles:
-
-    | is a vertical pipe connecting north and south.
-    - is a horizontal pipe connecting east and west.
-    L is a 90-degree bend connecting north and east.
-    J is a 90-degree bend connecting north and west.
-    7 is a 90-degree bend connecting south and west.
-    F is a 90-degree bend connecting south and east.
-    . is ground; there is no pipe in this tile.
-    S is the starting position of the animal; there is a pipe on this tile, but your sketch doesn't show what shape the pipe has.
-  */
-  const std::string SYMBOLS{"|-LJ7FS."};
-
-  Walker init_walker(Position const& position, char symbol) {
-    switch (symbol) {
-    case '|':
-      return Walker{ position, NORTH };
-      break;
-    case '-':
-      return Walker{ position, EAST };
-      break;
-    case 'L':
-      return Walker{ position, EAST };
-      break;
-    case 'J':
-      return Walker{ position, WEST };
-      break;
-    case '7':
-      return Walker{ position, SOUTH };
-      break;
-    case 'F':     
-      return Walker{ position, EAST };
-      break;
-    default:
-      std::cout << NL << "Unknown symbol: " << symbol;
-      return Walker{ position, EAST ,false};
-      break;
-    }
+  bool operator==(const Delta& other) const {
+    return delta_x == other.delta_x && delta_y == other.delta_y;
   }
 
-  Walker aligned(Walker const& walker, char symbol) {
-    Walker result{ walker };
-    switch (symbol) {
-    case '|':
-      if (walker.direction == NORTH || walker.direction == SOUTH) {
-        result.on_route = true;
-      }
-      break;
-    case '-':
-      if (walker.direction == EAST || walker.direction == WEST) {
-        result.on_route = true;
-      }
-      break;
-    case 'L':
-      if (walker.direction == SOUTH) {
-        result.direction = EAST;
-        result.on_route = true;
-      }
-      else if (walker.direction == WEST) {
-        result.direction = NORTH;
-        result.on_route = true;
-      }
-      break;
-    case 'J':
-      if (walker.direction == SOUTH) {
-        result.direction = WEST;
-        result.on_route = true;
-      }
-      else if (walker.direction == EAST) {
-        result.direction = NORTH;
-        result.on_route = true;
-      }
-      break;
-    case '7':
-      if (walker.direction == NORTH) {
-        result.direction = WEST;
-        result.on_route = true;
-      }
-      else if (walker.direction == EAST) {
-        result.direction = SOUTH;
-        result.on_route = true;
-      }
-      break;
-    case 'F':
-      if (walker.direction == NORTH) {
-        result.direction = EAST;
-        result.on_route = true;
-      }
-      else if (walker.direction == WEST) {
-        result.direction = SOUTH;
-        result.on_route = true;
-      }
-      break;
-    case '.':
-      break;
-    default:
-      std::cout << NL << "Unknown symbol: " << symbol;
-      break;
-    }
-    if (!result.on_route) std::cout << NL << "Walk invalid at pipe " << symbol << " at position " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y << " and symbol " << symbol;
-    return result;
+  bool operator<(const Delta& other) const {
+    return delta_x < other.delta_x || (delta_x == other.delta_x && delta_y < other.delta_y);
+  }
+};
+
+class Position {
+public:
+  int x; /**< The x-coordinate representing east. */
+  int y; /**< The y-coordinate representing south. */
+
+  /**
+   * @brief Constructs a Position object with the given x and y coordinates.
+   * @param x The x-coordinate representing east.
+   * @param y The y-coordinate representing south.
+   */
+  Position(int x, int y) : x(x), y(y) {}
+
+  /**
+   * @brief Equality comparison operator for Position objects.
+   * @param other The Position object to compare with.
+   * @return True if the Position objects are equal, false otherwise.
+   */
+  bool operator==(const Position& other) const {
+    return x == other.x && y == other.y;
   }
 
-  bool on_map(Model const& model, Position const& position) {
-    return position.y >= 0 && position.y < model.size() && position.x >= 0 && position.x < model[position.y].size();
+  /**
+   * @brief Addition operator to add a Delta to a Position.
+   * @param delta The Delta to add.
+   * @return The resulting Position after adding the Delta.
+   */
+  Position operator+(const Delta& delta) const {
+    return Position(x + delta.delta_x, y + delta.delta_y);
   }
 
-  std::vector<char> to_pipe_candidates(Position const& position, Model const& model) {
-    std::cout << NL << "to_pipe_candidates for " << position.x << "," << position.y;
-    std::string const NORTH_CONNECTABLE = { '|','7','F'};
-    std::string const SOUTH_CONNECTABLE = { '|','L','J'};
-    std::string const WEST_CONNECTABLE = { '-','L','F'};
-    std::string const EAST_CONNECTABLE = { '-','7','J'};
-    std::vector<char> result{};
-    std::map<Delta, bool> connectable{};
-    for (auto const& delta : { NORTH, EAST, SOUTH, WEST }) {
-      Position candidate = position + delta;
-      if (on_map(model, candidate)) {
-        char symbol = model[candidate.y][candidate.x];
-        connectable[delta] = 
-             (delta == NORTH and std::any_of(NORTH_CONNECTABLE.begin(), NORTH_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
-          or (delta == SOUTH and std::any_of(SOUTH_CONNECTABLE.begin(), SOUTH_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
-          or (delta == WEST and std::any_of(WEST_CONNECTABLE.begin(), WEST_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
-          or (delta == EAST and std::any_of(EAST_CONNECTABLE.begin(), EAST_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }));
-      }
-    }
-    for (int i=0;i<connectable.size();++i) {
-      for (int j=i;j<connectable.size();++j) {
-        auto [delta1,flag1] = *std::next(connectable.begin(), i);
-        auto [delta2, flag2] = *std::next(connectable.begin(), j);
-        if (flag1 and flag2) {
-               if (delta1 == NORTH and delta2 == EAST) result.push_back('L');
-          else if (delta1 == NORTH and delta2 == WEST) result.push_back('J');
-          else if (delta1 == NORTH and delta2== SOUTH) result.push_back('|');
-          else if (delta1 == SOUTH and delta2 == EAST) result.push_back('F');
-          else if (delta1 == SOUTH and delta2 == WEST) result.push_back('7');
-          else if (delta1 == SOUTH and delta2 == NORTH) result.push_back('|');
-          else if (delta1 == EAST and delta2 == WEST) result.push_back('-');          
-          else if (delta1 == EAST and delta2 == NORTH) result.push_back('L');
-          else if (delta1 == EAST and delta2 == SOUTH) result.push_back('F');
-          else if (delta1 == WEST and delta2 == NORTH) result.push_back('J');
-          else if (delta1 == WEST and delta2 == SOUTH) result.push_back('7');
-          else if (delta1 == WEST and delta2 == EAST) result.push_back('-');
-        }
-      }
-    }
-    for (auto candidate : result) std::cout << NT << "Candidate: " << candidate;
-    return result;
+  
+};
+
+using Positions = std::vector<Position>;
+
+const Delta EAST(1, 0);
+const Delta WEST(-1, 0);
+const Delta SOUTH(0, 1);
+const Delta NORTH(0, -1);
+
+struct Walker {
+  Walker(Position const& position, Delta const& direction, bool on_route = true) 
+    : position{ position }, direction{ direction }, on_route{ on_route } {}
+  Result step_count{ 0 };
+  Result operator++() {
+    ++step_count;
+    position = position + direction;
+    return step_count;
   }
+  Position position;
+  Delta direction;
+  bool on_route{true};
+  operator bool() const { return on_route; }
+};
+
+/*
+  The pipes are arranged in a two-dimensional grid of tiles:
+
+  | is a vertical pipe connecting north and south.
+  - is a horizontal pipe connecting east and west.
+  L is a 90-degree bend connecting north and east.
+  J is a 90-degree bend connecting north and west.
+  7 is a 90-degree bend connecting south and west.
+  F is a 90-degree bend connecting south and east.
+  . is ground; there is no pipe in this tile.
+  S is the starting position of the animal; there is a pipe on this tile, but your sketch doesn't show what shape the pipe has.
+*/
+const std::string SYMBOLS{"|-LJ7FS."};
+
+Walker init_walker(Position const& position, char symbol) {
+  switch (symbol) {
+  case '|':
+    return Walker{ position, NORTH };
+    break;
+  case '-':
+    return Walker{ position, EAST };
+    break;
+  case 'L':
+    return Walker{ position, EAST };
+    break;
+  case 'J':
+    return Walker{ position, WEST };
+    break;
+  case '7':
+    return Walker{ position, SOUTH };
+    break;
+  case 'F':     
+    return Walker{ position, EAST };
+    break;
+  default:
+    std::cout << NL << "Unknown symbol: " << symbol;
+    return Walker{ position, EAST ,false};
+    break;
+  }
+}
+
+Walker aligned(Walker const& walker, char symbol) {
+  Walker result{ walker };
+  switch (symbol) {
+  case '|':
+    if (walker.direction == NORTH || walker.direction == SOUTH) {
+      result.on_route = true;
+    }
+    break;
+  case '-':
+    if (walker.direction == EAST || walker.direction == WEST) {
+      result.on_route = true;
+    }
+    break;
+  case 'L':
+    if (walker.direction == SOUTH) {
+      result.direction = EAST;
+      result.on_route = true;
+    }
+    else if (walker.direction == WEST) {
+      result.direction = NORTH;
+      result.on_route = true;
+    }
+    break;
+  case 'J':
+    if (walker.direction == SOUTH) {
+      result.direction = WEST;
+      result.on_route = true;
+    }
+    else if (walker.direction == EAST) {
+      result.direction = NORTH;
+      result.on_route = true;
+    }
+    break;
+  case '7':
+    if (walker.direction == NORTH) {
+      result.direction = WEST;
+      result.on_route = true;
+    }
+    else if (walker.direction == EAST) {
+      result.direction = SOUTH;
+      result.on_route = true;
+    }
+    break;
+  case 'F':
+    if (walker.direction == NORTH) {
+      result.direction = EAST;
+      result.on_route = true;
+    }
+    else if (walker.direction == WEST) {
+      result.direction = SOUTH;
+      result.on_route = true;
+    }
+    break;
+  case '.':
+    break;
+  default:
+    std::cout << NL << "Unknown symbol: " << symbol;
+    break;
+  }
+  if (!result.on_route) std::cout << NL << "Walk invalid at pipe " << symbol << " at position " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y << " and symbol " << symbol;
+  return result;
+}
+
+bool on_map(Model const& model, Position const& position) {
+  return position.y >= 0 && position.y < model.size() && position.x >= 0 && position.x < model[position.y].size();
+}
+
+std::vector<char> to_pipe_candidates(Position const& position, Model const& model) {
+  std::cout << NL << "to_pipe_candidates for " << position.x << "," << position.y;
+  std::string const NORTH_CONNECTABLE = { '|','7','F'};
+  std::string const SOUTH_CONNECTABLE = { '|','L','J'};
+  std::string const WEST_CONNECTABLE = { '-','L','F'};
+  std::string const EAST_CONNECTABLE = { '-','7','J'};
+  std::vector<char> result{};
+  std::map<Delta, bool> connectable{};
+  for (auto const& delta : { NORTH, EAST, SOUTH, WEST }) {
+    Position candidate = position + delta;
+    if (on_map(model, candidate)) {
+      char symbol = model[candidate.y][candidate.x];
+      connectable[delta] = 
+            (delta == NORTH and std::any_of(NORTH_CONNECTABLE.begin(), NORTH_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
+        or (delta == SOUTH and std::any_of(SOUTH_CONNECTABLE.begin(), SOUTH_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
+        or (delta == WEST and std::any_of(WEST_CONNECTABLE.begin(), WEST_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }))
+        or (delta == EAST and std::any_of(EAST_CONNECTABLE.begin(), EAST_CONNECTABLE.end(), [symbol](char c) {return c == symbol; }));
+    }
+  }
+  for (int i=0;i<connectable.size();++i) {
+    for (int j=i;j<connectable.size();++j) {
+      auto [delta1,flag1] = *std::next(connectable.begin(), i);
+      auto [delta2, flag2] = *std::next(connectable.begin(), j);
+      if (flag1 and flag2) {
+              if (delta1 == NORTH and delta2 == EAST) result.push_back('L');
+        else if (delta1 == NORTH and delta2 == WEST) result.push_back('J');
+        else if (delta1 == NORTH and delta2== SOUTH) result.push_back('|');
+        else if (delta1 == SOUTH and delta2 == EAST) result.push_back('F');
+        else if (delta1 == SOUTH and delta2 == WEST) result.push_back('7');
+        else if (delta1 == SOUTH and delta2 == NORTH) result.push_back('|');
+        else if (delta1 == EAST and delta2 == WEST) result.push_back('-');          
+        else if (delta1 == EAST and delta2 == NORTH) result.push_back('L');
+        else if (delta1 == EAST and delta2 == SOUTH) result.push_back('F');
+        else if (delta1 == WEST and delta2 == NORTH) result.push_back('J');
+        else if (delta1 == WEST and delta2 == SOUTH) result.push_back('7');
+        else if (delta1 == WEST and delta2 == EAST) result.push_back('-');
+      }
+    }
+  }
+  for (auto candidate : result) std::cout << NT << "Candidate: " << candidate;
+  return result;
+}
+
+namespace part1 {
 
   Result solve_for(Model& model) {
     Result result{};
@@ -329,14 +329,95 @@ class Delta {
       std::cout << NL << "Result is odd: " << result;
       result = (result -1) / 2;
     }
-    return result; // to high 13514
+    return result; // 13514 / 2 = 6757 ok 
   }
 }
 
 namespace part2 {
   Result solve_for(Model& model) {
       Result result{};
-      return result;
+      /*
+      Just for "fun" - could it be that we can find the enclosed area in the following way:
+      1) mark the loop with some unique symbol
+      2) scan the map and mark all the positions before the enclosure with some "pre-enclosure" symbol and the another symbol for the positions after the enclosure
+      3) Do the same by scanning each column.
+
+      Now "simply" count the number of post-enclosure symbols in each row and sum (integrate) them up?
+      */
+    std::cout << NL << "Solver for part 2";
+
+    std::vector<Position> path{};
+    for (int y = 0; y < model.size() and result==0; ++y) {
+      for (int x = 0; x < model[y].size() and result==0; ++x) {
+        if (model[y][x] == 'S') {          
+          Position start_position{ x,y };
+          // Fix the pipe with each candidate
+          auto candidates = to_pipe_candidates(start_position, model);
+          for (auto const& candidate : candidates) {
+            path.clear(); // Works as long as we have only one loop
+            std::cout << NL << "Candidate for S is " << candidate << std::flush;
+            Walker walker = init_walker(start_position, candidate);
+            path.push_back(walker.position);
+            do {
+              std::cout << NL << "walker: " << walker.position.x << "," << walker.position.y << " with direction " << walker.direction.delta_x << "," << walker.direction.delta_y << std::flush;
+              ++walker;
+              walker.on_route = on_map(model, walker.position);
+              char symbol = model[walker.position.y][walker.position.x];
+              walker = aligned(walker, symbol);
+              path.push_back(walker.position);
+            } while (walker.on_route && walker.position != start_position);
+            if (walker.on_route) {
+              std::cout << NL << "Found loop at " << walker.position.x << "," << walker.position.y;
+              break;
+            }
+            else {
+              std::cout << NL << "No loop found";
+            }
+          }
+        }
+      }
+    }
+
+    Model enclosure_model(model.size(),std::string(model[0].size(),'.'));
+    for (auto const& position : path) {
+      enclosure_model[position.y][position.x] = model[position.y][position.x];
+    }
+    printModel(enclosure_model);
+    // Now scan the map and mark all the positions before the enclosure with some "pre-enclosure" symbol and the another symbol for the positions after the enclosure
+    for (int col = 0; col < enclosure_model[0].size(); ++col) {
+      bool inside_enclosure{ false };
+      for (int row = 0; row < enclosure_model.size(); ++row) {
+        // When scanning columns only '-' counts.
+        if (enclosure_model[row][col] == '-') {
+          inside_enclosure = !inside_enclosure; // flip
+        }
+        else if (enclosure_model[row][col] == '.') {
+          enclosure_model[row][col] = inside_enclosure ? 'i' : 'O'; // 'i' is an inside candidate
+        }
+      }
+    }
+    printModel(enclosure_model);
+    // Do the same by scanning each column.
+    for (int row = 0; row < enclosure_model.size(); ++row) {
+      bool inside_enclosure{ false };
+      for (int col = 0; col < enclosure_model[0].size(); ++col) {
+        // When scanning rows only '|' counts.
+        if (enclosure_model[row][col] == '|') {
+          inside_enclosure = !inside_enclosure; // flip
+        }
+        else if (enclosure_model[row][col] == 'i') {
+          enclosure_model[row][col] = inside_enclosure ? 'I' : 'O'; // 'I' is a confirmed inside tile
+        }
+      }
+    }
+    printModel(enclosure_model);
+    // Now "simply" count the number of post-enclosure symbols in each row and sum (integrate) them up?
+    for (int row = 0; row < enclosure_model.size(); ++row) {
+      for (int col = 0; col < enclosure_model[0].size(); ++col) {
+        if (enclosure_model[row][col] == 'I') ++result;
+      }
+    }
+    return result;
   }
 }
 
