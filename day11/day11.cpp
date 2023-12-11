@@ -29,7 +29,7 @@ auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = int64_t; // 16 bit int: � 3.27 � 10^4, 32 bit int: � 2.14 � 10^9, 64 bit int: � 9.22 � 10^18
+using Integer = long long; // 16 bit int: � 3.27 � 10^4, 32 bit int: � 2.14 � 10^9, 64 bit int: � 9.22 � 10^18
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
@@ -80,13 +80,6 @@ ExpandedUniverse expand(Model& model) {
             ++column; // skip the newly inserted column to prevent recursive expansion
         }
     }
-    return result;
-}
-
-auto shortest_path(ExpandedUniverse& expanded_universe) {
-    Result result{};
-    std::pair<Galaxy,Galaxy> galaxy{};
-    std::cout << NL << std::format("Between galaxy {} and galaxy {}: {}",galaxy.first,galaxy.second,result);
     return result;
 }
 
@@ -344,15 +337,63 @@ namespace part1 {
     }
     result = std::accumulate(distances.begin(),distances.end(),Result{0},[](auto sum,auto const& entry){
       return sum + entry.second;});
-    std::cout << NL << "Result: " << result;
-    return result;
+    return result; // 9370588
   }
 }
 
 namespace part2 {
-  Result solve_for(Model& model) {
+
+  Result solve_for(Model& grid) {
       Result result{};
-      return result;
+      // Thanks to https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day11p2.py and Github copilot chat!
+      // I took the chance of learning rather than solving part 2 myself.
+      // A way to get to terse code that I want to be able to write.
+      // The comments below are mine.
+
+      // Create a vector of the indices of the empty columns and the empty rows.
+      std::vector<int> empty_rows{};
+      for (int r = 0; r < grid.size(); ++r) {
+          if (std::all_of(grid[r].begin(), grid[r].end(), [](char ch) { return ch == '.'; })) {
+              empty_rows.push_back(r);
+          }
+      }
+
+      // Create a vector of the indices of the empty columns.
+      std::vector<int> empty_cols{};
+      for (int c = 0; c < grid[0].size(); ++c) {
+          if (std::all_of(grid.begin(), grid.end(), [c](const std::string& row) { return row[c] == '.'; })) {
+              empty_cols.push_back(c);
+          }
+      }
+
+      // Represent the map as the positions of the found galaxies.
+      std::vector<std::pair<int, int>> points;
+      for (int r = 0; r < grid.size(); ++r) {
+          for (int c = 0; c < grid[r].size(); ++c) {
+              if (grid[r][c] == '#') {
+                  points.emplace_back(r, c);
+              }
+          }
+      }
+
+      long long total = 0;
+      const int scale = 1000000;
+
+      // Loop over unique pairs i=0..n, j=0..i-1 (i.e., (0,1), (0,2), (1,2), (0,3), (1,3), (2,3), ... i.e., all unique pairs)
+      for (int i = 0; i < points.size(); ++i) {
+          for (int j = 0; j < i; ++j) {
+              // Use min and max to ensure we loop over the rows between galaxy pair from low to high.
+              for (int r = std::min(points[i].first, points[j].first); r < std::max(points[i].first, points[j].first); ++r) {
+                  total += std::count(empty_rows.begin(), empty_rows.end(), r) == 1 ? scale : 1;
+              }
+              // Use min and max to ensure we loop over the columns between galaxy pair from low to high.
+              for (int c = std::min(points[i].second, points[j].second); c < std::max(points[i].second, points[j].second); ++c) {
+                  total += std::count(empty_cols.begin(), empty_cols.end(), c) == 1 ? scale : 1;
+              }
+          }
+      }
+      result = total;
+      return result; // 746207878188                     
   }
 }
 
