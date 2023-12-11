@@ -356,6 +356,8 @@ namespace part2 {
           for (auto const& candidate : candidates) {
             path.clear(); // Works as long as we have only one loop
             std::cout << NL << "Candidate for S is " << candidate << std::flush;
+            // mend the map so that we can analyze it later for enclosed tiles
+            model[start_position.y][start_position.x] = candidate;
             Walker walker = init_walker(start_position, candidate);
             path.push_back(walker.position);
             do {
@@ -378,45 +380,82 @@ namespace part2 {
       }
     }
 
+    // Create a map with only the found loop path on it.
     Model enclosure_model(model.size(),std::string(model[0].size(),'.'));
     for (auto const& position : path) {
       enclosure_model[position.y][position.x] = model[position.y][position.x];
     }
     printModel(enclosure_model);
-    // Now scan the map and mark all the positions before the enclosure with some "pre-enclosure" symbol and the another symbol for the positions after the enclosure
-    for (int col = 0; col < enclosure_model[0].size(); ++col) {
-      bool inside_enclosure{ false };
-      for (int row = 0; row < enclosure_model.size(); ++row) {
-        // When scanning columns only '-' counts.
-        if (enclosure_model[row][col] == '-') {
-          inside_enclosure = !inside_enclosure; // flip
-        }
-        else if (enclosure_model[row][col] == '.') {
-          enclosure_model[row][col] = inside_enclosure ? 'i' : 'O'; // 'i' is an inside candidate
-        }
-      }
-    }
-    printModel(enclosure_model);
-    // Do the same by scanning each column.
+    // We can now detect the tiles that are inside the loop in at least two ways.
+    // 1) Walk the path, say clockwise, and mark each ground tile to the right of us as "inside"
+    //    Then we can go over the map in a second pass and flood fill all found inside tiles :)
+    //    (I suppose we could do the flood filling as we go along as well?)
+    // 2) Use a ray cast algorithm to detect the inside tiles. We can scan the map rows and keep count of crossings of the path.
+    //    Each crossing flips the inside/outside state. The state of a tile will then be fully determined based on the ra cast passing the tile
+
+    // Lets say we ray cast each row. On our way from left to right we start at state "outside",
+    // Each time we cross a '|' we flip the state.
+    // Problem is we may find we trace along sections of the path itself (like "...L-----7.."). Is this to count as a "crossing" or not?
+    // Well, it is a crossing if the "corners" represent a crossing (in this example L can be seen as going "up" and '7' as going "down")
+    // This means it is a crossing. While "...L----J..." is not a crossing (both corners goes "up" so our ray never goes "inside".)
     for (int row = 0; row < enclosure_model.size(); ++row) {
-      bool inside_enclosure{ false };
-      for (int col = 0; col < enclosure_model[0].size(); ++col) {
-        // When scanning rows only '|' counts.
-        if (enclosure_model[row][col] == '|') {
-          inside_enclosure = !inside_enclosure; // flip
-        }
-        else if (enclosure_model[row][col] == 'i') {
-          enclosure_model[row][col] = inside_enclosure ? 'I' : 'O'; // 'I' is a confirmed inside tile
-        }
+      std::cout << NL << "row[" << row << "]";
+      std::cout << NT << std::quoted(model[row]);
+      // transform the row into crossing count symbols '+','-','2','0' (increment, decrement, +2)
+      std::string crossing_ops{};
+      std::transform(enclosure_model[row].begin(), enclosure_model[row].end(), std::back_inserter(crossing_ops), [](char c) {
+        std::map<char,char> ops{
+          {'|','2'}, // confirmed crossing (same as ++)
+          {'L','+'}, // going down
+          {'J','-'}, // going up , L---J cancels out with +-, F--J confirms with --
+          {'7','+'}, // going down, L---7 conforms with ++, L--7 cancels out with -+
+          {'F','-'}, // going up, F--J confirms with --, F--7 cancels out with -+
+        };
+        char result = ops.contains(c) ? ops[c] : '0';
+        std::cout << NT << c << " => " << result;
+        return result;
+        });
+      std::cout << NT << std::quoted(model[row]);
+      std::cout << NT <<  std::quoted(crossing_ops);
+      // transform the ops into confirmed crossings (|), possible crossings (?) and no crossings ( )
+      int crossings{ 0 };
+      std::string col_states(enclosure_model[row].size(), '0'); // a mod 3 thingy (0 = no cross,1 maybe cross, 2 cross confirmed)
+      for (int col = 0;col<crossing_ops.size();++col) {
+        auto crossing_op = crossing_ops[col];
+        if (crossing_op == '+') ++crossings;
+        else if (crossing_op == '-') --crossings;
+        else if (crossing_op == '2') crossings = 2;
+        std::cout << NT << " op " << crossing_op << " crossings: " << crossings;
+        switch (crossings) {
+        case 0:
+          col_states[col] = ' ';
+          break;
+        case 1:
+        case -1:
+          col_states[col] = '?';
+          break;
+        case 2:
+        case -2:
+          col_states[col] = '|';
+          break;
+        } 
+        crossings = crossings % 2; // Keep only maybe and no cross state
       }
-    }
-    printModel(enclosure_model);
-    // Now "simply" count the number of post-enclosure symbols in each row and sum (integrate) them up?
-    for (int row = 0; row < enclosure_model.size(); ++row) {
-      for (int col = 0; col < enclosure_model[0].size(); ++col) {
-        if (enclosure_model[row][col] == 'I') ++result;
+      std::cout << NT << std::quoted(col_states);
+      // transform the col_states into inside/outside states (I/O)
+      std::string insides{col_states};
+      bool inside{ false };
+      for (int col = 0; col < col_states.size(); ++col) {
+        inside ^= (col_states[col] == '|'); // flip on confirmed crossing
+        insides[col] = inside and enclosure_model[row][col] == '.' ? 'I' : 'O';
       }
+      std::cout << NT << std::quoted(insides);
+      int count{};
+      for (auto const& c : insides) if (c == 'I') ++count;
+      result += count;
+      std::cout << NT <<  std::quoted(insides) << " contains " << count << " inside tiles. result is now " << result;
     }
+
     return result;
   }
 }
