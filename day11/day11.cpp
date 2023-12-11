@@ -98,11 +98,8 @@ void print_model(Model& model) {
 }
 
 namespace part1 {
-  Result solve_for(Model& model) {
-      bool debug = true;
-      Result result{};
-      std::cout << NL << "Part 1";
-      std::cout << NL << "------";
+  void debug() {
+    bool debug = true;
       /*
       --- Day 11: Cosmic Expansion ---
 
@@ -126,7 +123,7 @@ namespace part1 {
 .......#..
 #...#.....)";
         std::istringstream in{ example };
-        model = parse(in);
+        auto model = parse(in);
         print_model(model);
       }     
       /*      
@@ -181,7 +178,7 @@ namespace part1 {
 .......#..
 #...#.....)";
         std::istringstream in{ example };
-        model = parse(in);
+        auto model = parse(in);
         auto expanded_universe = expand(model);
         print_model(expanded_universe);
   char const* expected = R"(....#........
@@ -282,7 +279,7 @@ namespace part1 {
         Between galaxy 8 and galaxy 9: 5
         In this example, after expanding the universe, the sum of the shortest path between all 36 pairs of galaxies is 374.
         */
-        std::cout << NL << "Shortest path:";
+        std::cout << NL << "Shortest paths:";
         using GalaxyPair = std::pair<Position,Position>;
         using Distances = std::map<GalaxyPair,Result>;
         Distances distances{};
@@ -295,13 +292,59 @@ namespace part1 {
                 std::cout << "\n" << std::format("pair {} : Between galaxy {} and galaxy {}: {}",pair_count++, i+1, j+1, distance);
             }
         }
-        result = std::accumulate(distances.begin(),distances.end(),Result{0},[](auto sum,auto const& entry){
+        auto result = std::accumulate(distances.begin(),distances.end(),Result{0},[](auto sum,auto const& entry){
           return sum + entry.second;});
         std::cout << NL << "Result: " << result;
-     }
+     }    
+  }
+  Result solve_for(Model& model) {
+    bool debug = true;
+    Result result{};
+    std::cout << NL << "Part 1";
+    std::cout << NL << "------";
     // Expand the universe, then find the length of the shortest path between every pair of galaxies. What is the sum of these lengths?
     auto expanded_universe = expand(model);
-    result = shortest_path(expanded_universe);
+
+    struct Position {
+      int row{};
+      int column{};
+
+      Position operator-(const Position& other) const {
+        return {row - other.row, column - other.column};
+      }
+      // Required to use Position as a key in a std::map
+      bool operator<(const Position& other) const {
+          return std::tie(row, column) < std::tie(other.row, other.column);
+      }
+    };
+
+    using Galaxies = std::vector<Position>;
+    Galaxies galaxies{};
+    for (int row = 0; row < expanded_universe.size(); ++row) {
+      for (int column = 0; column < expanded_universe[row].size(); ++column) {
+        if (expanded_universe[row][column] == '#') {
+          galaxies.push_back({row,column});
+        }
+      }
+    }
+
+    std::cout << NL << "Shortest paths:";
+    using GalaxyPair = std::pair<Position,Position>;
+    using Distances = std::map<GalaxyPair,Result>;
+    Distances distances{};
+    int pair_count = 0;
+    // find all unique pairs of galaxies
+    for (size_t i = 0; i < galaxies.size(); ++i) {
+        for (size_t j = i + 1; j < galaxies.size(); ++j) {
+            auto delta_v = galaxies[j] - galaxies[i];
+            Result distance = std::abs(delta_v.row) + std::abs(delta_v.column);
+            distances[{galaxies[i], galaxies[j]}] = distance;
+            std::cout << "\n" << std::format("pair {} : Between galaxy {} and galaxy {}: {}",pair_count++, i+1, j+1, distance);
+        }
+    }
+    result = std::accumulate(distances.begin(),distances.end(),Result{0},[](auto sum,auto const& entry){
+      return sum + entry.second;});
+    std::cout << NL << "Result: " << result;
     return result;
   }
 }
