@@ -29,7 +29,7 @@ auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = int64_t; // 16 bit int: � 3.27 � 10^4, 32 bit int: � 2.14 � 10^9, 64 bit int: � 9.22 � 10^18
+using Integer = int64_t; // 16 bit int: 3.27 x 10^4, 32 bit int: 2.14 x 10^9, 64 bit int: 9.22 x 10^18
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
