@@ -208,6 +208,9 @@ namespace part2 {
     std::map<Position, char> grid{};
     Position upper_left{};
     Position lower_right{};
+    bool operator<(Map const& other) const {
+      return grid < other.grid;
+    }
   };
 
   std::optional<char> at(Map const& map, Position const& position) {
@@ -308,8 +311,15 @@ namespace part2 {
     Result result{};
     auto map = to_map(model);
     print_map(map);
+    struct State {
+      Map map{};
+      Result cycle{};
+      bool operator<(State const& other) const {
+        return map < other.map;
+      }     
+    };
+    std::set<State> seen{};
     for (Result i = 0;i<1000000000;++i) {
-      if (i % 1000 == 0) std::cout << NL << "i : " << i;
       // north is north
       map = to_north_tilted(map); // tilt to north
       // std::cout << NL << "north is north";
@@ -326,8 +336,30 @@ namespace part2 {
       map = to_north_tilted(map);
       // std::cout << NL << "east is north";
       // print_map(map);
+      map = rotate_right(map); // north is north
+      State state{map,i};
+      if (seen.contains(state)) {
+        std::cout << NL << "Found cycle at i : " << i << std::flush;
+        int cycle = i - seen.find(state)->cycle; // i + cycle we get to the same state
+        std::cout << NL << "Found cycle : " << cycle << std::flush;
+        // Say we are to loop 10 cycles i:0..9
+        // and we find that we find the same end cycle state at 2 and 5.
+        // This means we will continue to get the same state at 2,5,8,11,...
+        // We are looking for the end state at cycle 9. 
+        // But because all states must repeat with the same cycle we know that the end state [9]
+        // is the same as end state 9-3,9-2*3,...
+        // We are at cycle 5. And will be at the same state at cycle 11 (2 past 9).
+        // Thus we have already seen the end state at cycle 9 at cycle 5-2 = 3.
+        std::cout << NL << i << "%" << cycle << " = " << i % cycle;
+        std::cout << NL << 1000000000 << "%" << cycle << " = " << 1000000000 % cycle;
+        std::cout << NL << i << " + " << 1000000000 % cycle << " = " << i + 1000000000 % cycle;
+        std::cout << NL << i + 1000000000 % cycle << "%" << cycle << " = " << (i + 1000000000 % cycle) % cycle;
+        while (i + cycle < 1000000000) {
+          i += cycle;
+        }
+      }
+      seen.insert(state);
     }
-    map = rotate_right(map); // north is north
     print_map(map);
     result = load_on_north_support_beams(map);
     return result;
