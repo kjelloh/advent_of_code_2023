@@ -75,28 +75,34 @@ Model parse(auto& in) {
   return result;
 }
 
-void print_model(Model const& model) {
-  for (auto const& pattern : model) {
-    std::cout << NL << "Pattern:";
-    for (auto const& line : pattern) {
-      std::cout << NL << line;
-    }
+void print_pattern(Pattern const& pattern) {
+  std::cout << NL << "Pattern:";
+  for (auto const& line : pattern) {
+    std::cout << NL << std::quoted(line);
   }
 }
 
+void print_model(Model const& model) {
+  for (auto const& pattern : model) {
+    print_pattern(pattern);
+  }
+}
+
+Pattern rotate_right(Pattern const& pattern) {
+  Pattern result{};
+  for (std::size_t c = 0; c < pattern[0].size(); ++c) {
+    std::string line(pattern.size(), ' ');
+    for (std::size_t r = 0; r < pattern.size(); ++r) {
+      line[line.size() - r - 1] = (pattern[r][c]);
+    }
+    result.push_back(line);
+  }
+  return result;
+}
+
+
 namespace part1 {
 
-  Pattern rotate_right(Pattern const& pattern) {
-    Pattern result{};
-    for (std::size_t c = 0; c < pattern[0].size(); ++c) {
-      std::string line(pattern.size(), ' ');
-      for (std::size_t r = 0; r < pattern.size(); ++r) {
-        line[line.size() - r - 1] = (pattern[r][c]);
-      }
-      result.push_back(line);
-    }
-    return result;
-  }
 
   std::optional<std::size_t> to_horizontal_mirror(const std::vector<std::string>& grid) {
     for (std::size_t r = 1; r < grid.size(); ++r) {
@@ -217,8 +223,73 @@ namespace part1 {
 }
 
 namespace part2 {
+  std::optional<std::size_t> to_horizontal_mirror(const std::vector<std::string>& grid) {
+    // std::cout << NL << "part2::to_horizontal_mirror(grid)" << std::flush;
+      for (std::size_t r = 1; r < grid.size(); ++r) {
+          auto above = std::vector<std::string>(grid.begin(), grid.begin() + r);
+          auto below = std::vector<std::string>(grid.begin() + r, grid.end());
+
+          std::reverse(above.begin(), above.end());
+
+          // std::cout << NL << "above:" << std::flush;
+          // print_pattern(above);
+          // std::cout << NL << "below:" << std::flush;
+          // print_pattern(below);
+
+          // lambda to Count number of differences between a and b strings
+          auto diff_count = [](const std::string& a, const std::string& b) {
+            // std::cout << NL << "diff_count(" << std::quoted(a) << "," << std::quoted(b) << ")" << std::flush;
+            auto common_length = std::min(a.size(), b.size());
+            return std::inner_product(
+               a.begin()
+              ,a.begin() + common_length
+              ,b.begin()
+              ,0
+              ,std::plus<>()
+              ,[](char x, char y) { return x == y ? 0 : 1; });
+          };
+
+
+          // Find a mirror position where the above and below differs in only one position
+          auto diff = std::transform_reduce(
+             above.begin()
+            ,above.end()
+            ,below.begin()
+            ,0
+            ,std::plus<>() // reduce / accumulate with plus
+            ,diff_count); // transform with diff_count
+
+          if (diff == 1) {
+            // std::cout << NL << "Horizontal mirror position: " << r << std::flush;
+            return r;
+          }
+      }
+
+      return std::nullopt;
+  }
+
+  std::optional<std::size_t> to_vertical_mirror(const std::vector<std::string>& grid) {
+    auto row_pattern = rotate_right(grid);
+    return to_horizontal_mirror(row_pattern);
+  }
+
   Result solve_for(Model& model) {
       Result result{};
+      std::cout << NL << "part2::solve_for(model)" << std::flush;
+      for (auto const& pattern : model) {
+          std::cout << NL << "Pattern:" << std::flush;
+          if (auto split = to_vertical_mirror(pattern)) {
+              std::cout << NL << "Vertical mirror position: " << *split << std::flush;
+              result += *split;
+          }
+          else if (auto split = to_horizontal_mirror(pattern)) {
+              std::cout << NL << "Horizontal mirror position: " << *split << std::flush;
+              result += 100 * *split;
+          }
+          else {
+              std::cout << NL << "No mirror position found";
+          }
+      }
       return result;
   }
 }
@@ -233,7 +304,7 @@ int main(int argc, char *argv[])
     std::cout << NL << "no data file provided ==> WIll use hard coded example input";
     std::istringstream in{ example };
     auto model = parse(in);
-    part1_answer = { "Example",part1::solve_for(model) };
+    // part1_answer = { "Example",part1::solve_for(model) };
     part2_answer = { "Example",part2::solve_for(model) };
     solution.part1.push_back(part1_answer);
     solution.part2.push_back(part2_answer);
