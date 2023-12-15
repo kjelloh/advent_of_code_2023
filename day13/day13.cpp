@@ -224,7 +224,7 @@ namespace part1 {
 
 namespace part2 {
   std::optional<std::size_t> to_horizontal_mirror(const std::vector<std::string>& grid) {
-    // std::cout << NL << "part2::to_horizontal_mirror(grid)" << std::flush;
+    std::cout << NL << "part2::to_horizontal_mirror(grid)" << std::flush;
       for (std::size_t r = 1; r < grid.size(); ++r) {
           auto above = std::vector<std::string>(grid.begin(), grid.begin() + r);
           auto below = std::vector<std::string>(grid.begin() + r, grid.end());
@@ -236,13 +236,15 @@ namespace part2 {
           // std::cout << NL << "below:" << std::flush;
           // print_pattern(below);
 
+          above.resize(std::min(above.size(), below.size()));
+          below.resize(std::min(above.size(), below.size()));
+
           // lambda to Count number of differences between a and b strings
           auto diff_count = [](const std::string& a, const std::string& b) {
-            // std::cout << NL << "diff_count(" << std::quoted(a) << "," << std::quoted(b) << ")" << std::flush;
-            auto common_length = std::min(a.size(), b.size());
+            std::cout << NL << "diff_count(" << std::quoted(a) << "," << std::quoted(b) << ")" << std::flush;
             return std::inner_product(
                a.begin()
-              ,a.begin() + common_length
+              ,a.end()
               ,b.begin()
               ,0
               ,std::plus<>()
@@ -259,6 +261,7 @@ namespace part2 {
             ,std::plus<>() // reduce / accumulate with plus
             ,diff_count); // transform with diff_count
 
+          // Consider only mirror positions that result from single smudge fix (exactly one pattern difference)
           if (diff == 1) {
             // std::cout << NL << "Horizontal mirror position: " << r << std::flush;
             return r;
@@ -290,7 +293,7 @@ namespace part2 {
               std::cout << NL << "No mirror position found";
           }
       }
-      return result;
+      return result; // 27587
   }
 }
 
