@@ -100,7 +100,7 @@ namespace part1 {
           std::cout << NT << entry;
           result += hash(entry);
       }
-      return result;
+      return result; // 501680
   }
 }
 
