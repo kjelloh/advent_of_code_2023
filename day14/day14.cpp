@@ -362,7 +362,7 @@ namespace part2 {
     }
     print_map(map);
     result = load_on_north_support_beams(map);
-    return result;
+    return result; // 102829
   }
 }
 
