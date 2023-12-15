@@ -187,7 +187,7 @@ namespace part1 {
     Tilt the platform so that the rounded rocks all roll north. Afterward, what is the total load on the north support beams?  
   */
   Result solve_for(Model& model) {
-    print_model(model);
+    std::cout << NL << "Part 1";
     Result result{};
     auto north_tilted = to_north_tilted(model);
     print_model(north_tilted);
@@ -307,10 +307,10 @@ namespace part2 {
     return result;
   }
   Result solve_for(Model& model) {
-    std::cout << NL << "part2::solve_for";
+    std::cout << NL << "Part 2";
     Result result{};
     auto map = to_map(model);
-    print_map(map);
+    // print_map(map);
     struct State {
       Map map{};
       Result cycle{};
@@ -320,6 +320,7 @@ namespace part2 {
     };
     std::set<State> seen{};
     for (Result i = 0;i<1000000000;++i) {
+      if (i % 10 == 0) std::cout << NL << "cycle:" << i;
       // north is north
       map = to_north_tilted(map); // tilt to north
       // std::cout << NL << "north is north";
@@ -342,20 +343,10 @@ namespace part2 {
         std::cout << NL << "Found cycle at i : " << i << std::flush;
         int cycle = i - seen.find(state)->cycle; // i + cycle we get to the same state
         std::cout << NL << "Found cycle : " << cycle << std::flush;
-        // Say we are to loop 10 cycles i:0..9
-        // and we find that we find the same end cycle state at 2 and 5.
-        // This means we will continue to get the same state at 2,5,8,11,...
-        // We are looking for the end state at cycle 9. 
-        // But because all states must repeat with the same cycle we know that the end state [9]
-        // is the same as end state 9-3,9-2*3,...
-        // We are at cycle 5. And will be at the same state at cycle 11 (2 past 9).
-        // Thus we have already seen the end state at cycle 9 at cycle 5-2 = 3.
-        std::cout << NL << i << "%" << cycle << " = " << i % cycle;
-        std::cout << NL << 1000000000 << "%" << cycle << " = " << 1000000000 % cycle;
-        std::cout << NL << i << " + " << 1000000000 % cycle << " = " << i + 1000000000 % cycle;
-        std::cout << NL << i + 1000000000 % cycle << "%" << cycle << " = " << (i + 1000000000 % cycle) % cycle;
         while (i + cycle < 1000000000) {
+          // Fast forward
           i += cycle;
+          if (i % 10000000 == 0) std::cout << NL << "cycle:" << i;
         }
       }
       seen.insert(state);
