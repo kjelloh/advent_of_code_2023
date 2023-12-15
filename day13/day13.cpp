@@ -76,7 +76,7 @@ Model parse(auto& in) {
 }
 
 void print_pattern(Pattern const& pattern) {
-  std::cout << NL << "Pattern:";
+  std::cout << NL << NL << "Pattern:";
   for (auto const& line : pattern) {
     std::cout << NL << std::quoted(line);
   }
@@ -129,7 +129,7 @@ namespace part1 {
 
   Result solve_for(Model& model) {
     Result result{};
-    std::cout << NL << "part1::solve_for(model)";
+    std::cout << NL << NL << "Part 2" << std::flush;
     print_model(model);
     /*
 
@@ -204,7 +204,6 @@ namespace part1 {
 
     */      
     for (auto const& pattern : model) {
-      std::cout << NL << "Pattern:";
       if (auto split = to_vertical_mirror(pattern)) {
         std::cout << NL << "Vertical mirror position: " << *split;
         result += *split;
@@ -224,7 +223,7 @@ namespace part1 {
 
 namespace part2 {
   std::optional<std::size_t> to_horizontal_mirror(const std::vector<std::string>& grid) {
-    std::cout << NL << "part2::to_horizontal_mirror(grid)" << std::flush;
+    // std::cout << NL << "part2::to_horizontal_mirror(grid)" << std::flush;
       for (std::size_t r = 1; r < grid.size(); ++r) {
           auto above = std::vector<std::string>(grid.begin(), grid.begin() + r);
           auto below = std::vector<std::string>(grid.begin() + r, grid.end());
@@ -241,7 +240,7 @@ namespace part2 {
 
           // lambda to Count number of differences between a and b strings
           auto diff_count = [](const std::string& a, const std::string& b) {
-            std::cout << NL << "diff_count(" << std::quoted(a) << "," << std::quoted(b) << ")" << std::flush;
+            // std::cout << NL << "diff_count(" << std::quoted(a) << "," << std::quoted(b) << ")" << std::flush;
             return std::inner_product(
                a.begin()
               ,a.end()
@@ -278,9 +277,9 @@ namespace part2 {
 
   Result solve_for(Model& model) {
       Result result{};
-      std::cout << NL << "part2::solve_for(model)" << std::flush;
+      std::cout << NL << NL << "Part 2" << std::flush;
       for (auto const& pattern : model) {
-          std::cout << NL << "Pattern:" << std::flush;
+          // std::cout << NL << "Pattern:" << std::flush;
           if (auto split = to_vertical_mirror(pattern)) {
               std::cout << NL << "Vertical mirror position: " << *split << std::flush;
               result += *split;
@@ -307,7 +306,7 @@ int main(int argc, char *argv[])
     std::cout << NL << "no data file provided ==> WIll use hard coded example input";
     std::istringstream in{ example };
     auto model = parse(in);
-    // part1_answer = { "Example",part1::solve_for(model) };
+    part1_answer = { "Example",part1::solve_for(model) };
     part2_answer = { "Example",part2::solve_for(model) };
     solution.part1.push_back(part1_answer);
     solution.part2.push_back(part2_answer);
