@@ -192,7 +192,7 @@ namespace part1 {
     auto north_tilted = to_north_tilted(model);
     print_model(north_tilted);
     result = load_on_north_support_beams(north_tilted);
-    return result;
+    return result; // 105461
   }
 }
 
