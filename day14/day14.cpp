@@ -197,8 +197,139 @@ namespace part1 {
 }
 
 namespace part2 {
-  Result solve_for(Model& model) {
+  struct Position {
+    int column{};
+    int row{};
+    bool operator<(Position const& other) const {
+      return (column < other.column) || (column == other.column && row < other.row );
+    }
+  };
+  struct Map {
+    std::map<Position, char> grid{};
+    Position upper_left{};
+    Position lower_right{};
+  };
+
+  std::optional<char> at(Map const& map, Position const& position) {
+    auto it = map.grid.find(position);
+    if (it != map.grid.end()) {
+      return it->second;
+    }
+    return {};
+  }
+
+  void print_map(Map const& map) {
+    std::cout << NL << "Map:";
+    for (int row = map.upper_left.row; row <= map.lower_right.row; ++row) {
+      std::cout << NL;
+      for (int column = map.upper_left.column; column <= map.lower_right.column; ++column) {
+        if (auto rock = at(map, { column, row })) {
+          std::cout << *rock;
+        }
+        else {
+          std::cout << '.';
+        }
+      }
+    }
+  }
+
+  Map to_map(Model& model) {
+    Map result{};
+    for (int column = 0; column < model.size(); ++column) {
+      for (int row = 0; row < model[column].size(); ++row) {
+        if (model[column][row] != '.') {
+          result.grid[{column, row}] = model[column][row]; // store only rocks
+
+          // Update upper_left position
+          result.upper_left.column = std::min(result.upper_left.column, column);
+          result.upper_left.row = std::min(result.upper_left.row, row);
+
+          // Update lower_right position
+          result.lower_right.column = std::max(result.lower_right.column, column);
+          result.lower_right.row = std::max(result.lower_right.row, row);
+        }
+      }
+    }
+    return result;
+  }
+  Map rotate_right(Map const& map) {
+    Map result{};
+    for (auto const& [position, rock] : map.grid) {
+      Position new_position{ -position.row, position.column };
+      result.grid[new_position] = rock;
+    }
+    result.upper_left = { -map.lower_right.row, map.upper_left.column };
+    result.lower_right = { -map.upper_left.row, map.lower_right.column };
+    return result;
+  }
+
+  Map to_north_tilted(Map const& map) {
+    Map result{};
+    result.upper_left = map.upper_left;
+    result.lower_right = map.lower_right;
+
+    // transform map into result where all 'O' has rolled "north"
+    for (int column = map.upper_left.column; column <= map.lower_right.column; ++column) {
+      // std::cout << NL << "column : " << column;
+      int row = map.upper_left.row;
+      while (row <= map.lower_right.row) {
+        Position current_position{ column, row };
+        if (auto rock = at(map, current_position)) {
+          if (*rock == '#') result.grid[current_position] = *rock; // move to unchanged position
+          else {
+            // roll 'O' north as long as there is nothing in the way
+            int rr = row;
+            while (rr > map.upper_left.row && !at(result, { column, rr - 1 })) {
+              --rr;
+              // std::cout << " --" << rr;
+            }
+            result.grid[{column,rr}] = *rock; // can't roll any further
+          }
+        }
+        ++row;
+        // std::cout << " ++" << row;
+      }
+    }
+
+    return result;
+  }
+  Result load_on_north_support_beams(Map const& map) {
     Result result{};
+    for (auto const& [position, rock] : map.grid) {
+      if (rock == 'O') {
+        Result rock_load = map.lower_right.row - position.row + 1;
+        result += rock_load;
+      }
+    }
+    return result;
+  }
+  Result solve_for(Model& model) {
+    std::cout << NL << "part2::solve_for";
+    Result result{};
+    auto map = to_map(model);
+    print_map(map);
+    for (Result i = 0;i<1000000000;++i) {
+      if (i % 1000 == 0) std::cout << NL << "i : " << i;
+      // north is north
+      map = to_north_tilted(map); // tilt to north
+      // std::cout << NL << "north is north";
+      // print_map(map);
+      map = rotate_right(map); // west is north
+      map = to_north_tilted(map); 
+      // std::cout << NL << "west is north";
+      // print_map(map);
+      map = rotate_right(map); // south is north
+      map = to_north_tilted(map);
+      // std::cout << NL << "south is north";
+      // print_map(map);
+      map = rotate_right(map); // east is north
+      map = to_north_tilted(map);
+      // std::cout << NL << "east is north";
+      // print_map(map);
+    }
+    map = rotate_right(map); // north is north
+    print_map(map);
+    result = load_on_north_support_beams(map);
     return result;
   }
 }
