@@ -282,7 +282,7 @@ namespace part2 {
       energized_tiles = find_energized_tiles(model, { model.size(), c, -1, 0 });
       result = std::max(result, static_cast<Result>(energized_tiles.size()));
     }    
-    return result;
+    return result; // 7594
   }
 }
 
