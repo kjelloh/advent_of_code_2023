@@ -47,51 +47,6 @@ struct Solution {
 };
 
 using Grid = std::vector<std::string>;
-struct Position {
-  Integer row{};
-  Integer col{};
-};
-struct Direction {
-  Integer row{};
-  Integer col{};
-};
-struct Beam {
-  Beam(Position const& position, Direction const& direction, Grid const& grid)
-    : position{ position }, direction{ direction }, grid{ grid } {}
-  Position position{};
-  Direction direction{};
-  Grid const& grid{};
-  Position operator++() {
-    position.row += direction.row;
-    position.col += direction.col;
-    return position;
-  }
-};
-struct World {
-  World (Grid const& grid,Beam beam) : grid{grid},beams(1,beam) {
-    upper_left.row = 0;
-    upper_left.col = 0;
-    lower_right.row = grid.size() - 1;
-    lower_right.col = grid[0].size() - 1;
-  }
-  bool off_grid(Position const& position) {
-    return position.row < upper_left.row || position.row > lower_right.row || position.col < upper_left.col || position.col > lower_right.col;
-  }
-  Grid grid{};
-  Position upper_left{};
-  Position lower_right{};
-  std::vector<Beam> beams{};
-  bool operator++() {
-    for (auto& beam : beams) {
-      ++beam;
-      if (off_grid(beam.position)) {
-        std::cerr << NL << "Beam off grid at " << beam.position.row << "," << beam.position.col;
-        return true; // stop
-      };
-    }
-    return false; // Not there yet :)
-  }
-};
 using Model = Grid;
 
 Model parse(auto& in) {
@@ -109,6 +64,97 @@ void print_model(Model const& model) {
       std::cout << NL << line;
   }
 }
+
+using Beam = std::tuple<int, int, int, int>;
+
+// Breath first search according to navigation rules of beams
+std::set<std::pair<int, int>> find_energized_tiles(Model const& grid,Beam const& beam = {0, -1, 0, 1}) {
+
+  std::deque<std::tuple<int, int, int, int>> q{beam};
+  std::set<std::tuple<int, int, int, int>> seen{};
+
+  while (!q.empty()) {
+    auto [r, c, dr, dc] = q.front();
+    q.pop_front();
+
+    r += dr;
+    c += dc;
+
+    if (r < 0 || r >= grid.size() || c < 0 || c >= grid[0].size()) {
+      continue;
+    }
+
+    char ch = grid[r][c];
+    std::cout << NL << "ch=" << ch << " at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+
+    if (ch == '.' || (ch == '-' && dc != 0) || (ch == '|' && dr != 0)) {
+      std::cout << NT << "Treat as empty at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+      if (seen.insert({r, c, dr, dc}).second) {
+        q.push_back({r, c, dr, dc});
+        std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+      }
+    } else if (ch == '/') {
+      std::cout << NT << "'/' at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+      if (dr == 0 && dc == 1) {
+          dr = -1;
+          dc = 0;
+      } else if (dr == 0 && dc == -1) {
+          dr = 1;
+          dc = 0;
+      } else if (dr == -1 && dc == 0) {
+          dr = 0;
+          dc = 1;
+      } else if (dr == 1 && dc == 0) {
+          dr = 0;
+          dc = -1;
+      }
+      if (seen.insert({r, c, dr, dc}).second) {
+        q.push_back({r, c, dr, dc});
+        std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+      }
+    } else if (ch == '\\') {
+      std::cout << NT << "'\\' at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+      if (dr == 0 && dc == 1) {
+          // RIGHT to DOWN
+          dr = 1;
+          dc = 0;
+      } else if (dr == 0 && dc == -1) {
+          // LEFT to UP
+          dr = -1;
+          dc = 0;
+      } else if (dr == -1 && dc == 0) {
+          // UP to LEFT
+          dr = 0;
+          dc = -1;
+      } else if (dr == 1 && dc == 0) {
+          // DOWN to RIGHT
+          dr = 0;
+          dc = 1;
+      }
+      if (seen.insert({r, c, dr, dc}).second) {
+        q.push_back({r, c, dr, dc});
+        std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+      }
+    } else {
+      // '|' or '-'
+      std::cout << NT << "'|' or '-' at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+      for (auto [dr, dc] : (ch == '|' ? std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}} : std::vector<std::pair<int, int>>{{0, 1}, {0, -1}})) {
+        if (seen.insert({r, c, dr, dc}).second) {
+          q.push_back({r, c, dr, dc});
+          std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
+        }
+      }
+    }
+  }
+
+  std::set<std::pair<int, int>> coords;
+  for (const auto& [r, c, _, __] : seen) {
+    coords.insert({r, c});
+  }
+
+  return coords;
+}
+
 
 namespace part1 {
 
@@ -128,92 +174,6 @@ namespace part1 {
     }
   }
 
-  std::set<std::pair<int, int>> find_energized_tiles(Model const& grid) {
-
-    std::deque<std::tuple<int, int, int, int>> q{{0, -1, 0, 1}};
-    std::set<std::tuple<int, int, int, int>> seen{};
-
-    while (!q.empty()) {
-      auto [r, c, dr, dc] = q.front();
-      q.pop_front();
-
-      r += dr;
-      c += dc;
-
-      if (r < 0 || r >= grid.size() || c < 0 || c >= grid[0].size()) {
-        continue;
-      }
-
-      char ch = grid[r][c];
-      std::cout << NL << "ch=" << ch << " at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-
-      if (ch == '.' || (ch == '-' && dc != 0) || (ch == '|' && dr != 0)) {
-        std::cout << NT << "Treat as empty at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-        if (seen.insert({r, c, dr, dc}).second) {
-          q.push_back({r, c, dr, dc});
-          std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-        }
-      } else if (ch == '/') {
-        std::cout << NT << "'/' at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-        if (dr == 0 && dc == 1) {
-            dr = -1;
-            dc = 0;
-        } else if (dr == 0 && dc == -1) {
-            dr = 1;
-            dc = 0;
-        } else if (dr == -1 && dc == 0) {
-            dr = 0;
-            dc = 1;
-        } else if (dr == 1 && dc == 0) {
-            dr = 0;
-            dc = -1;
-        }
-        if (seen.insert({r, c, dr, dc}).second) {
-          q.push_back({r, c, dr, dc});
-          std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-        }
-      } else if (ch == '\\') {
-        std::cout << NT << "'\\' at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-        if (dr == 0 && dc == 1) {
-            // RIGHT to DOWN
-            dr = 1;
-            dc = 0;
-        } else if (dr == 0 && dc == -1) {
-            // LEFT to UP
-            dr = -1;
-            dc = 0;
-        } else if (dr == -1 && dc == 0) {
-            // UP to LEFT
-            dr = 0;
-            dc = -1;
-        } else if (dr == 1 && dc == 0) {
-            // DOWN to RIGHT
-            dr = 0;
-            dc = 1;
-        }
-        if (seen.insert({r, c, dr, dc}).second) {
-          q.push_back({r, c, dr, dc});
-          std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-        }
-      } else {
-        // '|' or '-'
-        std::cout << NT << "'|' or '-' at " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-        for (auto [dr, dc] : (ch == '|' ? std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}} : std::vector<std::pair<int, int>>{{0, 1}, {0, -1}})) {
-          if (seen.insert({r, c, dr, dc}).second) {
-            q.push_back({r, c, dr, dc});
-            std::cout << NT << "Pushing " << r << "," << c << " with dr=" << dr << " and dc=" << dc;
-          }
-        }
-      }
-    }
-
-    std::set<std::pair<int, int>> coords;
-    for (const auto& [r, c, _, __] : seen) {
-      coords.insert({r, c});
-    }
-
-    return coords;
-  }
   Result solve_for(Model& model) {
     Result result{};
     /*
@@ -309,6 +269,19 @@ namespace part1 {
 namespace part2 {
   Result solve_for(Model& model) {
     Result result{};
+    for (int r = 0; r < model.size(); ++r) {
+      auto energized_tiles = find_energized_tiles(model, { r, -1, 0, 1 });
+      result = std::max(result, static_cast<Result>(energized_tiles.size()));
+      energized_tiles = find_energized_tiles(model, { r, model[0].size(), 0, -1 });
+      result = std::max(result, static_cast<Result>(energized_tiles.size()));
+    }
+
+    for (int c = 0; c < model[0].size(); ++c) {
+      auto energized_tiles = find_energized_tiles(model, { -1, c, 1, 0 });
+      result = std::max(result, static_cast<Result>(energized_tiles.size()));
+      energized_tiles = find_energized_tiles(model, { model.size(), c, -1, 0 });
+      result = std::max(result, static_cast<Result>(energized_tiles.size()));
+    }    
     return result;
   }
 }
