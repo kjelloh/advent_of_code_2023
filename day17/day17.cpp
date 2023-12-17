@@ -62,144 +62,143 @@ Model parse(auto& in) {
     return result;
 }
 
-namespace part1 {
+struct State {
+  int row;
+  int col;
+  int cost;
+  int dr;
+  int dc;
+  int straight_step_count;
+};
 
-  struct State {
-    int row;
-    int col;
-    int cost;
-    int dr;
-    int dc;
-    int straight_step_count;
-  };
-
-  struct Compare {
-    bool operator()(const State& a, const State& b) {
-      return a.cost > b.cost;
-    }
-  };
-
-  int dijkstra(const std::vector<std::string>& grid) {
-    std::cout << NL << "dijkstra" << std::flush;
-    int rows = grid.size();
-    int cols = grid[0].size();
-
-    std::priority_queue<State, std::vector<State>, Compare> pq;
-    std::set<std::tuple<int, int, int, int, int>> seen; // Keep track of states of the same cost,position, direction and straight step history
-
-    pq.push({0, 0, 0, 0, 1, 0}); // start at 0,0 going dc=1 right
-
-    while (!pq.empty()) {
-      State curr = pq.top();
-      pq.pop();
-
-      int row = curr.row;
-      int col = curr.col;
-      int cost = curr.cost;
-      int dr = curr.dr;
-      int dc = curr.dc;
-      int straight_step_count = curr.straight_step_count;
-
-      // std::cout << NL << "row : " << row << " col : " << col << " cost : " << cost << " dr : " << dr << " dc : " << dc << " straight_step_count : " << straight_step_count;
-
-      if (seen.count({row, col, dr, dc, straight_step_count})) {
-        continue; // skip as we already considered this position from the same direction and with the same consecutive step history
-      }
-
-      seen.insert({row, col, dr, dc, straight_step_count}); // from now on this state is considered = seen (below we will update the cost if it is better)
-
-      if (row == rows - 1 && col == cols - 1) {
-        std::cout << NL << cost;
-        return cost;
-      }
-
-      for (int i = 0; i < 3; i++) {
-        int newDr = 0;
-        int newDc = 0;
-        int new_straight_step_count = 0;
-
-        if (i == 0) {
-          // Go straight
-          newDr = dr;
-          newDc = dc;
-          new_straight_step_count = straight_step_count + 1;
-        } else if (i == 1) {
-          // Go left
-          newDr = -dc;
-          newDc = dr;
-          new_straight_step_count = 1;
-        } else if (i == 2) {
-          // Go right
-          newDr = dc;
-          newDc = -dr;
-          new_straight_step_count = 1;
-        }
-
-        // Next position
-        int newRow = row + newDr;
-        int newCol = col + newDc;
-
-        if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols and new_straight_step_count <= 3) {
-            int newCost = cost + grid[newRow][newCol] - '0';
-            pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
-            // std::cout << NT << "newRow : " << newRow << " newCol : " << newCol << " newCost : " << newCost << " newDr : " << newDr << " newDc : " << newDc << " new_straight_step_count : " << new_straight_step_count;
-        }
-      }
-    }
-
-    return -1; // No path found
+struct Compare {
+  bool operator()(const State& a, const State& b) {
+    return a.cost > b.cost;
   }
+};
 
-  int dijkstra2(const std::vector<std::string>& grid) {
-    std::cout << NL << "dijkstra2" << std::flush;
-    std::set<std::tuple<int, int, int, int, int>> seen;
-    std::priority_queue<std::tuple<int, int, int, int, int, int>, std::vector<std::tuple<int, int, int, int, int, int>>, std::greater<>> pq;
-    pq.push({0, 0, 0, 0, 0, 0});
+int dijkstra(const std::vector<std::string>& grid, int min_steps, int max_steps) {
+  std::cout << NL << "dijkstra" << std::flush;
+  int rows = grid.size();
+  int cols = grid[0].size();
 
-    std::vector<std::pair<int, int>> directions = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+  std::vector<std::vector<State>> prev(rows, std::vector<State>(cols)); // Keep track of previous best state
 
-    while (!pq.empty()) {
-      auto [hl, r, c, dr, dc, n] = pq.top();
-      pq.pop();
+  std::priority_queue<State, std::vector<State>, Compare> pq;
+  std::set<std::tuple<int, int, int, int, int>> seen; // Keep track of states of the same cost,position, direction and straight step history
+  std::map<std::tuple<int,int,int,int,int>,std::tuple<int,int,int,int,int>> prev_state{}; // Keep track of previous best state
 
-      // std::cout << NL << "hl : " << hl << " r : " << r << " c : " << c << " dr : " << dr << " dc : " << dc << " n : " << n;
+  pq.push({0, 0, 0, 0, 1, 0}); // start at 0,0 going dc=1 right
 
-      if (r == grid.size() - 1 && c == grid[0].size() - 1) {
-        std::cout << NL << hl;
-        return hl;
-      }
+  while (!pq.empty()) {
+    State curr = pq.top();
+    pq.pop();
 
-      if (seen.count({r, c, dr, dc, n})) {
-        continue;
-      }
+    auto [row,col,cost,dr,dc,straight_step_count] = curr;
 
-      seen.insert({r, c, dr, dc, n});
+    if (seen.count({row, col, dr, dc, straight_step_count})) {
+      continue; // skip as we already considered this position coming from the same direction and with the same consecutive step history
+    }
 
-      if (n < 3 && (dr != 0 || dc != 0)) {
-        int nr = r + dr;
-        int nc = c + dc;
-        if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size()) {
-          pq.push({hl + grid[nr][nc] - '0', nr, nc, dr, dc, n + 1});
-          // std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
+    seen.insert({row, col, dr, dc, straight_step_count}); // from now on this state is considered = seen (below we will update the cost if it is better)
+
+    if (row == rows - 1 && col == cols - 1 and straight_step_count >= min_steps and straight_step_count <= max_steps) {
+      // End position reached with a valid step history
+      std::cout << NL << cost << std::flush;
+      // retrieve and print the best path
+      {
+        std::vector<std::tuple<int,int,int,int,int>> path{};
+        auto [r,c,cost,dr,dc,_] = curr;
+        while (r != 0 or c != 0) {
+          path.push_back({r,c,cost,dr,dc});
+          auto [r2,c2,cost2,dr2,dc2] = prev_state[{r,c,cost,dr,dc}];
+          r = r2;
+          c = c2;
+          cost = cost2;
+          dr = dr2;
+          dc = dc2;
         }
-      }
-
-      for (auto [ndr, ndc] : directions) {
-        if ((ndr != dr || ndc != dc) && (ndr != -dr || ndc != -dc)) {
-          int nr = r + ndr;
-          int nc = c + ndc;
-          if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size()) {
-            pq.push({hl + grid[nr][nc] - '0', nr, nc, ndr, ndc, 1});
-            // std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
+        path.push_back({0,0,0,0,0});
+        std::reverse(path.begin(),path.end());
+        for (int row = 0; row < rows; ++row) {
+          std::cout << NL;
+          for (int col = 0; col < cols; ++col) {
+            auto it = std::find_if(path.begin(),path.end(),[row,col](auto const& t){ 
+              auto [r,c,cost,dr,dc] = t;
+              return r == row and c == col;
+            });
+            if (it != path.end()) {
+              auto [r,c,cost,dr,dc] = *it;
+              if (r == 0 and c == 0) {
+                std::cout << 'S';
+              } else if (r == rows - 1 and c == cols - 1) {
+                std::cout << 'E';
+              } else {
+                if (dr == 0 and dc == 1) std::cout << '>';
+                else if (dr == 0 and dc == -1) std::cout << '<';
+                else if (dr == 1 and dc == 0) std::cout << 'v';
+                else if (dr == -1 and dc == 0) std::cout << '^';
+                else std::cout << '?';
+              }
+            } else {
+              std::cout << '.';
+            }
           }
         }
       }
+
+      return cost;
     }
 
-    return 0;
+    for (int i = 0; i < 3; i++) {
+      int newDr = 0;
+      int newDc = 0;
+      int new_straight_step_count = 0;
+
+      bool valid_step = false;
+      if (i == 0) {
+        // Go straight
+        newDr = dr;
+        newDc = dc;
+        valid_step = straight_step_count < max_steps;
+        new_straight_step_count = straight_step_count + 1;
+      } else if (i == 1) {
+        // Try go left
+        newDr = -dc;
+        newDc = dr;
+        valid_step = straight_step_count >= min_steps; // turn allowed
+        new_straight_step_count = 1;
+      } else if (i == 2) {
+        // try go right
+        newDr = dc;
+        newDc = -dr;
+        valid_step = straight_step_count >= min_steps; // turn allowed
+        new_straight_step_count = 1;
+      }
+
+      // Next position
+      int newRow = row + newDr;
+      int newCol = col + newDc;
+
+      if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols and valid_step) {
+        int newCost = cost + grid[newRow][newCol] - '0';
+        // push the new candidate state and let the priority queue sort out which is the next best one
+        pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
+        prev_state[{newRow, newCol, newCost,newDr, newDc}] = {row,col,cost,dr,dc}; // record the previous state in case it is the best one
+      }
+    }
   }
+
+  return -1; // No path found
+}
+
+
+namespace part1 {
+
+
   Result solve_for(Model& model) {
-      Result result{};
+    std::cout << NL << "part1" << std::flush;
+    Result result{};
 /*
 The lava starts flowing rapidly once the Lava Production Facility is operational. 
 As you leave, the reindeer offers you a parachute, allowing you to quickly reach Gear Island.
@@ -272,144 +271,14 @@ but not moving more than three consecutive blocks in the same direction,
 what is the least heat loss it can incur?
 
 */    
-    auto result1 = dijkstra(model);
-    auto result2 = dijkstra2(model);
-    std::cout << NL << "result1 : " << result1 << " result2 : " << result2;
-    return result1; // 722
+    result = dijkstra(model,0,3);
+    return result; // 722
   }
 }
 
 namespace part2 {
-  struct State {
-    int row;
-    int col;
-    int cost;
-    int dr;
-    int dc;
-    int straight_step_count;
-  };
-
-  struct Compare {
-    bool operator()(const State& a, const State& b) {
-      return a.cost > b.cost;
-    }
-  };
-
-  int dijkstra(const std::vector<std::string>& grid, int min_steps, int max_steps) {
-    std::cout << NL << "part2::dijkstra" << std::flush;
-    int rows = grid.size();
-    int cols = grid[0].size();
-
-    std::vector<std::vector<State>> prev(rows, std::vector<State>(cols)); // Keep track of previous best state
-
-    std::priority_queue<State, std::vector<State>, Compare> pq;
-    std::set<std::tuple<int, int, int, int, int>> seen; // Keep track of states of the same cost,position, direction and straight step history
-    std::map<std::tuple<int,int,int,int,int>,std::tuple<int,int,int,int,int>> prev_state{}; // Keep track of previous best state
-
-    pq.push({0, 0, 0, 0, 1, 0}); // start at 0,0 going dc=1 right
-
-    while (!pq.empty()) {
-      State curr = pq.top();
-      pq.pop();
-
-      auto [row,col,cost,dr,dc,straight_step_count] = curr;
-
-      if (seen.count({row, col, dr, dc, straight_step_count})) {
-        continue; // skip as we already considered this position coming from the same direction and with the same consecutive step history
-      }
-
-      seen.insert({row, col, dr, dc, straight_step_count}); // from now on this state is considered = seen (below we will update the cost if it is better)
-
-      if (row == rows - 1 && col == cols - 1 and straight_step_count >= min_steps and straight_step_count <= max_steps) {
-        // End position reached with a valid step history
-        std::cout << NL << cost << std::flush;
-        // retrieve and print the best path
-        {
-          std::vector<std::tuple<int,int,int,int,int>> path{};
-          auto [r,c,cost,dr,dc,_] = curr;
-          while (r != 0 or c != 0) {
-            path.push_back({r,c,cost,dr,dc});
-            auto [r2,c2,cost2,dr2,dc2] = prev_state[{r,c,cost,dr,dc}];
-            r = r2;
-            c = c2;
-            cost = cost2;
-            dr = dr2;
-            dc = dc2;
-          }
-          path.push_back({0,0,0,0,0});
-          std::reverse(path.begin(),path.end());
-          for (int row = 0; row < rows; ++row) {
-            std::cout << NL;
-            for (int col = 0; col < cols; ++col) {
-              auto it = std::find_if(path.begin(),path.end(),[row,col](auto const& t){ 
-                auto [r,c,cost,dr,dc] = t;
-                return r == row and c == col;
-              });
-              if (it != path.end()) {
-                auto [r,c,cost,dr,dc] = *it;
-                if (r == 0 and c == 0) {
-                  std::cout << 'S';
-                } else if (r == rows - 1 and c == cols - 1) {
-                  std::cout << 'E';
-                } else {
-                  if (dr == 0 and dc == 1) std::cout << '>';
-                  else if (dr == 0 and dc == -1) std::cout << '<';
-                  else if (dr == 1 and dc == 0) std::cout << 'v';
-                  else if (dr == -1 and dc == 0) std::cout << '^';
-                  else std::cout << '?';
-                }
-              } else {
-                std::cout << '.';
-              }
-            }
-          }
-        }
-
-        return cost;
-      }
-
-      for (int i = 0; i < 3; i++) {
-        int newDr = 0;
-        int newDc = 0;
-        int new_straight_step_count = 0;
-
-        bool valid_step = false;
-        if (i == 0) {
-          // Go straight
-          newDr = dr;
-          newDc = dc;
-          valid_step = straight_step_count < max_steps;
-          new_straight_step_count = straight_step_count + 1;
-        } else if (i == 1) {
-          // Try go left
-          newDr = -dc;
-          newDc = dr;
-          valid_step = straight_step_count >= min_steps; // turn allowed
-          new_straight_step_count = 1;
-        } else if (i == 2) {
-          // try go right
-          newDr = dc;
-          newDc = -dr;
-          valid_step = straight_step_count >= min_steps; // turn allowed
-          new_straight_step_count = 1;
-        }
-
-        // Next position
-        int newRow = row + newDr;
-        int newCol = col + newDc;
-
-        if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols and valid_step) {
-          int newCost = cost + grid[newRow][newCol] - '0';
-          // push the new candidate state and let the priority queue sort out which is the next best one
-          pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
-          prev_state[{newRow, newCol, newCost,newDr, newDc}] = {row,col,cost,dr,dc}; // record the previous state in case it is the best one
-        }
-      }
-    }
-
-    return -1; // No path found
-  }
   Result solve_for(Model& model) {
+    std::cout << NL << "part2" << std::flush;
     Result result{};
     /*
     The crucibles of lava simply aren't large enough to provide an adequate supply of lava to the machine parts factory. Instead, the Elves are going to upgrade to ultra crucibles.
