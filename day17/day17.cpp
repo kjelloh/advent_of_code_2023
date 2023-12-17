@@ -304,6 +304,7 @@ namespace part2 {
 
     std::priority_queue<State, std::vector<State>, Compare> pq;
     std::set<std::tuple<int, int, int, int, int>> seen; // Keep track of states of the same cost,position, direction and straight step history
+    std::map<std::tuple<int,int,int,int,int>,std::tuple<int,int,int,int,int>> prev_state{}; // Keep track of previous best state
 
     pq.push({0, 0, 0, 0, 1, 0}); // start at 0,0 going dc=1 right
 
@@ -311,12 +312,7 @@ namespace part2 {
       State curr = pq.top();
       pq.pop();
 
-      int row = curr.row;
-      int col = curr.col;
-      int cost = curr.cost;
-      int dr = curr.dr;
-      int dc = curr.dc;
-      int straight_step_count = curr.straight_step_count;
+      auto [row,col,cost,dr,dc,straight_step_count] = curr;
 
       if (seen.count({row, col, dr, dc, straight_step_count})) {
         continue; // skip as we already considered this position coming from the same direction and with the same consecutive step history
@@ -327,6 +323,48 @@ namespace part2 {
       if (row == rows - 1 && col == cols - 1 and straight_step_count >= min_steps and straight_step_count <= max_steps) {
         // End position reached with a valid step history
         std::cout << NL << cost << std::flush;
+        // retrieve and print the best path
+        {
+          std::vector<std::tuple<int,int,int,int,int>> path{};
+          auto [r,c,cost,dr,dc,_] = curr;
+          while (r != 0 or c != 0) {
+            path.push_back({r,c,cost,dr,dc});
+            auto [r2,c2,cost2,dr2,dc2] = prev_state[{r,c,cost,dr,dc}];
+            r = r2;
+            c = c2;
+            cost = cost2;
+            dr = dr2;
+            dc = dc2;
+          }
+          path.push_back({0,0,0,0,0});
+          std::reverse(path.begin(),path.end());
+          for (int row = 0; row < rows; ++row) {
+            std::cout << NL;
+            for (int col = 0; col < cols; ++col) {
+              auto it = std::find_if(path.begin(),path.end(),[row,col](auto const& t){ 
+                auto [r,c,cost,dr,dc] = t;
+                return r == row and c == col;
+              });
+              if (it != path.end()) {
+                auto [r,c,cost,dr,dc] = *it;
+                if (r == 0 and c == 0) {
+                  std::cout << 'S';
+                } else if (r == rows - 1 and c == cols - 1) {
+                  std::cout << 'E';
+                } else {
+                  if (dr == 0 and dc == 1) std::cout << '>';
+                  else if (dr == 0 and dc == -1) std::cout << '<';
+                  else if (dr == 1 and dc == 0) std::cout << 'v';
+                  else if (dr == -1 and dc == 0) std::cout << '^';
+                  else std::cout << '?';
+                }
+              } else {
+                std::cout << '.';
+              }
+            }
+          }
+        }
+
         return cost;
       }
 
@@ -362,8 +400,9 @@ namespace part2 {
 
         if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols and valid_step) {
           int newCost = cost + grid[newRow][newCol] - '0';
-          // Update the best cost and previous state for this position
+          // push the new candidate state and let the priority queue sort out which is the next best one
           pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
+          prev_state[{newRow, newCol, newCost,newDr, newDc}] = {row,col,cost,dr,dc}; // record the previous state in case it is the best one
         }
       }
     }
