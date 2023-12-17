@@ -73,19 +73,18 @@ namespace part1 {
     Integer col;
   };
 
-  struct PartNumber {
-    std::string digits;
+  struct PositionedToken {
+    std::string label;
     Position pos;
   };
 
-  using PartNumbers = std::vector<PartNumber>;
+  using PositionedTokens = std::vector<PositionedToken>;
 
-  PartNumbers to_part_numbers(const std::vector<std::string>& grid) {
-    PartNumbers result;
-    std::regex digitSequence("\\d+");
+  PositionedTokens to_positioned_tokens(const std::vector<std::string>& grid, const std::regex& token) {
+    PositionedTokens result;
 
     for (Integer i = 0; i < grid.size(); ++i) {
-      auto begin = std::sregex_iterator(grid[i].begin(), grid[i].end(), digitSequence);
+      auto begin = std::sregex_iterator(grid[i].begin(), grid[i].end(), token);
       auto end = std::sregex_iterator();
 
       for (std::sregex_iterator it = begin; it != end; ++it) {
@@ -93,20 +92,55 @@ namespace part1 {
         result.push_back({match.str(), {i, static_cast<Integer>(match.position())}});
       }
     }
+
     return result;
   }
-  void print_part_numbers(const PartNumbers& partNumbers) {
-    std::cout << NL << "Part Numbers:";
-    for (const auto& partNumber : partNumbers) {
-      std::cout << NL << partNumber.digits << " " << partNumber.pos.row << " " << partNumber.pos.col;
+
+  void print_positioned_tokens(const PositionedTokens& PositionedTokens) {
+    std::cout << NL << "tokens:";
+    for (const auto& PositionedToken : PositionedTokens) {
+      std::cout << NL << "at (" << PositionedToken.pos.row << "," << PositionedToken.pos.col << ") is: " << std::quoted(PositionedToken.label);
     }
-  } 
+  }
+
+  std::vector<std::pair<PositionedToken,PositionedToken>> to_adjacent_pairs(PositionedTokens const& first,PositionedTokens const& second) {
+    std::vector<std::pair<PositionedToken,PositionedToken>> result{};
+    for (auto const& first_token : first) {
+      std::cout << NL << "frame of" << std::quoted(first_token.label) << " at (" << first_token.pos.row << "," << first_token.pos.col << ")";
+      std::vector<Position> frame{};
+      for (int r = first_token.pos.row - 1; r <= first_token.pos.row + 1; ++r) {
+        std:: cout << NT << "r: " << r << std::flush;
+        for (int c = first_token.pos.col - 1; c <= first_token.pos.col + static_cast<int>(first_token.label.size()); ++c) {
+          std::cout << " c: " << c;
+          frame.push_back({r,c});
+        }
+      }
+      for (auto const& second_token : second) {
+        for (auto const& [r,c] : frame) {
+          if (r == second_token.pos.row && c == second_token.pos.col) {
+            std::cout << NT << "overlap at (" << r << "," << c << ")";
+            result.push_back({first_token,second_token});
+          }
+        }
+      }
+    }
+    return result;
+  }
 
   Result solve_for(Model& model) {
       Result result{};
       print_model(model);
-      auto partNumbers = to_part_numbers(model);
-      print_part_numbers(partNumbers);
+      auto candidates = to_positioned_tokens(model,std::regex(R"(\d+)"));
+      print_positioned_tokens(candidates);
+      auto symbols = to_positioned_tokens(model,std::regex(R"([^\d\.])"));
+      print_positioned_tokens(symbols);
+      auto adjacent_pairs = to_adjacent_pairs(candidates,symbols);
+      std::cout << NL << "adjacent pairs:";
+      for (auto const& [first,second] : adjacent_pairs) {
+        std::cout << NT << "first: " << std::quoted(first.label) << " at (" << first.pos.row << "," << first.pos.col << ")";
+        std::cout << NT << "second: " << std::quoted(second.label) << " at (" << second.pos.row << "," << second.pos.col << ")";
+        result += std::stoi(first.label);
+      }
       return result;
   }
 }
