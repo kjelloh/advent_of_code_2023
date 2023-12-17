@@ -288,15 +288,17 @@ namespace part2 {
       for (auto const& num : nums) {
           std::cout << " " << num << std::flush;
       }
-      // base cases empty nums and no '#' in cfg counts as one arrangement (match)
+      // base case - no cfg and no nums is one arrangement (full match)
       if (cfg.empty()) {
           return nums.empty() ? 1 : 0;
       }
+
+      // base case - No nums but also no '#' in cfg is one arrangement (full match)
       if (nums.empty()) {
           return cfg.find('#') != std::string::npos ? 0 : 1;
       }
 
-      // return cached result if available
+      // base case - return cached result if available
       Key key = std::make_tuple(cfg, nums);
       if (cache.find(key) != cache.end()) {
           return cache[key];
@@ -304,22 +306,22 @@ namespace part2 {
 
       int result = 0;
 
-      // recurse with '.' or '?' stripped from cfg
+      // add count for cfg stripped of head '.' or '?'
       if (cfg[0] == '.' || cfg[0] == '?') {
           std::cout << " heads: " << cfg[0] << " " << nums[0] << std::flush;
           result += count(cfg.substr(1), nums);
       }
 
-
+      // match num[0] number of '#' or '?' from cfg front and with those and front number removed (matched / consumed)
       if (cfg[0] == '#' || cfg[0] == '?') {
         if (nums[0] <= cfg.size() && cfg.substr(0, nums[0]).find('.') == std::string::npos && (nums[0] == cfg.size() || cfg[nums[0]] != '#')) {
             nums.erase(nums.begin());
+            // clamp argument to substr so that it does not overrun if all of cfg is consumed
             result += count(cfg.substr(std::min(nums[0] + 1,static_cast<int>(cfg.size()))), nums);
         }
       }
 
       cache[key] = result;
-      std::cout << " result : " << result << std::flush;
       return result;
   }
   
