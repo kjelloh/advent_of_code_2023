@@ -427,8 +427,8 @@ namespace part2 {
     Directing the ultra crucible from the lava pool to the machine parts factory, what is the least heat loss it can incur?
 
     */      
-    auto result1 = dijkstra(model,4,10);
-    return result;
+    result = dijkstra(model,4,10); 
+    return result; // 894
   }
 }
 
