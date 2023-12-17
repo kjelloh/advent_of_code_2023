@@ -80,11 +80,13 @@ namespace part1 {
   };
 
   int dijkstra(const std::vector<std::string>& grid) {
+    std::cout << NL << "dijkstra";
     int rows = grid.size();
     int cols = grid[0].size();
 
     std::vector<std::vector<int>> dist(rows, std::vector<int>(cols, INF));
     std::priority_queue<State, std::vector<State>, Compare> pq;
+    std::set<std::tuple<int, int, int, int, int>> seen; // Keep track of states of the same cost,position, direction and straight step history
 
     dist[0][0] = 0; // Don't count the starting position heat loss
     pq.push({0, 0, 0, 0, 1, 0}); // start at 0,0 going dc=1 right
@@ -101,9 +103,11 @@ namespace part1 {
       int straight_step_count = curr.straight_step_count;
       std::cout << NL << "row : " << row << " col : " << col << " cost : " << cost << " dr : " << dr << " dc : " << dc << " straight_step_count : " << straight_step_count;
 
-      if (cost > dist[row][col]) {
-        continue; // skip if we have already found a better path
+      if (seen.count({row, col, dr, dc, straight_step_count})) {
+        continue; // skip as we already considered this position from the same direction and with the same consecutive step history
       }
+
+      seen.insert({row, col, dr, dc, straight_step_count}); // from now on this state is considered = seen (below we will update the cost if it is better)
 
       if (row == rows - 1 && col == cols - 1) {
         return cost;
@@ -137,11 +141,12 @@ namespace part1 {
 
         if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols and new_straight_step_count <= 3) {
             int newCost = cost + grid[newRow][newCol] - '0';
-            if (newCost < dist[newRow][newCol]) { // Only update if the new cost is better
-                dist[newRow][newCol] = newCost;
-                pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
-                std::cout << NT << "newRow : " << newRow << " newCol : " << newCol << " newCost : " << newCost << " newDr : " << newDr << " newDc : " << newDc << " new_straight_step_count : " << new_straight_step_count;
-            }
+            // Note: Consider this new cost regardless of wether current knowledge for this new position is a lower cost or not.
+            //       This is to ensure we consider all directions and step history we may reach this position.
+            //       Or put another way, given the rules of navigation, we must consider all possible way to reach this position and the resulting cost for that path.
+            dist[newRow][newCol] = newCost;
+            pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
+            std::cout << NT << "newRow : " << newRow << " newCol : " << newCol << " newCost : " << newCost << " newDr : " << newDr << " newDc : " << newDc << " new_straight_step_count : " << new_straight_step_count;
         }
       }
     }
@@ -150,6 +155,7 @@ namespace part1 {
   }
 
   int dijkstra2(const std::vector<std::string>& grid) {
+    std::cout << NL << "dijkstra2";
     std::set<std::tuple<int, int, int, int, int>> seen;
     std::priority_queue<std::tuple<int, int, int, int, int, int>, std::vector<std::tuple<int, int, int, int, int, int>>, std::greater<>> pq;
     pq.push({0, 0, 0, 0, 0, 0});
@@ -159,6 +165,8 @@ namespace part1 {
     while (!pq.empty()) {
       auto [hl, r, c, dr, dc, n] = pq.top();
       pq.pop();
+
+      std::cout << NL << "hl : " << hl << " r : " << r << " c : " << c << " dr : " << dr << " dc : " << dc << " n : " << n;
 
       if (r == grid.size() - 1 && c == grid[0].size() - 1) {
         std::cout << NL << hl;
@@ -176,6 +184,7 @@ namespace part1 {
         int nc = c + dc;
         if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size()) {
           pq.push({hl + grid[nr][nc] - '0', nr, nc, dr, dc, n + 1});
+          std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
         }
       }
 
@@ -185,6 +194,7 @@ namespace part1 {
           int nc = c + ndc;
           if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size()) {
             pq.push({hl + grid[nr][nc] - '0', nr, nc, ndr, ndc, 1});
+            std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
           }
         }
       }
@@ -268,7 +278,8 @@ what is the least heat loss it can incur?
 */    
     auto result1 = dijkstra(model);
     auto result2 = dijkstra2(model);
-    return result2;
+    std::cout << NL << "result1 : " << result1 << " result2 : " << result2;
+    return result1;
   }
 }
 
