@@ -42,6 +42,7 @@ auto const T = "\t";
 auto const NT = "\n\t";
 
 using Integer = int64_t; // 16 bit int: 3.27 x 10^4, 32 bit int: 2.14 x 10^9, 64 bit int: 9.22 x 10^18
+constexpr int INF = std::numeric_limits<int>::max();
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
@@ -62,7 +63,6 @@ Model parse(auto& in) {
 }
 
 namespace part1 {
-  constexpr int INF = std::numeric_limits<int>::max();
 
   struct State {
     int row;
@@ -80,7 +80,7 @@ namespace part1 {
   };
 
   int dijkstra(const std::vector<std::string>& grid) {
-    std::cout << NL << "dijkstra";
+    std::cout << NL << "dijkstra" << std::flush;
     int rows = grid.size();
     int cols = grid[0].size();
 
@@ -101,7 +101,8 @@ namespace part1 {
       int dr = curr.dr;
       int dc = curr.dc;
       int straight_step_count = curr.straight_step_count;
-      std::cout << NL << "row : " << row << " col : " << col << " cost : " << cost << " dr : " << dr << " dc : " << dc << " straight_step_count : " << straight_step_count;
+
+      // std::cout << NL << "row : " << row << " col : " << col << " cost : " << cost << " dr : " << dr << " dc : " << dc << " straight_step_count : " << straight_step_count;
 
       if (seen.count({row, col, dr, dc, straight_step_count})) {
         continue; // skip as we already considered this position from the same direction and with the same consecutive step history
@@ -110,6 +111,7 @@ namespace part1 {
       seen.insert({row, col, dr, dc, straight_step_count}); // from now on this state is considered = seen (below we will update the cost if it is better)
 
       if (row == rows - 1 && col == cols - 1) {
+        std::cout << NL << cost;
         return cost;
       }
 
@@ -146,7 +148,7 @@ namespace part1 {
             //       Or put another way, given the rules of navigation, we must consider all possible way to reach this position and the resulting cost for that path.
             dist[newRow][newCol] = newCost;
             pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
-            std::cout << NT << "newRow : " << newRow << " newCol : " << newCol << " newCost : " << newCost << " newDr : " << newDr << " newDc : " << newDc << " new_straight_step_count : " << new_straight_step_count;
+            // std::cout << NT << "newRow : " << newRow << " newCol : " << newCol << " newCost : " << newCost << " newDr : " << newDr << " newDc : " << newDc << " new_straight_step_count : " << new_straight_step_count;
         }
       }
     }
@@ -155,7 +157,7 @@ namespace part1 {
   }
 
   int dijkstra2(const std::vector<std::string>& grid) {
-    std::cout << NL << "dijkstra2";
+    std::cout << NL << "dijkstra2" << std::flush;
     std::set<std::tuple<int, int, int, int, int>> seen;
     std::priority_queue<std::tuple<int, int, int, int, int, int>, std::vector<std::tuple<int, int, int, int, int, int>>, std::greater<>> pq;
     pq.push({0, 0, 0, 0, 0, 0});
@@ -166,7 +168,7 @@ namespace part1 {
       auto [hl, r, c, dr, dc, n] = pq.top();
       pq.pop();
 
-      std::cout << NL << "hl : " << hl << " r : " << r << " c : " << c << " dr : " << dr << " dc : " << dc << " n : " << n;
+      // std::cout << NL << "hl : " << hl << " r : " << r << " c : " << c << " dr : " << dr << " dc : " << dc << " n : " << n;
 
       if (r == grid.size() - 1 && c == grid[0].size() - 1) {
         std::cout << NL << hl;
@@ -184,7 +186,7 @@ namespace part1 {
         int nc = c + dc;
         if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size()) {
           pq.push({hl + grid[nr][nc] - '0', nr, nc, dr, dc, n + 1});
-          std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
+          // std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
         }
       }
 
@@ -194,7 +196,7 @@ namespace part1 {
           int nc = c + ndc;
           if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size()) {
             pq.push({hl + grid[nr][nc] - '0', nr, nc, ndr, ndc, 1});
-            std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
+            // std::cout << NT << "Push : " << "hl : " << hl + grid[nr][nc] - '0' << " nr : " << nr << " nc : " << nc << " dr : " << dr << " dc : " << dc << " n : " << n + 1;
           }
         }
       }
@@ -279,14 +281,154 @@ what is the least heat loss it can incur?
     auto result1 = dijkstra(model);
     auto result2 = dijkstra2(model);
     std::cout << NL << "result1 : " << result1 << " result2 : " << result2;
-    return result1;
+    return result1; // 722
   }
 }
 
 namespace part2 {
+  struct State {
+    int row;
+    int col;
+    int cost;
+    int dr;
+    int dc;
+    int straight_step_count;
+  };
+
+  struct Compare {
+    bool operator()(const State& a, const State& b) {
+      return a.cost > b.cost;
+    }
+  };
+
+  int dijkstra(const std::vector<std::string>& grid, int min_steps, int max_steps) {
+    std::cout << NL << "part2::dijkstra" << std::flush;
+    int rows = grid.size();
+    int cols = grid[0].size();
+
+    std::vector<std::vector<int>> dist(rows, std::vector<int>(cols, INF));
+    std::vector<std::vector<State>> prev(rows, std::vector<State>(cols)); // Keep track of previous state
+
+    std::priority_queue<State, std::vector<State>, Compare> pq;
+    std::set<std::tuple<int, int, int, int, int>> seen; // Keep track of states of the same cost,position, direction and straight step history
+
+    dist[0][0] = 0; // Don't count the starting position heat loss
+    pq.push({0, 0, 0, 0, 1, 0}); // start at 0,0 going dc=1 right
+
+    while (!pq.empty()) {
+      State curr = pq.top();
+      pq.pop();
+
+      int row = curr.row;
+      int col = curr.col;
+      int cost = curr.cost;
+      int dr = curr.dr;
+      int dc = curr.dc;
+      int straight_step_count = curr.straight_step_count;
+
+      if (seen.count({row, col, dr, dc, straight_step_count})) {
+        continue; // skip as we already considered this position coming from the same direction and with the same consecutive step history
+      }
+
+      seen.insert({row, col, dr, dc, straight_step_count}); // from now on this state is considered = seen (below we will update the cost if it is better)
+
+      if (row == rows - 1 && col == cols - 1 and straight_step_count >= min_steps and straight_step_count <= max_steps) {
+        // End position reached with a valid step history
+        std::cout << NL << cost << std::flush;
+        return cost;
+      }
+
+      for (int i = 0; i < 3; i++) {
+        int newDr = 0;
+        int newDc = 0;
+        int new_straight_step_count = 0;
+
+        bool valid_step = false;
+        if (i == 0) {
+          // Go straight
+          newDr = dr;
+          newDc = dc;
+          valid_step = straight_step_count < max_steps;
+          new_straight_step_count = straight_step_count + 1;
+        } else if (i == 1) {
+          // Try go left
+          newDr = -dc;
+          newDc = dr;
+          valid_step = straight_step_count >= min_steps; // turn allowed
+          new_straight_step_count = 1;
+        } else if (i == 2) {
+          // try go right
+          newDr = dc;
+          newDc = -dr;
+          valid_step = straight_step_count >= min_steps; // turn allowed
+          new_straight_step_count = 1;
+        }
+
+        // Next position
+        int newRow = row + newDr;
+        int newCol = col + newDc;
+
+        if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols and valid_step) {
+          int newCost = cost + grid[newRow][newCol] - '0';
+          // Update the best cost and previous state for this position
+          if (newCost < dist[newRow][newCol]) {
+            dist[newRow][newCol] = newCost;
+            prev[newRow][newCol] = curr;
+          }
+          pq.push({newRow, newCol, newCost, newDr, newDc, new_straight_step_count});
+        }
+      }
+    }
+
+    return -1; // No path found
+  }
   Result solve_for(Model& model) {
-      Result result{};
-      return result;
+    Result result{};
+    /*
+    The crucibles of lava simply aren't large enough to provide an adequate supply of lava to the machine parts factory. Instead, the Elves are going to upgrade to ultra crucibles.
+
+    Ultra crucibles are even more difficult to steer than normal crucibles. Not only do they have trouble going in a straight line, but they also have trouble turning!
+
+    Once an ultra crucible starts moving in a direction, it needs to move a minimum of four blocks in that direction before it can turn (or even before it can stop at the end). However, it will eventually start to get wobbly: an ultra crucible can move a maximum of ten consecutive blocks without turning.
+
+    In the above example, an ultra crucible could follow this path to minimize heat loss:
+
+    2>>>>>>>>1323
+    32154535v5623
+    32552456v4254
+    34465858v5452
+    45466578v>>>>
+    143859879845v
+    445787698776v
+    363787797965v
+    465496798688v
+    456467998645v
+    122468686556v
+    254654888773v
+    432267465553v
+    In the above example, an ultra crucible would incur the minimum possible heat loss of 94.
+
+    Here's another example:
+
+    111111111111
+    999999999991
+    999999999991
+    999999999991
+    999999999991
+    Sadly, an ultra crucible would need to take an unfortunate path like this one:
+
+    1>>>>>>>1111
+    9999999v9991
+    9999999v9991
+    9999999v9991
+    9999999v>>>>
+    This route causes the ultra crucible to incur the minimum possible heat loss of 71.
+
+    Directing the ultra crucible from the lava pool to the machine parts factory, what is the least heat loss it can incur?
+
+    */      
+    auto result1 = dijkstra(model,4,10);
+    return result;
   }
 }
 
