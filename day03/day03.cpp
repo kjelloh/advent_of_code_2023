@@ -102,26 +102,28 @@ PositionedTokens to_positioned_tokens(const std::vector<std::string>& grid, cons
 void print_positioned_tokens(const PositionedTokens& PositionedTokens) {
   std::cout << NL << "tokens:";
   for (const auto& PositionedToken : PositionedTokens) {
-    std::cout << NL << "at (" << PositionedToken.pos.row << "," << PositionedToken.pos.col << ") is: " << std::quoted(PositionedToken.label);
+    std::cout << NT << "token " << std::quoted(PositionedToken.label) << " at (" << PositionedToken.pos.row << "," << PositionedToken.pos.col << ")";
   }
 }
 
 std::vector<std::pair<PositionedToken,PositionedToken>> to_adjacent_pairs(PositionedTokens const& first,PositionedTokens const& second) {
   std::vector<std::pair<PositionedToken,PositionedToken>> result{};
   for (auto const& first_token : first) {
-    std::cout << NL << "frame of" << std::quoted(first_token.label) << " at (" << first_token.pos.row << "," << first_token.pos.col << ")";
+    // std::cout << NL << "frame of " << std::quoted(first_token.label) << " at (" << first_token.pos.row << "," << first_token.pos.col << ")";
     std::vector<Position> frame{};
     for (int r = first_token.pos.row - 1; r <= first_token.pos.row + 1; ++r) {
-      std:: cout << NT << "r: " << r << std::flush;
+      // std:: cout << NT << "r: " << r << std::flush;
+      // Note: We must cast the size() call result to a signed integer to make the comparison work also for negative column c.
+      // Future advice - if we clamp column c to 0 and up we do not have this problem...
       for (int c = first_token.pos.col - 1; c <= first_token.pos.col + static_cast<int>(first_token.label.size()); ++c) {
-        std::cout << " c: " << c;
+        // std::cout << " c: " << c;
         frame.push_back({r,c});
       }
     }
     for (auto const& second_token : second) {
       for (auto const& [r,c] : frame) {
         if (r == second_token.pos.row && c == second_token.pos.col) {
-          std::cout << NT << "overlap at (" << r << "," << c << ")";
+          // std::cout << NT << "overlap at (" << r << "," << c << ")";
           result.push_back({first_token,second_token});
         }
       }
@@ -132,8 +134,8 @@ std::vector<std::pair<PositionedToken,PositionedToken>> to_adjacent_pairs(Positi
 
 namespace part1 {
   Result solve_for(Model& model) {
+      std::cout << NL << NL << "part1::solve_for(model)";
       Result result{};
-      print_model(model);
       auto candidates = to_positioned_tokens(model,std::regex(R"(\d+)"));
       print_positioned_tokens(candidates);
       auto symbols = to_positioned_tokens(model,std::regex(R"([^\d\.])"));
@@ -151,27 +153,22 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(Model& model) {
-    std::cout << NL << "part2::solve_for(model)";
+    std::cout << NL << NL << "part2::solve_for(model)";
     Result result{};
-    print_model(model);
     auto candidates = to_positioned_tokens(model,std::regex(R"(\d+)"));
     print_positioned_tokens(candidates);
     auto symbols = to_positioned_tokens(model,std::regex(R"([^\d\.])"));
     print_positioned_tokens(symbols);
     auto adjacent_pairs = to_adjacent_pairs(candidates,symbols);
-    std::cout << NL << "adjacent pairs:";
-    for (auto const& [first,second] : adjacent_pairs) {
-      std::cout << NT << "first: " << std::quoted(first.label) << " at (" << first.pos.row << "," << first.pos.col << ")";
-      std::cout << NT << "second: " << std::quoted(second.label) << " at (" << second.pos.row << "," << second.pos.col << ")";
-    }
-    // Ok, so now we are looking for all '*' that have exactly two neighbouring numbers
+    // transpose the pairs so we map '*' symbols to their neghbouring numbers
     std::map<PositionedToken,PositionedTokens> gears{};
     for (auto const& [first,second] : adjacent_pairs) {
       if (second.label == "*") {
         gears[second].push_back(first);
-        std::cout << NT << "'*' at (" << second.pos.row << "," << second.pos.col << ") member " << std::quoted(first.label) << " count:" << gears[first].size();
       }
     }
+    // Ok, so now we are looking for all '*' that have exactly two neighbouring numbers
+    std::cout << NL << "gears:";
     for (auto const& [gear,neighbours] : gears) {
       if (neighbours.size() == 2) {
         std::cout << NT << "gear " << std::quoted(gear.label) << " at (" << gear.pos.row << "," << gear.pos.col << ") has 2 neighbors";
@@ -179,7 +176,7 @@ namespace part2 {
       }
     }
 
-    return result;
+    return result; // 81939900
   }
 }
 
@@ -193,6 +190,7 @@ int main(int argc, char *argv[])
     std::cout << NL << "no data file provided ==> WIll use hard coded example input";
     std::istringstream in{ example };
     auto model = parse(in);
+    print_model(model);
     part1_answer = { "Example",part1::solve_for(model) };
     part2_answer = { "Example",part2::solve_for(model) };
     solution.part1.push_back(part1_answer);
