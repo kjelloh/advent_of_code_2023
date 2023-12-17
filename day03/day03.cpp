@@ -21,6 +21,7 @@
 #include <format>
 #include <optional>
 #include <regex>
+#include <compare>
 
 
 char const* example = R"(467..114..
@@ -66,67 +67,70 @@ void print_model(const Model& model) {
   }
 }
 
+struct Position {
+  Integer row;
+  Integer col;
+  auto operator<=>(const Position&) const = default;
+};
+
+struct PositionedToken {
+  std::string label;
+  Position pos;
+  bool operator<(const PositionedToken& other) const {
+    return pos < other.pos;
+  }
+};
+
+using PositionedTokens = std::vector<PositionedToken>;
+
+PositionedTokens to_positioned_tokens(const std::vector<std::string>& grid, const std::regex& token) {
+  PositionedTokens result;
+
+  for (Integer i = 0; i < grid.size(); ++i) {
+    auto begin = std::sregex_iterator(grid[i].begin(), grid[i].end(), token);
+    auto end = std::sregex_iterator();
+
+    for (std::sregex_iterator it = begin; it != end; ++it) {
+      std::smatch match = *it;
+      result.push_back({match.str(), {i, static_cast<Integer>(match.position())}});
+    }
+  }
+
+  return result;
+}
+
+void print_positioned_tokens(const PositionedTokens& PositionedTokens) {
+  std::cout << NL << "tokens:";
+  for (const auto& PositionedToken : PositionedTokens) {
+    std::cout << NL << "at (" << PositionedToken.pos.row << "," << PositionedToken.pos.col << ") is: " << std::quoted(PositionedToken.label);
+  }
+}
+
+std::vector<std::pair<PositionedToken,PositionedToken>> to_adjacent_pairs(PositionedTokens const& first,PositionedTokens const& second) {
+  std::vector<std::pair<PositionedToken,PositionedToken>> result{};
+  for (auto const& first_token : first) {
+    std::cout << NL << "frame of" << std::quoted(first_token.label) << " at (" << first_token.pos.row << "," << first_token.pos.col << ")";
+    std::vector<Position> frame{};
+    for (int r = first_token.pos.row - 1; r <= first_token.pos.row + 1; ++r) {
+      std:: cout << NT << "r: " << r << std::flush;
+      for (int c = first_token.pos.col - 1; c <= first_token.pos.col + static_cast<int>(first_token.label.size()); ++c) {
+        std::cout << " c: " << c;
+        frame.push_back({r,c});
+      }
+    }
+    for (auto const& second_token : second) {
+      for (auto const& [r,c] : frame) {
+        if (r == second_token.pos.row && c == second_token.pos.col) {
+          std::cout << NT << "overlap at (" << r << "," << c << ")";
+          result.push_back({first_token,second_token});
+        }
+      }
+    }
+  }
+  return result;
+}
+
 namespace part1 {
-
-  struct Position {
-    Integer row;
-    Integer col;
-  };
-
-  struct PositionedToken {
-    std::string label;
-    Position pos;
-  };
-
-  using PositionedTokens = std::vector<PositionedToken>;
-
-  PositionedTokens to_positioned_tokens(const std::vector<std::string>& grid, const std::regex& token) {
-    PositionedTokens result;
-
-    for (Integer i = 0; i < grid.size(); ++i) {
-      auto begin = std::sregex_iterator(grid[i].begin(), grid[i].end(), token);
-      auto end = std::sregex_iterator();
-
-      for (std::sregex_iterator it = begin; it != end; ++it) {
-        std::smatch match = *it;
-        result.push_back({match.str(), {i, static_cast<Integer>(match.position())}});
-      }
-    }
-
-    return result;
-  }
-
-  void print_positioned_tokens(const PositionedTokens& PositionedTokens) {
-    std::cout << NL << "tokens:";
-    for (const auto& PositionedToken : PositionedTokens) {
-      std::cout << NL << "at (" << PositionedToken.pos.row << "," << PositionedToken.pos.col << ") is: " << std::quoted(PositionedToken.label);
-    }
-  }
-
-  std::vector<std::pair<PositionedToken,PositionedToken>> to_adjacent_pairs(PositionedTokens const& first,PositionedTokens const& second) {
-    std::vector<std::pair<PositionedToken,PositionedToken>> result{};
-    for (auto const& first_token : first) {
-      std::cout << NL << "frame of" << std::quoted(first_token.label) << " at (" << first_token.pos.row << "," << first_token.pos.col << ")";
-      std::vector<Position> frame{};
-      for (int r = first_token.pos.row - 1; r <= first_token.pos.row + 1; ++r) {
-        std:: cout << NT << "r: " << r << std::flush;
-        for (int c = first_token.pos.col - 1; c <= first_token.pos.col + static_cast<int>(first_token.label.size()); ++c) {
-          std::cout << " c: " << c;
-          frame.push_back({r,c});
-        }
-      }
-      for (auto const& second_token : second) {
-        for (auto const& [r,c] : frame) {
-          if (r == second_token.pos.row && c == second_token.pos.col) {
-            std::cout << NT << "overlap at (" << r << "," << c << ")";
-            result.push_back({first_token,second_token});
-          }
-        }
-      }
-    }
-    return result;
-  }
-
   Result solve_for(Model& model) {
       Result result{};
       print_model(model);
@@ -147,8 +151,35 @@ namespace part1 {
 
 namespace part2 {
   Result solve_for(Model& model) {
-      Result result{};
-      return result;
+    std::cout << NL << "part2::solve_for(model)";
+    Result result{};
+    print_model(model);
+    auto candidates = to_positioned_tokens(model,std::regex(R"(\d+)"));
+    print_positioned_tokens(candidates);
+    auto symbols = to_positioned_tokens(model,std::regex(R"([^\d\.])"));
+    print_positioned_tokens(symbols);
+    auto adjacent_pairs = to_adjacent_pairs(candidates,symbols);
+    std::cout << NL << "adjacent pairs:";
+    for (auto const& [first,second] : adjacent_pairs) {
+      std::cout << NT << "first: " << std::quoted(first.label) << " at (" << first.pos.row << "," << first.pos.col << ")";
+      std::cout << NT << "second: " << std::quoted(second.label) << " at (" << second.pos.row << "," << second.pos.col << ")";
+    }
+    // Ok, so now we are looking for all '*' that have exactly two neighbouring numbers
+    std::map<PositionedToken,PositionedTokens> gears{};
+    for (auto const& [first,second] : adjacent_pairs) {
+      if (second.label == "*") {
+        gears[second].push_back(first);
+        std::cout << NT << "'*' at (" << second.pos.row << "," << second.pos.col << ") member " << std::quoted(first.label) << " count:" << gears[first].size();
+      }
+    }
+    for (auto const& [gear,neighbours] : gears) {
+      if (neighbours.size() == 2) {
+        std::cout << NT << "gear " << std::quoted(gear.label) << " at (" << gear.pos.row << "," << gear.pos.col << ") has 2 neighbors";
+        result += std::stoi(neighbours[0].label) * std::stoi(neighbours[1].label);
+      }
+    }
+
+    return result;
   }
 }
 
