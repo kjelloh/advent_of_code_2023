@@ -301,13 +301,68 @@ namespace part2 {
     }
   };
 
+  std::vector<State> to_path(const std::vector<std::vector<State>>& prev, int row, int col) {
+    std::vector<State> path;
+    State curr = prev[row][col];
+    while (curr.row != 0 || curr.col != 0) {
+      path.push_back(curr);
+      curr = prev[curr.row][curr.col];
+    }
+    std::reverse(path.begin(), path.end());
+    return path;
+  }
+
+  void print_path(const std::vector<std::vector<State>>& prev, int row, int col) {
+    std::vector<State> path = to_path(prev, row, col);
+    for (auto& state : path) {
+      std::cout << NL << "row : " << state.row << " col : " << state.col << " cost : " << state.cost << " dr : " << state.dr << " dc : " << state.dc << " straight_step_count : " << state.straight_step_count;
+    }
+    auto upper_left_state = std::min_element(path.begin(), path.end(), [](const State& a, const State& b) {
+      return a.row < b.row || (a.row == b.row && a.col < b.col);
+    });
+    auto lower_right_state = std::max_element(path.begin(), path.end(), [](const State& a, const State& b) {
+      return a.row < b.row || (a.row == b.row && a.col < b.col);
+    });
+    for (int row = upper_left_state->row; row <= lower_right_state->row; row++) {
+      std::cout << NL;
+      for (int col = upper_left_state->col; col <= lower_right_state->col; col++) {
+        if (row == upper_left_state->row && col == upper_left_state->col) {
+          std::cout << "S";
+        } else if (row == lower_right_state->row && col == lower_right_state->col) {
+          std::cout << "E";
+        } else {
+          auto it = std::find_if(path.begin(), path.end(), [row, col](const State& state) {
+            return state.row == row && state.col == col;
+          });
+          if (it != path.end()) {
+            if (it->dr == 0 && it->dc == 1) {
+              std::cout << ">";
+            } else if (it->dr == 1 && it->dc == 0) {
+              std::cout << "v";
+            } else if (it->dr == 0 && it->dc == -1) {
+              std::cout << "<";
+            } else if (it->dr == -1 && it->dc == 0) {
+              std::cout << "^";
+            }
+            else {
+              std::cout << "?";
+            }
+          } else {
+            std::cout << ".";
+          }
+        }
+      }
+    }
+  }
+
+
   int dijkstra(const std::vector<std::string>& grid, int min_steps, int max_steps) {
     std::cout << NL << "part2::dijkstra" << std::flush;
     int rows = grid.size();
     int cols = grid[0].size();
 
     std::vector<std::vector<int>> dist(rows, std::vector<int>(cols, INF));
-    std::vector<std::vector<State>> prev(rows, std::vector<State>(cols)); // Keep track of previous state
+    std::vector<std::vector<State>> prev(rows, std::vector<State>(cols)); // Keep track of previous best state
 
     std::priority_queue<State, std::vector<State>, Compare> pq;
     std::set<std::tuple<int, int, int, int, int>> seen; // Keep track of states of the same cost,position, direction and straight step history
@@ -335,6 +390,7 @@ namespace part2 {
       if (row == rows - 1 && col == cols - 1 and straight_step_count >= min_steps and straight_step_count <= max_steps) {
         // End position reached with a valid step history
         std::cout << NL << cost << std::flush;
+        print_path(prev, row, col);
         return cost;
       }
 
