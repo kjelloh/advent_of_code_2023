@@ -3,6 +3,23 @@ My C++20 solutions to advent of code 2023 puzzles
 
 # Some C++ traps I encountered this year...
 
+# day03
+
+* I fell into a signed and unsigned compare again!
+
+This loop will do nothing when c is negative (which happens for the start coordinate 0,0)
+
+        for (int c = first_token.pos.col - 1; c <= first_token.pos.col + first_token.label.size(); ++c) {
+          std::cout << " c: " << c;
+          frame.push_back({r,c});
+        }
+
+The problem is that the left hand side expression is cast to unsigned due to using teh result of size() which is size_t, i.e., unsigned.
+
+Then the whole comparison is made "as if" the left hand side is also unsigned. And '-1' uses twos complement so when interpreted as unsigned it is a very large number!
+
+For me this seems to be the "most vexing untyped int" trap of all (so easy to fall into)!
+
 # day09
 
 * I got the semantics of std::adjacent_difference wrong.
