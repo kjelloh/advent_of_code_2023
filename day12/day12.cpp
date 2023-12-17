@@ -51,24 +51,6 @@ struct Entry {
 
 using Model = std::vector<Entry>;
 
-Model parse(auto& file) {
-    Model result{};
-    for (std::string line; std::getline(file, line);) {
-        auto split_pos = line.find(' ');
-        std::string cfg = line.substr(0, split_pos);
-        std::string nums_str = line.substr(split_pos + 1);
-        std::vector<int> nums;
-        size_t pos = 0;
-        while ((pos = nums_str.find(',')) != std::string::npos) {
-            nums.push_back(std::stoi(nums_str.substr(0, pos)));
-            nums_str.erase(0, pos + 1);
-        }
-        nums.push_back(std::stoi(nums_str));
-        result.push_back({ cfg,nums }); 
-    }
-    return result;
-}
-
 void print_model(Model const& model) {
     for (auto const& entry : model) {
         std::cout << entry.cfg << " : ";
@@ -80,6 +62,25 @@ void print_model(Model const& model) {
 }
 
 namespace part1 {
+
+  Model parse(std::string file_name) {
+      Model result{};
+      std::ifstream file{file_name};
+      for (std::string line; std::getline(file, line);) {
+          auto split_pos = line.find(' ');
+          std::string cfg = line.substr(0, split_pos);
+          std::string nums_str = line.substr(split_pos + 1);
+          std::vector<int> nums;
+          size_t pos = 0;
+          while ((pos = nums_str.find(',')) != std::string::npos) {
+              nums.push_back(std::stoi(nums_str.substr(0, pos)));
+              nums_str.erase(0, pos + 1);
+          }
+          nums.push_back(std::stoi(nums_str));
+          result.push_back({ cfg,nums }); 
+      }
+      return result;
+  }
 
   int count(const std::string& cfg, std::vector<int> nums, bool flag = false) {
       if (cfg.empty()) {
@@ -124,30 +125,7 @@ namespace part1 {
       return count(cfg.substr(1), nums, false) + count(cfg.substr(1), nums_copy, true);
   }
 
-  int main() {
-      std::ifstream file("input.txt");
-      int total = 0;
-
-      for (std::string line; std::getline(file, line);) {
-          auto split_pos = line.find(' ');
-          std::string cfg = line.substr(0, split_pos);
-          std::string nums_str = line.substr(split_pos + 1);
-          std::vector<int> nums;
-          size_t pos = 0;
-          while ((pos = nums_str.find(',')) != std::string::npos) {
-              nums.push_back(std::stoi(nums_str.substr(0, pos)));
-              nums_str.erase(0, pos + 1);
-          }
-          nums.push_back(std::stoi(nums_str));
-
-          total += count(cfg, nums);
-      }
-
-      std::cout << total << std::endl;
-
-      return 0;
-  }
-  Result solve_for(Model& model) {
+  Result solve_for(Model const& model) {
       Result result{};
       /*
       In the giant field just outside, the springs are arranged into rows. 
@@ -228,27 +206,50 @@ namespace part1 {
 
 namespace part2 {
 
+  /*
+  To unfold the records, on each row, replace the list of spring conditions with five copies of itself (separated by ?) 
+  and replace the list of contiguous groups of damaged springs with five copies of itself (separated by ,).
+
+  So, this row: ".# 1"
+
+  Would become: ".#?.#?.#?.#?.# 1,1,1,1,1"
+
+  entry:        "???.### 1,1,3"
+  would become: "???.###????.###????.###????.###????.### 1,1,3,1,1,3,1,1,3,1,1,3,1,1,3"
+  */
   Model parse(std::string file_name) {
       Model result{};
       std::ifstream file{file_name};
       for (std::string line; std::getline(file, line);) {
-          std::cout << NL << "parsing " << std::quoted(line) << std::endl;
-          auto split_pos = line.find(' ');
-          std::string cfg = line.substr(0, split_pos);
-          std::string nums_str = line.substr(split_pos + 1);
-          std::vector<int> nums;
-          size_t pos = 0;
-          while ((pos = nums_str.find(',')) != std::string::npos) {
-              nums.push_back(std::stoi(nums_str.substr(0, pos)));
-              nums_str.erase(0, pos + 1);
-          }
-          nums.push_back(std::stoi(nums_str));
+        std::istringstream iss(line);
+        std::string cfg;
+        std::string nums_str;
+        iss >> cfg >> nums_str;
+        std::cout << NL << "cfg : " << std::quoted(cfg) << " nums_str : " << std::quoted(nums_str) << std::flush; 
 
-          cfg = std::string("?").append(cfg).append("?");
-          nums.insert(nums.begin(), 1);
-          nums.push_back(1);
-          result.push_back({ cfg,nums });
-      }      
+        std::vector<int> nums;
+        std::stringstream ss(nums_str);
+        for (int i; ss >> i;) {
+            nums.push_back(i);
+            std::cout << NT << "nums += " << i << std::flush;
+            if (ss.peek() == ',')
+                ss.ignore();
+        }
+
+        // Repeat cfg and nums 5 times
+        std::string cfg_repeated;
+        for (int i = 0; i < 5; ++i) {
+            cfg_repeated += cfg + "?";
+            std::cout << NT << "cfg_repeated : " << cfg_repeated;
+        }
+        cfg_repeated.pop_back(); // '?' is a separator so remove the ending one
+
+        std::vector<int> nums_repeated;
+        for (int i = 0; i < 5; ++i) {
+            nums_repeated.insert(nums_repeated.end(), nums.begin(), nums.end());
+        }
+        result.push_back({ cfg_repeated,nums_repeated });
+      }
       return result;
   }
 
@@ -256,22 +257,46 @@ namespace part2 {
   struct KeyHash {
       std::size_t operator()(const Key& k) const {
           std::size_t h1 = std::hash<std::string>{}(std::get<0>(k));
-          std::size_t h2 = std::accumulate(std::get<1>(k).begin(), std::get<1>(k).end(), 0);
+          std::size_t h2 = std::accumulate(std::get<1>(k).begin(), std::get<1>(k).end(), std::size_t{0});
           return h1 ^ (h2 << 1);
       }
   };
 
   std::unordered_map<Key, int, KeyHash> cache;
 
+  // recursively count the number of ways to make the cfg match the list of numbers
+  // The line: "?###???????? 3,2,1"
+  //  is actually consistent with ten different arrangements! 
+  // Because the first number is 3, the first and second ? must both be . 
+  // (if either were #, the first number would have to be 4 or higher). 
+  // However, the remaining run of unknown spring conditions have many different ways 
+  // they could hold groups of two and one broken springs: (10 ways to map '?' '#' and '.' to conform with 3,2 an 1 broken springs)
+  // 
+  // .###.##.#...
+  // .###.##..#..
+  // .###.##...#.
+  // .###.##....#
+  // .###..##.#..
+  // .###..##..#.
+  // .###..##...#
+  // .###...##.#.
+  // .###...##..#
+  // .###....##.#  
+
   int count(const std::string& cfg, std::vector<int> nums) {
+      std::cout << NL << "count(cfg:" << std::quoted(cfg) << ",nums:";
+      for (auto const& num : nums) {
+          std::cout << " " << num << std::flush;
+      }
+      // base cases empty nums and no '#' in cfg counts as one arrangement (match)
       if (cfg.empty()) {
           return nums.empty() ? 1 : 0;
       }
-
       if (nums.empty()) {
           return cfg.find('#') != std::string::npos ? 0 : 1;
       }
 
+      // return cached result if available
       Key key = std::make_tuple(cfg, nums);
       if (cache.find(key) != cache.end()) {
           return cache[key];
@@ -279,18 +304,22 @@ namespace part2 {
 
       int result = 0;
 
+      // recurse with '.' or '?' stripped from cfg
       if (cfg[0] == '.' || cfg[0] == '?') {
+          std::cout << " heads: " << cfg[0] << " " << nums[0] << std::flush;
           result += count(cfg.substr(1), nums);
       }
 
+
       if (cfg[0] == '#' || cfg[0] == '?') {
-          if (nums[0] <= cfg.size() && cfg.substr(0, nums[0]).find('.') == std::string::npos && (nums[0] == cfg.size() || cfg[nums[0]] != '#')) {
-              nums.erase(nums.begin());
-              result += count(cfg.substr(nums[0] + 1), nums);
-          }
+        if (nums[0] <= cfg.size() && cfg.substr(0, nums[0]).find('.') == std::string::npos && (nums[0] == cfg.size() || cfg[nums[0]] != '#')) {
+            nums.erase(nums.begin());
+            result += count(cfg.substr(std::min(nums[0] + 1,static_cast<int>(cfg.size()))), nums);
+        }
       }
 
       cache[key] = result;
+      std::cout << " result : " << result << std::flush;
       return result;
   }
   
@@ -299,7 +328,9 @@ namespace part2 {
     Result result{};
     for (auto const& entry : model) {
       std::cout << NL << "entry";
-      result += count(entry.cfg, entry.nums);
+      auto n = count(entry.cfg, entry.nums);
+      std::cout << NL << n << " arrangements";
+      result += n;
     }
     return result;
   }
@@ -313,11 +344,8 @@ int main(int argc, char *argv[])
   Answer part2_answer{ "Failed to obtain any input",0 };
   if (argc == 1) {
     std::cout << NL << "no data file provided ==> WIll use hard coded example input";
-    std::istringstream in{ example };
-    auto model = parse(in);
-    print_model(model);
-    part1_answer = { "Example",part1::solve_for(model) };
-    part2_answer = { "Example",part2::solve_for(model) };
+    part1_answer = { "Example",part1::solve_for(part1::parse("example.txt")) };
+    part2_answer = { "Example",part2::solve_for(part2::parse("example.txt")) };
     solution.part1.push_back(part1_answer);
     solution.part2.push_back(part2_answer);
   }
@@ -326,8 +354,7 @@ int main(int argc, char *argv[])
     if (i > 0) {
       std::ifstream in{ argv[i] };
       if (in) {
-        auto model = parse(in);
-        part1_answer = { argv[i],part1::solve_for(model) };
+        part1_answer = { argv[i],part1::solve_for(part1::parse(argv[i])) };
         part2_answer = { argv[i],part2::solve_for(part2::parse(argv[i])) };
       }
       else {
