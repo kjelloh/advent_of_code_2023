@@ -141,7 +141,7 @@ namespace part1 {
         std::cout << NT << "second: " << std::quoted(second.label) << " at (" << second.pos.row << "," << second.pos.col << ")";
         result += std::stoi(first.label);
       }
-      return result;
+      return result; // 537832
   }
 }
 
