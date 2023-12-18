@@ -213,91 +213,10 @@ namespace part1 {
 
 using Path = std::vector<Vector>; // path of straight lines between
 
+// Thanks to,
 // https://github.com/thejan14/adventofcode2023/blob/master/day18/part2.cpp
-namespace thejan14 {
-
-  enum Direction { N = 3, E = 0, S = 1, W = 2 };
-
-  std::pair<long long, long long> moveToDirection(std::pair<long long, long long> current, Direction const direction, long long const distance)
-  {
-      auto const [i, j] = current;
-      switch (direction)
-      {
-          case N: return std::make_pair(i - distance, j);
-          case E: return std::make_pair(i, j + distance);
-          case S: return std::make_pair(i + distance, j);
-          case W: return std::make_pair(i, j - distance);
-      }
-  }  
-  int main()
-  {
-    // std::ifstream file("example.txt"); // replace with your file name
-    std::ifstream file("puzzle.txt"); // replace with your file name
-
-      /* begin solution */
-
-      auto area = 0LL;
-      auto outline = 0LL;
-      auto current = std::make_pair(0LL, 0LL);
-      std::string line{};
-      while (std::getline(file,line)) {
-          std::istringstream in{line};
-          std::string a,b,instruction;
-          in >> a >> b >> instruction;
-          auto distance = std::stoi(instruction.substr(2,5),nullptr,16);
-          auto  direction = static_cast<Direction>(instruction[5+2]-'0');
-          auto const next = moveToDirection(current, direction, distance);
-          auto const [ci, cj] = current;
-          auto const [ni, nj] = next;
-          area += (ci + ni) * (cj - nj); // https://en.wikipedia.org/wiki/Shoelace_formula
-          outline += distance;
-          current = next;
-      }
-
-      // thanks to u/echlos021 (https://www.reddit.com/r/adventofcode/comments/18l2tap/comment/kdv8imu) 
-      auto const answer = (area / 2) + (outline / 2) + 1;
-
-      /* end solution */
-      std::cout << std::format("thejan14:{}", answer);
-      return answer;
-  }  
-}
-
 // https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day18p2.py
-namespace hyperneutrino {
-    Integer main() {
-    Path points = { {0, 0} };
-    std::map<char, Vector> dirs = { {'U', {-1, 0}}, {'D', {1, 0}}, {'L', {0, -1}}, {'R', {0, 1}} };
-
-    Integer b = 0;
-    std::string line;
-    // std::ifstream file("example.txt"); // replace with your file name
-    std::ifstream file("puzzle.txt"); // replace with your file name
-
-    while (std::getline(file, line)) {
-      std::string x = line.substr(line.find_last_of(' ') + 1);
-      x = x.substr(2, x.size() - 3);
-      char dir = "RDLU"[std::stoi(x.substr(x.size() - 1))];
-      Vector delta = dirs[dir];
-      Integer n = std::stoi(x.substr(0, x.size() - 1), nullptr, 16);
-      b += n;
-      Vector last_point = points.back();
-      points.push_back({ std::get<0>(last_point) + std::get<0>(delta) * n, std::get<1>(last_point) + std::get<1>(delta) * n });
-    }
-
-    Integer A = 0;
-    Integer n = points.size();
-    for (Integer i = 0; i < n; i++) {
-      A += std::get<0>(points[i]) * (std::get<1>(points[(i - 1 + n) % n]) - std::get<1>(points[(i + 1) % n]));
-    }
-    A = std::abs(A) / 2;
-    Integer i = A - b / 2 + 1;
-
-    std::cout << NT << " answer2: " << i + b;
-
-    return 0;
-  }
-}
+// For code I used to debug my own solution :)
 
 namespace part2 {
   std::tuple<Vector,Vector> to_bounds(Path const& path) {
@@ -363,10 +282,6 @@ namespace part2 {
       auto [x,y] = points[i];
       auto [x1,y1] = points[(i + 1) % n]; // wraps around to points[0] for i == n-1
       A += (y + y1)*(x-x1); // https://en.wikipedia.org/wiki/Shoelace_formula
-      /*
-        auto const [ci, cj] = current;
-        auto const [ni, nj] = next;
-        area += (ci + ni) * (cj - nj); // https://en.wikipedia.org/wiki/Shoelace_formula      */
     }
 
     return std::abs(A) / 2;
@@ -382,18 +297,19 @@ namespace part2 {
       auto [x1,y1] = points[(i + 1) % n]; // wraps around to points[0] for i == n-1
       Integer dx = std::abs(x - x1);
       Integer dy = std::abs(y - y1);
-      B += dx + dy;
+      B += dx + dy; // Works for us because all our lines are either horizontal or vertical
     }
 
     return B;
   }
 
   Result solve_for(Model& model) {
+    std::cout << NL << NL << "part2";
     Result result{};
     auto transformed = to_transformed(model);
     // walk the path according the transformed model and generate the path "corners"
     Vector pos{0,0};
-    Path path{1,pos};
+    Path path{};
     for (auto const& [dir,steps,colour] : transformed) {
       std::cout << NL << dir << " " << steps << " " << colour;
       using Vector = std::tuple<int,int>;
@@ -412,9 +328,7 @@ namespace part2 {
     print_path(path);
     auto inside = calculateArea(path); // Shoelace algorithm (or Gauss's Area formula)
     auto boundary = calculateBoundary(path);
-    result = inside + boundary / 2 + 1; // Pick's theorem
-    hyperneutrino::main();
-    thejan14::main();
+    result = inside + boundary / 2 + 1; // Picks algorithm actually states A + B/2 - 1 (https://en.wikipedia.org/wiki/Pick%27s_theorem)?
     return result; // 67622758357096
   }
 }
