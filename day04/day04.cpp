@@ -21,9 +21,15 @@
 #include <format>
 #include <optional>
 #include <regex>
+#include <cmath> // std::pow
 
 
-char const* example = R"()";
+char const* example = R"(Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53
+Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19
+Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1
+Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83
+Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36
+Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11)";
 
 auto const NL = "\n";
 auto const T = "\t";
@@ -38,21 +44,73 @@ struct Solution {
   Answers part2{};
 };
 
-using Model = std::vector<std::string>;
+using Numbers = std::vector<int>;
+using Card = std::tuple<std::set<int>,Numbers>; 
+using Model = std::vector<Card>;
 
 Model parse(auto& in) {
   Model result{};
   std::string line{};
   while (std::getline(in,line)) {
-    result.push_back(line);
+    result.push_back({});
+    auto& [winners, numbers] = result.back();
+    std::cout << NL << "line : " << std::quoted(line);
+    std::string_view sv{ line };
+    sv.remove_prefix(sv.find_first_of(' ') + 1);
+    sv.remove_prefix(sv.find_first_of(':') + 1);
+    while (true) {
+        sv.remove_prefix(sv.find_first_not_of(' ')); // skip spaces
+        size_t end = sv.find_first_of(' ');
+        if (end == std::string_view::npos || sv[0] == '|') {
+            break;
+        }
+        winners.insert(std::stoi(std::string(sv.substr(0, end))));
+        sv.remove_prefix(end);
+    }    
+    sv.remove_prefix(sv.find_first_of('|') + 1);
+    while (true) {
+        sv.remove_prefix(sv.find_first_not_of(' ')); // skip spaces
+        size_t end = sv.find_first_of(' ');
+        if (end == std::string_view::npos || sv[0] == '|') {
+            break;
+        }
+        numbers.push_back(std::stoi(std::string(sv.substr(0, end))));
+        sv.remove_prefix(end);
+    }    
+    numbers.push_back(std::stoi(sv.data()));
   }
   return result;
+}
+
+void print_model(Model const& model) {
+  for (auto const& [winning, numbers] : model) {
+    std::cout << NL << "winning : ";
+    for (auto const& number : winning) {
+      std::cout << number << T;
+    }
+    std::cout << NL << "numbers : ";
+    for (auto const& number : numbers) {
+      std::cout << number << T;
+    }
+  }
 }
 
 namespace part1 {
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << NL << "part1";
+    print_model(model);
+    for (auto const& [winning, numbers] : model) {
+      std::cout << NT;
+      result += std::accumulate(numbers.begin(), numbers.end(), 0, [winning=winning](auto sum, auto const& number) {
+        if (winning.contains(number)) {
+          sum = (sum==0)?1:sum*2;
+          std::cout << " " << sum;
+        }
+        return sum;
+      });
+    }
+    // count the numbers in "number" that are in "winning"
     return result;
   }
 }
