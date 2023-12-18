@@ -73,7 +73,7 @@ Model parse(auto& in) {
 using Vector = std::tuple<int,int>;
 using Grid = std::set<Vector>;
 
-void print_grid(Grid const& grid) {
+std::tuple<Vector,Vector> to_bounds(Grid const& grid) {
   auto bounds = std::accumulate(grid.begin(), grid.end(), std::make_tuple(*grid.begin(), *grid.begin()),
       [](auto acc, auto val) {
           auto [min, max] = acc;
@@ -86,6 +86,11 @@ void print_grid(Grid const& grid) {
           );
       }
   );
+  return bounds;
+}
+
+void print_grid(Grid const& grid) {
+  auto bounds = to_bounds(grid);
   auto [upper_left,lower_right] = bounds;
   auto [min_row, min_col] = upper_left;
   auto [max_row, max_col] = lower_right;
@@ -109,28 +114,33 @@ void print_grid(Grid const& grid) {
 }
 
 Grid floodFill(const Grid& grid, Vector start) {
-  Grid result;
+  Grid result{grid};
+  auto bounds = to_bounds(grid);
+  auto [upper_left,lower_right] = bounds;
+  auto [min_row, min_col] = upper_left;
+  auto [max_row, max_col] = lower_right;
+
   std::stack<Vector> stack;
   stack.push(start);
 
   while (!stack.empty()) {
     Vector current = stack.top();
     stack.pop();
+    auto [row, col] = current;
 
     // If the current position is not in the grid or has already been visited, skip it
-    if (grid.find(current) == grid.end() || result.find(current) != result.end()) {
+    if (row < min_row || row > max_row || col < min_col || col > max_col || result.find(current) != result.end()) {
       continue;
     }
-
     // Add the current position to the result
     result.insert(current);
 
     // Add the neighboring positions to the stack
     std::vector<Vector> neighbors = {
-      {std::get<0>(current) - 1, std::get<1>(current)},
-      {std::get<0>(current) + 1, std::get<1>(current)},
-      {std::get<0>(current), std::get<1>(current) - 1},
-      {std::get<0>(current), std::get<1>(current) + 1}
+      {row - 1, col},
+      {row + 1, col},
+      {row, col - 1},
+      {row, col + 1}
     };
     for (const Vector& neighbor : neighbors) {
       stack.push(neighbor);
@@ -138,6 +148,32 @@ Grid floodFill(const Grid& grid, Vector start) {
   }
 
   return result;
+}
+
+Vector to_inside(Grid const& grid) {
+  auto bounds = to_bounds(grid);
+  auto [upper_left,lower_right] = bounds;
+  auto [min_row, min_col] = upper_left;
+  auto [max_row, max_col] = lower_right;
+  // find a row where we cross the path outside to inside to outside
+  for (int row = min_row; row <= max_row; ++row) {
+    int count = 0;
+    std::vector<Vector> inside{};
+    for (int col = min_col; col <= max_col; ++col) {
+      Vector pos{row, col};
+      if (grid.find(pos) != grid.end()) {
+        ++count;
+      }
+      if (count % 2 == 1 and grid.find(pos) == grid.end()) {
+        // odd count and free position == inside :)
+        inside.push_back(pos);
+      }
+    }
+    if (count == 2) {
+      return inside[0]; // we found a clear inside position (avoid rows with horizontal going path)
+    }
+  }
+  throw std::runtime_error("Failed to find inside position");
 }
 
 namespace part1 {
@@ -164,8 +200,11 @@ namespace part1 {
       }
     }
     print_grid(grid);
-    // I suppose we can walk the perimeter of the grid and flood fill all "outside" positions we find
-
+    auto inside = to_inside(grid);
+    std::cout << NL << "inside : " << std::get<0>(inside) << "," << std::get<1>(inside);
+    auto result_grid = floodFill(grid, inside);
+    print_grid(result_grid);
+    result = result_grid.size(); // the flooded area is the result
     return result;
   }
 }
