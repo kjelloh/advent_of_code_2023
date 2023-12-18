@@ -41,25 +41,25 @@ struct Solution {
 using Model = std::vector<std::string>;
 
 Model parse(auto& in) {
-    Model result{};
-    std::string line{};
-    while (std::getline(in,line)) {
-        result.push_back(line);
-    }
-    return result;
+  Model result{};
+  std::string line{};
+  while (std::getline(in,line)) {
+    result.push_back(line);
+  }
+  return result;
 }
 
 namespace part1 {
   Result solve_for(Model& model) {
-      Result result{};
-      return result;
+    Result result{};
+    return result;
   }
 }
 
 namespace part2 {
   Result solve_for(Model& model) {
-      Result result{};
-      return result;
+    Result result{};
+    return result;
   }
 }
 
