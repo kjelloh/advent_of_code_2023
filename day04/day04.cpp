@@ -118,9 +118,83 @@ namespace part1 {
 }
 
 namespace part2 {
+
+
+  int main() {
+    std::map<int, int> m;
+    std::string line;
+    std::ifstream file("example.txt"); // replace with your file name
+
+    int i = 0;
+    while (std::getline(file, line)) {
+      if (m.find(i) == m.end()) {
+        m[i] = 1;
+      }
+
+      line = line.substr(line.find(":") + 1);
+      std::istringstream iss(line);
+      Numbers a, b;
+      int num;
+      while (iss >> num && iss.peek() != '|') {
+        a.push_back(num);
+      }
+      iss.ignore(2); // skip " |"
+      while (iss >> num) {
+        b.push_back(num);
+      }
+
+      int j = 0;
+      for (int q : b) {
+        if (std::find(a.begin(), a.end(), q) != a.end()) {
+          j++;
+        }
+      }
+
+      for (int n = i + 1; n <= i + j; n++) {
+        m[n] = m[n] + m[i];
+      }
+
+      i++;
+    }
+
+    int sum = 0;
+    for (auto const& pair : m) {
+      sum += pair.second;
+    }
+
+    std::cout << NL << "answer2:" << sum;
+
+    return 0;
+  }
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << NL << "part2";
+    std::map<int, int> counts{};
+    int ix{1};
+    for (auto const& [winning, numbers] : model) {
+      counts[ix] += 1; // "draw" card i
+
+      std::cout << NT << " [" << ix << "]:" << counts[ix] << " winners";
+      auto count = std::accumulate(numbers.begin(), numbers.end(), 0, [winning=winning](auto sum, auto const& number) {
+        if (winning.contains(number)) {
+          ++sum;
+          std::cout << " " << number;
+        }
+        return sum;
+      });
+      std::cout << " --> " << count;
+      for (int n = ix + 1; n <= ix + count; ++n) {
+        std::cout << " [" << n << "]";
+        counts[n] += counts[ix]; // each card i that we have "wins" a card n
+        std::cout << ":" << counts[n];
+      }
+      ++ix;
+    }
+    std::cout << NL << "counts : ";
+    for (auto const& [ix,count] : counts) {
+      std::cout << NT << "[" << ix << "]:" << count;
+      result += count;
+    }
     return result;
   }
 }
