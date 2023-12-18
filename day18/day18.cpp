@@ -74,21 +74,70 @@ using Vector = std::tuple<int,int>;
 using Grid = std::set<Vector>;
 
 void print_grid(Grid const& grid) {
+  auto bounds = std::accumulate(grid.begin(), grid.end(), std::make_tuple(*grid.begin(), *grid.begin()),
+      [](auto acc, auto val) {
+          auto [min, max] = acc;
+          auto [min_row, min_col] = min;
+          auto [max_row, max_col] = max;
+          auto [row, col] = val;
+          return std::make_tuple(
+             std::make_tuple(std::min(min_row, row), std::min(min_col, col))
+            ,std::make_tuple(std::max(max_row, row), std::max(max_col, col))
+          );
+      }
+  );
+  auto [upper_left,lower_right] = bounds;
+  auto [min_row, min_col] = upper_left;
+  auto [max_row, max_col] = lower_right;
+  std::cout << NL << NL << "grid:";
+  std::cout << " upper_left : " << min_row << "," << min_col;
+  std::cout << " lower_right : " << max_row << "," << max_col;
+  std::cout << " width: " << max_col - min_col + 1;
+  std::cout << " height: " << max_row - min_row + 1;
+
   std::cout << NL;
-  auto upper_left = std::min_element(grid.begin(),grid.end(),[](auto const& lhs, auto const& rhs) {
-    return std::get<0>(lhs) < std::get<0>(rhs) || (std::get<0>(lhs) == std::get<0>(rhs) && std::get<1>(lhs) < std::get<1>(rhs));
-  });
-  auto lower_right = std::max_element(grid.begin(),grid.end(),[](auto const& lhs, auto const& rhs) {
-    return std::get<0>(lhs) < std::get<0>(rhs) || (std::get<0>(lhs) == std::get<0>(rhs) && std::get<1>(lhs) < std::get<1>(rhs));
-  });
-  for (int row = std::get<0>(*upper_left); row <= std::get<0>(*lower_right); ++row) {
-    for (int col = std::get<1>(*upper_left); col <= std::get<1>(*lower_right); ++col) {
-      Vector pos{row,col};
-      if (grid.find(pos) != grid.end()) std::cout << '#';
-      else std::cout << '.';
-    }
+  for (int row = min_row; row <= max_row; ++row) {
     std::cout << NL;
+    for (int col = min_col; col <= max_col; ++col) {
+      Vector pos{row, col};
+      if (grid.find(pos) != grid.end())
+        std::cout << '#';
+      else
+        std::cout << '.';
+    }
   }
+}
+
+Grid floodFill(const Grid& grid, Vector start) {
+  Grid result;
+  std::stack<Vector> stack;
+  stack.push(start);
+
+  while (!stack.empty()) {
+    Vector current = stack.top();
+    stack.pop();
+
+    // If the current position is not in the grid or has already been visited, skip it
+    if (grid.find(current) == grid.end() || result.find(current) != result.end()) {
+      continue;
+    }
+
+    // Add the current position to the result
+    result.insert(current);
+
+    // Add the neighboring positions to the stack
+    std::vector<Vector> neighbors = {
+      {std::get<0>(current) - 1, std::get<1>(current)},
+      {std::get<0>(current) + 1, std::get<1>(current)},
+      {std::get<0>(current), std::get<1>(current) - 1},
+      {std::get<0>(current), std::get<1>(current) + 1}
+    };
+    for (const Vector& neighbor : neighbors) {
+      stack.push(neighbor);
+    }
+  }
+
+  return result;
 }
 
 namespace part1 {
@@ -97,7 +146,7 @@ namespace part1 {
     std::set<Vector> grid{};
     Vector pos{0,0};
     for (auto const& [dir,steps,colour] : model) {
-      std::cout << NL << dir << T << steps << T << colour;
+      std::cout << NL << dir << " " << steps << " " << colour;
       using Vector = std::tuple<int,int>;
       Vector delta{0,0};
       switch (dir) {
@@ -107,14 +156,16 @@ namespace part1 {
         case 'D':delta = {1,0}; break;
       }
       for (int i = 0; i < steps; ++i) {
-        std::cout << NL << "pos : " << std::get<0>(pos) << T << std::get<1>(pos) << " delta : " << std::get<0>(delta) << T << std::get<1>(delta);
+        std::cout << NT << "pos : " << std::get<0>(pos) << "," << std::get<1>(pos) << " delta : " << std::get<0>(delta) << "," << std::get<1>(delta);
         std::get<0>(pos) += std::get<0>(delta);
         std::get<1>(pos) += std::get<1>(delta);
-        std::cout << " --> pos : " << std::get<0>(pos) << T << std::get<1>(pos);
+        std::cout << " --> pos : " << std::get<0>(pos) << "," << std::get<1>(pos);
         grid.insert(pos);
       }
     }
     print_grid(grid);
+    // I suppose we can walk the perimeter of the grid and flood fill all "outside" positions we find
+
     return result;
   }
 }
