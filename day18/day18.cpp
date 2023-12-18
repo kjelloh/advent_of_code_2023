@@ -21,6 +21,7 @@
 #include <format>
 #include <optional>
 #include <regex>
+#include <cmath> // std::abs
 
 
 char const* example = R"(R 6 (#70c710)
@@ -70,7 +71,7 @@ Model parse(auto& in) {
   return result;
 }
 
-using Vector = std::tuple<int,int>;
+using Vector = std::tuple<Integer,Integer>;
 
 namespace part1 {
   using Grid = std::set<Vector>;
@@ -266,12 +267,47 @@ namespace part2 {
     }    
   }
 
+  // Shoelace algorithm (or Gauss's Area formula)
+  // This algorithm assumes that the vertices are ordered either clockwise or counterclockwise.
+  Integer calculateArea(const Path& points) {
+    Integer A = 0;
+    Integer n = points.size();
+
+    for (Integer i = 0; i < n; i++) {
+      auto [x,y] = points[i];
+      auto [x1,y1] = points[(i + 1) % n]; // wraps around to points[0] for i == n-1
+      A += (y + y1)*(x-x1); // https://en.wikipedia.org/wiki/Shoelace_formula
+      /*
+        auto const [ci, cj] = current;
+        auto const [ni, nj] = next;
+        area += (ci + ni) * (cj - nj); // https://en.wikipedia.org/wiki/Shoelace_formula      */
+    }
+
+    return std::abs(A) / 2;
+  }
+
+  // The boundary of a polygon with only horizontal and vertical lines is just the sum of the lengths of the line segments.
+  Integer calculateBoundary(const Path& points) {
+    Integer B = 0;
+    Integer n = points.size();
+
+    for (int i = 0; i < n; i++) {
+      auto [x,y] = points[i];
+      auto [x1,y1] = points[(i + 1) % n]; // wraps around to points[0] for i == n-1
+      Integer dx = std::abs(x - x1);
+      Integer dy = std::abs(y - y1);
+      B += dx + dy;
+    }
+
+    return B;
+  }
+
   Result solve_for(Model& model) {
     Result result{};
     auto transformed = to_transformed(model);
     // walk the path according the transformed model and generate the path "corners"
     Vector pos{0,0};
-    Path path{1,pos};    
+    Path path{1,pos};
     for (auto const& [dir,steps,colour] : transformed) {
       std::cout << NL << dir << " " << steps << " " << colour;
       using Vector = std::tuple<int,int>;
@@ -287,12 +323,10 @@ namespace part2 {
       pos = {new_row,new_col};
       path.push_back(pos);
     }
-    // scan the grid row by row and count the size of each inside-part.
     print_path(path);
-    auto bounds = to_bounds(path);
-    auto [upper_left,lower_right] = bounds;
-    auto [min_row, min_col] = upper_left;
-    auto [max_row, max_col] = lower_right;
+    auto inside = calculateArea(path); // Shoelace algorithm (or Gauss's Area formula)
+    auto boundary = calculateBoundary(path);
+    result = inside + boundary / 2 + 1; // Pick's theorem
     return result;
   }
 }
