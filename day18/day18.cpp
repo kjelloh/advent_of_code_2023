@@ -71,112 +71,113 @@ Model parse(auto& in) {
 }
 
 using Vector = std::tuple<int,int>;
-using Grid = std::set<Vector>;
-
-std::tuple<Vector,Vector> to_bounds(Grid const& grid) {
-  auto bounds = std::accumulate(grid.begin(), grid.end(), std::make_tuple(*grid.begin(), *grid.begin()),
-      [](auto acc, auto val) {
-          auto [min, max] = acc;
-          auto [min_row, min_col] = min;
-          auto [max_row, max_col] = max;
-          auto [row, col] = val;
-          return std::make_tuple(
-             std::make_tuple(std::min(min_row, row), std::min(min_col, col))
-            ,std::make_tuple(std::max(max_row, row), std::max(max_col, col))
-          );
-      }
-  );
-  return bounds;
-}
-
-void print_grid(Grid const& grid) {
-  auto bounds = to_bounds(grid);
-  auto [upper_left,lower_right] = bounds;
-  auto [min_row, min_col] = upper_left;
-  auto [max_row, max_col] = lower_right;
-  std::cout << NL << NL << "grid:";
-  std::cout << " upper_left : " << min_row << "," << min_col;
-  std::cout << " lower_right : " << max_row << "," << max_col;
-  std::cout << " width: " << max_col - min_col + 1;
-  std::cout << " height: " << max_row - min_row + 1;
-
-  std::cout << NL;
-  for (int row = min_row; row <= max_row; ++row) {
-    std::cout << NL;
-    for (int col = min_col; col <= max_col; ++col) {
-      Vector pos{row, col};
-      if (grid.find(pos) != grid.end())
-        std::cout << '#';
-      else
-        std::cout << '.';
-    }
-  }
-}
-
-Grid floodFill(const Grid& grid, Vector start) {
-  Grid result{grid};
-  auto bounds = to_bounds(grid);
-  auto [upper_left,lower_right] = bounds;
-  auto [min_row, min_col] = upper_left;
-  auto [max_row, max_col] = lower_right;
-
-  std::stack<Vector> stack;
-  stack.push(start);
-
-  while (!stack.empty()) {
-    Vector current = stack.top();
-    stack.pop();
-    auto [row, col] = current;
-
-    // If the current position is not in the grid or has already been visited, skip it
-    if (row < min_row || row > max_row || col < min_col || col > max_col || result.find(current) != result.end()) {
-      continue;
-    }
-    // Add the current position to the result
-    result.insert(current);
-
-    // Add the neighboring positions to the stack
-    std::vector<Vector> neighbors = {
-      {row - 1, col},
-      {row + 1, col},
-      {row, col - 1},
-      {row, col + 1}
-    };
-    for (const Vector& neighbor : neighbors) {
-      stack.push(neighbor);
-    }
-  }
-
-  return result;
-}
-
-Vector to_inside(Grid const& grid) {
-  auto bounds = to_bounds(grid);
-  auto [upper_left,lower_right] = bounds;
-  auto [min_row, min_col] = upper_left;
-  auto [max_row, max_col] = lower_right;
-  // find a row where we cross the path outside to inside to outside
-  for (int row = min_row; row <= max_row; ++row) {
-    int count = 0;
-    std::vector<Vector> inside{};
-    for (int col = min_col; col <= max_col; ++col) {
-      Vector pos{row, col};
-      if (grid.find(pos) != grid.end()) {
-        ++count;
-      }
-      if (count % 2 == 1 and grid.find(pos) == grid.end()) {
-        // odd count and free position == inside :)
-        inside.push_back(pos);
-      }
-    }
-    if (count == 2) {
-      return inside[0]; // we found a clear inside position (avoid rows with horizontal going path)
-    }
-  }
-  throw std::runtime_error("Failed to find inside position");
-}
 
 namespace part1 {
+  using Grid = std::set<Vector>;
+
+  std::tuple<Vector,Vector> to_bounds(Grid const& grid) {
+    auto bounds = std::accumulate(grid.begin(), grid.end(), std::make_tuple(*grid.begin(), *grid.begin()),
+        [](auto acc, auto val) {
+            auto [min, max] = acc;
+            auto [min_row, min_col] = min;
+            auto [max_row, max_col] = max;
+            auto [row, col] = val;
+            return std::make_tuple(
+              std::make_tuple(std::min(min_row, row), std::min(min_col, col))
+              ,std::make_tuple(std::max(max_row, row), std::max(max_col, col))
+            );
+        }
+    );
+    return bounds;
+  }
+
+  void print_grid(Grid const& grid) {
+    auto bounds = to_bounds(grid);
+    auto [upper_left,lower_right] = bounds;
+    auto [min_row, min_col] = upper_left;
+    auto [max_row, max_col] = lower_right;
+    std::cout << NL << NL << "grid:";
+    std::cout << " upper_left : " << min_row << "," << min_col;
+    std::cout << " lower_right : " << max_row << "," << max_col;
+    std::cout << " width: " << max_col - min_col + 1;
+    std::cout << " height: " << max_row - min_row + 1;
+
+    std::cout << NL;
+    for (int row = min_row; row <= max_row; ++row) {
+      std::cout << NL;
+      for (int col = min_col; col <= max_col; ++col) {
+        Vector pos{row, col};
+        if (grid.find(pos) != grid.end())
+          std::cout << '#';
+        else
+          std::cout << '.';
+      }
+    }
+  }
+
+  Grid floodFill(const Grid& grid, Vector start) {
+    Grid result{grid};
+    auto bounds = to_bounds(grid);
+    auto [upper_left,lower_right] = bounds;
+    auto [min_row, min_col] = upper_left;
+    auto [max_row, max_col] = lower_right;
+
+    std::stack<Vector> stack;
+    stack.push(start);
+
+    while (!stack.empty()) {
+      Vector current = stack.top();
+      stack.pop();
+      auto [row, col] = current;
+
+      // If the current position is not in the grid or has already been visited, skip it
+      if (row < min_row || row > max_row || col < min_col || col > max_col || result.find(current) != result.end()) {
+        continue;
+      }
+      // Add the current position to the result
+      result.insert(current);
+
+      // Add the neighboring positions to the stack
+      std::vector<Vector> neighbors = {
+        {row - 1, col},
+        {row + 1, col},
+        {row, col - 1},
+        {row, col + 1}
+      };
+      for (const Vector& neighbor : neighbors) {
+        stack.push(neighbor);
+      }
+    }
+
+    return result;
+  }
+
+  Vector to_inside(Grid const& grid) {
+    auto bounds = to_bounds(grid);
+    auto [upper_left,lower_right] = bounds;
+    auto [min_row, min_col] = upper_left;
+    auto [max_row, max_col] = lower_right;
+    // find a row where we cross the path outside to inside to outside
+    for (int row = min_row; row <= max_row; ++row) {
+      int count = 0;
+      std::vector<Vector> inside{};
+      for (int col = min_col; col <= max_col; ++col) {
+        Vector pos{row, col};
+        if (grid.find(pos) != grid.end()) {
+          ++count;
+        }
+        if (count % 2 == 1 and grid.find(pos) == grid.end()) {
+          // odd count and free position == inside :)
+          inside.push_back(pos);
+        }
+      }
+      if (count == 2) {
+        return inside[0]; // we found a clear inside position (avoid rows with horizontal going path)
+      }
+    }
+    throw std::runtime_error("Failed to find inside position");
+  }
+
   Result solve_for(Model& model) {
     Result result{};
     std::set<Vector> grid{};
@@ -209,9 +210,89 @@ namespace part1 {
   }
 }
 
+using Path = std::vector<Vector>; // path of straight lines between
+
 namespace part2 {
+  std::tuple<Vector,Vector> to_bounds(Path const& path) {
+    auto bounds = std::accumulate(path.begin(), path.end(), std::make_tuple(*path.begin(), *path.begin()),
+        [](auto acc, auto val) {
+            auto [min, max] = acc;
+            auto [min_row, min_col] = min;
+            auto [max_row, max_col] = max;
+            auto [row, col] = val;
+            return std::make_tuple(
+              std::make_tuple(std::min(min_row, row), std::min(min_col, col))
+              ,std::make_tuple(std::max(max_row, row), std::max(max_col, col))
+            );
+        }
+    );
+    return bounds;
+  }
+  Model to_transformed(Model const& model) {
+    Model result{};
+    for (auto const& [_,__,instruction] : model) {
+      std::cout << NL << instruction;
+      std::cout << NL << instruction;
+      auto steps = std::stoi(instruction.substr(2,5),nullptr,16);
+      char step{};
+      switch (instruction[5+2]-'0') {
+        // 0 means R, 1 means D, 2 means L, and 3 means U.
+        case 0: step = 'R'; break;
+        case 1: step = 'D'; break;
+        case 2: step = 'L'; break;
+        case 3: step = 'U'; break;
+      }
+      result.push_back(std::make_tuple(step,steps,""));
+    }    
+    return result;
+  }
+
+  using Path = std::vector<Vector>; // path of straight lines between
+
+  void print_path(Path const& path) {
+    auto bounds = to_bounds(path);
+    auto [upper_left,lower_right] = bounds;
+    auto [min_row, min_col] = upper_left;
+    auto [max_row, max_col] = lower_right;
+    std::cout << NL << NL << "path:";
+    std::cout << " upper_left : " << min_row << "," << min_col;
+    std::cout << " lower_right : " << max_row << "," << max_col;
+    std::cout << " width: " << max_col - min_col + 1;
+    std::cout << " height: " << max_row - min_row + 1;
+    for (auto it = path.begin(); it != std::prev(path.end()); ++it) {
+      auto [row1,col1] = *it;
+      auto [row2,col2] = *std::next(it);
+      std::cout << NL << "line : " << row1 << "," << col1 << " --> " << row2 << "," << col2;
+    }    
+  }
+
   Result solve_for(Model& model) {
     Result result{};
+    auto transformed = to_transformed(model);
+    // walk the path according the transformed model and generate the path "corners"
+    Vector pos{0,0};
+    Path path{1,pos};    
+    for (auto const& [dir,steps,colour] : transformed) {
+      std::cout << NL << dir << " " << steps << " " << colour;
+      using Vector = std::tuple<int,int>;
+      Vector delta{0,0};
+      switch (dir) {
+        case 'R':delta = {0,1};break;
+        case 'L':delta = {0,-1}; break;
+        case 'U':delta = {-1,0}; break;
+        case 'D':delta = {1,0}; break;
+      }
+      auto new_row = std::get<0>(pos) + std::get<0>(delta) * steps;
+      auto new_col = std::get<1>(pos) + std::get<1>(delta) * steps;
+      pos = {new_row,new_col};
+      path.push_back(pos);
+    }
+    // scan the grid row by row and count the size of each inside-part.
+    print_path(path);
+    auto bounds = to_bounds(path);
+    auto [upper_left,lower_right] = bounds;
+    auto [min_row, min_col] = upper_left;
+    auto [max_row, max_col] = lower_right;
     return result;
   }
 }
