@@ -83,12 +83,14 @@ Model parse(auto& in) {
 }
 
 void print_model(Model const& model) {
+  int ix{ 1 };
   for (auto const& [winning, numbers] : model) {
-    std::cout << NL << "winning : ";
+    std::cout << NL << "card " << ix++;
+    std::cout << NT << "winners : ";
     for (auto const& number : winning) {
       std::cout << number << T;
     }
-    std::cout << NL << "numbers : ";
+    std::cout << NT << "numbers : ";
     for (auto const& number : numbers) {
       std::cout << number << T;
     }
@@ -119,53 +121,6 @@ namespace part1 {
 
 namespace part2 {
 
-
-  int main() {
-    std::map<int, int> m;
-    std::string line;
-    std::ifstream file("example.txt"); // replace with your file name
-
-    int i = 0;
-    while (std::getline(file, line)) {
-      if (m.find(i) == m.end()) {
-        m[i] = 1;
-      }
-
-      line = line.substr(line.find(":") + 1);
-      std::istringstream iss(line);
-      Numbers a, b;
-      int num;
-      while (iss >> num && iss.peek() != '|') {
-        a.push_back(num);
-      }
-      iss.ignore(2); // skip " |"
-      while (iss >> num) {
-        b.push_back(num);
-      }
-
-      int j = 0;
-      for (int q : b) {
-        if (std::find(a.begin(), a.end(), q) != a.end()) {
-          j++;
-        }
-      }
-
-      for (int n = i + 1; n <= i + j; n++) {
-        m[n] = m[n] + m[i];
-      }
-
-      i++;
-    }
-
-    int sum = 0;
-    for (auto const& pair : m) {
-      sum += pair.second;
-    }
-
-    std::cout << NL << "answer2:" << sum;
-
-    return 0;
-  }
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << NL << "part2";
@@ -195,7 +150,7 @@ namespace part2 {
       std::cout << NT << "[" << ix << "]:" << count;
       result += count;
     }
-    return result;
+    return result; // 5747443
   }
 }
 
