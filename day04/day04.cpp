@@ -101,14 +101,16 @@ namespace part1 {
     std::cout << NL << NL << "part1";
     print_model(model);
     for (auto const& [winning, numbers] : model) {
-      std::cout << NT;
-      result += std::accumulate(numbers.begin(), numbers.end(), 0, [winning=winning](auto sum, auto const& number) {
+      std::cout << NT << "winners";
+      auto points = std::accumulate(numbers.begin(), numbers.end(), 0, [winning=winning](auto sum, auto const& number) {
         if (winning.contains(number)) {
           sum = (sum==0)?1:sum*2;
-          std::cout << " " << sum;
+          std::cout << " " << number;
         }
         return sum;
       });
+      std::cout << " --> " << points;
+      result += points;
     }
     // count the numbers in "number" that are in "winning"
     return result;
