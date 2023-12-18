@@ -205,7 +205,7 @@ namespace part1 {
     auto result_grid = floodFill(grid, inside);
     print_grid(result_grid);
     result = result_grid.size(); // the flooded area is the result
-    return result;
+    return result; // 52055
   }
 }
 
