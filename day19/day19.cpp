@@ -284,7 +284,7 @@ namespace part1 {
       Sort through all of the parts you've been given; what do you get if you add together all of the rating numbers for all of the parts that ultimately get accepted?
       */    
     result = hyperneutrino::main();
-    return result;
+    return result; // 397134
   }
 }
 
@@ -392,8 +392,8 @@ namespace part2 {
     }
 
     Result main() {
-      std::ifstream file("example.txt");
-      // std::ifstream file("puzzle.txt");
+      // std::ifstream file("example.txt");
+      std::ifstream file("puzzle.txt");
       std::string block1, line;
       while (std::getline(file, line) && !line.empty()) {
         block1 += line + "\n";
@@ -433,7 +433,7 @@ namespace part2 {
     How many distinct combinations of ratings will be accepted by the Elves' workflows?
     */
     result = hyperneutrino::main();
-    return result;
+    return result; // 127517902575337
   }
 }
 
