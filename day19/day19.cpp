@@ -54,91 +54,160 @@ struct Solution {
   Answers part2{};
 };
 
-using Model = std::vector<std::string>;
+using Rule = std::tuple<char, char, int, std::string>;
+using Rules = std::vector<Rule>;
+using Workflow = std::pair<Rules, std::string>;
+using Workflows = std::map<std::string, Workflow>;
+using Item = std::vector<std::tuple<char, int>>;
+using Items = std::vector<Item>;
+
+struct Model {
+  Workflows workflows;
+  Items items;
+};
+
+Workflows parseWorkflows(const std::string& block) {
+  Workflows workflows;
+  std::istringstream iss(block);
+  std::string line;
+  while (std::getline(iss, line)) {
+    std::cout << NL << "line:" << std::quoted(line) << std::flush;
+    std::string name = line.substr(0, line.find("{"));
+    std::string rest = line.substr(line.find("{") + 1, line.size() - 2);
+    std::istringstream iss2(rest);
+    std::string rule;
+    std::vector<std::tuple<char, char, int, std::string>> rules;
+    while (std::getline(iss2, rule, ',')) {
+      char key = rule[0];
+      char cmp = rule[1];
+      if (auto at = rule.find(":"); at != std::string::npos) {
+        auto n_str = rule.substr(2, at - 2);
+        int n = std::stoi(n_str);
+        std::string target = rule.substr(at + 1);
+        rules.push_back({key, cmp, n, target});
+        std::cout << NT << " key:" << key << " cmp:" << cmp << " n:" << n << " target:" << target << std::flush;
+      }
+      else {
+        rules.push_back({key, cmp, 0, rule.substr(0,rule.size()-1)});
+      }
+    }
+    std::string fallback = std::get<3>(rules.back());
+    rules.pop_back();
+    workflows[name] = {rules, fallback};
+    std::cout << NT << " workflows[" << name << "] = fallback:" << fallback << std::flush;
+  }
+  return workflows;
+}
+
+Item parseItem(const std::string& line) {
+  std::cout << NL << "line:" << std::quoted(line) << std::flush;
+  Item item;
+  std::istringstream iss(line.substr(1, line.size() - 2));
+  std::string segment;
+  while (std::getline(iss, segment, ',')) {
+    std::cout << NT << "segment:" << std::quoted(segment) << std::flush;
+    char ch = segment[0];
+    auto n_str = segment.substr(2);
+    std::cout << NT << T << " 2:n_str:" << std::quoted(n_str) << std::flush;
+    int n = std::stoi(segment.substr(2));
+    item.push_back({ch,n});
+    std::cout << NT << "item[" << ch << "] = " << n << std::flush;
+  }
+  return item;
+}
+
 
 Model parse(auto& in) {
   Model result{};
   std::string line{};
-  while (std::getline(in,line)) {
-    result.push_back(line);
+  std::string block1, block2;
+  while (std::getline(in, line) && !line.empty()) {
+    block1 += line + "\n";
   }
-  return result;
+  while (std::getline(in, line)) {
+    block2 += line + "\n";
+  }
+  Workflows workflows = parseWorkflows(block1);
+  Items items{};
+  std::istringstream iss(block2);
+  int total = 0;
+  while (std::getline(iss, line)) {
+    auto item = parseItem(line);
+    items.push_back(item);  
+  }
+  return {workflows, items};
 }
 
+void print_workflow(const std::string& name, const Workflow& workflow) {
+  std::cout << NL << "workflow[" << name << "]";
+  const auto& [rules, fallback] = workflow;
+  for (const auto& [key, cmp, n, target] : rules) {
+    std::cout << " if: " << key;
+    std::cout << " " << cmp;
+    std::cout << " " << n;
+    std::cout << " then " << target << ";";
+  }
+  std::cout << " else:" << fallback;
+}
 
 namespace part1 {
+
+
   // On the learning streak this day, following hyperneutrion solution for insight
   // https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day19p1.py
   namespace hyperneutrino {
-    using Workflow = std::pair<std::vector<std::tuple<char, char, int, std::string>>, std::string>;
-    using Workflows = std::map<std::string, Workflow>;
-    using _Item = std::vector<std::tuple<char, int>>;
 
-    Workflows parseWorkflows(const std::string& block) {
-      Workflows workflows;
-      std::istringstream iss(block);
-      std::string line;
-      while (std::getline(iss, line)) {
-        std::cout << NL << "line:" << std::quoted(line) << std::flush;
-        std::string name = line.substr(0, line.find("{"));
-        std::string rest = line.substr(line.find("{") + 1, line.size() - 2);
-        std::istringstream iss2(rest);
-        std::string rule;
-        std::vector<std::tuple<char, char, int, std::string>> rules;
-        while (std::getline(iss2, rule, ',')) {
-          char key = rule[0];
-          char cmp = rule[1];
-          if (auto at = rule.find(":"); at != std::string::npos) {
-            auto n_str = rule.substr(2, at - 2);
-            int n = std::stoi(n_str);
-            std::string target = rule.substr(at + 1);
-            rules.push_back({key, cmp, n, target});
-            std::cout << NT << " key:" << key << " cmp:" << cmp << " n:" << n << " target:" << target << std::flush;
-          }
-          else {
-            rules.push_back({key, cmp, 0, rule.substr(0,rule.size()-1)});
-          }
-        }
-        std::string fallback = std::get<3>(rules.back());
-        rules.pop_back();
-        workflows[name] = {rules, fallback};
-        std::cout << NT << " workflows[" << name << "] = fallback:" << fallback << std::flush;
-      }
-      return workflows;
-    }
+    // Workflows parseWorkflows(const std::string& block) {
+    //   Workflows workflows;
+    //   std::istringstream iss(block);
+    //   std::string line;
+    //   while (std::getline(iss, line)) {
+    //     std::cout << NL << "line:" << std::quoted(line) << std::flush;
+    //     std::string name = line.substr(0, line.find("{"));
+    //     std::string rest = line.substr(line.find("{") + 1, line.size() - 2);
+    //     std::istringstream iss2(rest);
+    //     std::string rule;
+    //     std::vector<std::tuple<char, char, int, std::string>> rules;
+    //     while (std::getline(iss2, rule, ',')) {
+    //       char key = rule[0];
+    //       char cmp = rule[1];
+    //       if (auto at = rule.find(":"); at != std::string::npos) {
+    //         auto n_str = rule.substr(2, at - 2);
+    //         int n = std::stoi(n_str);
+    //         std::string target = rule.substr(at + 1);
+    //         rules.push_back({key, cmp, n, target});
+    //         std::cout << NT << " key:" << key << " cmp:" << cmp << " n:" << n << " target:" << target << std::flush;
+    //       }
+    //       else {
+    //         rules.push_back({key, cmp, 0, rule.substr(0,rule.size()-1)});
+    //       }
+    //     }
+    //     std::string fallback = std::get<3>(rules.back());
+    //     rules.pop_back();
+    //     workflows[name] = {rules, fallback};
+    //     std::cout << NT << " workflows[" << name << "] = fallback:" << fallback << std::flush;
+    //   }
+    //   return workflows;
+    // }
 
-    _Item parseItem(const std::string& line) {
-      std::cout << NL << "line:" << std::quoted(line) << std::flush;
-      _Item item;
-      std::istringstream iss(line.substr(1, line.size() - 2));
-      std::string segment;
-      while (std::getline(iss, segment, ',')) {
-        std::cout << NT << "segment:" << std::quoted(segment) << std::flush;
-        char ch = segment[0];
-        auto n_str = segment.substr(2);
-        std::cout << NT << T << " 2:n_str:" << std::quoted(n_str) << std::flush;
-        int n = std::stoi(segment.substr(2));
-        item.push_back({ch,n});
-        std::cout << NT << "item[" << ch << "] = " << n << std::flush;
-      }
-      return item;
-    }
+    // Item parseItem(const std::string& line) {
+    //   std::cout << NL << "line:" << std::quoted(line) << std::flush;
+    //   Item item;
+    //   std::istringstream iss(line.substr(1, line.size() - 2));
+    //   std::string segment;
+    //   while (std::getline(iss, segment, ',')) {
+    //     std::cout << NT << "segment:" << std::quoted(segment) << std::flush;
+    //     char ch = segment[0];
+    //     auto n_str = segment.substr(2);
+    //     std::cout << NT << T << " 2:n_str:" << std::quoted(n_str) << std::flush;
+    //     int n = std::stoi(segment.substr(2));
+    //     item.push_back({ch,n});
+    //     std::cout << NT << "item[" << ch << "] = " << n << std::flush;
+    //   }
+    //   return item;
+    // }
 
-    void print_workflow(const std::string& name, const Workflow& workflow) {
-      std::cout << NL << "workflow[" << name << "]";
-      const auto& [rules, fallback] = workflow;
-      for (const auto& [key, cmp, n, target] : rules) {
-        std::cout << " if " << key;
-        std::cout << " " << cmp;
-        std::cout << " " << n;
-        std::cout << " then " << target;
-      }
-      std::cout << " else:" << fallback;
-    }
-
-    // {x=787,m=2655,a=1222,s=2876} in -> qqz -> qs -> lnx -> A
-    // ,x:787,m:2655,a:1222,s:2876 in -> px -> qkq -> A
-    bool accept(const _Item& item, const std::string& name, const Workflows& workflows) {
+    bool accept(const Item& item, const std::string& name, const Workflows& workflows) {
       if (name != "in") std::cout << " ->";
       std::cout << " " << name;
 
@@ -164,35 +233,36 @@ namespace part1 {
       return accept(item, fallback, workflows);
     }
 
-    Result main() {
-      // std::ifstream file("example.txt"); // replace with your file name
-      std::ifstream file("puzzle.txt"); // replace with your file name
-      std::string block1, block2, line;
-      while (std::getline(file, line) && !line.empty()) {
-        block1 += line + "\n";
-      }
-      while (std::getline(file, line)) {
-        block2 += line + "\n";
-      }
-      Workflows workflows = parseWorkflows(block1);
-      std::istringstream iss(block2);
-      int total = 0;
-      while (std::getline(iss, line)) {
-        auto item = parseItem(line);
-        std::cout << NL;
-        for (const auto& [key, value] : item) {
-          std::cout << "," << key << ":" << value;
-        }
-        if (accept(item, "in", workflows)) {
-          total += std::accumulate(item.begin(), item.end(), 0, [](int sum, const auto& pair) {
-            auto [ch, n] = pair; 
-            return sum + n;
-          });
-        }
-      }
-      std::cout << NL << "hyperneutrino says: " << total;
-      return total;
-    }
+    // Result main() {
+    //   // std::ifstream file("example.txt"); // replace with your file name
+    //   std::ifstream file("puzzle.txt"); // replace with your file name
+    //   std::string block1, block2, line;
+    //   while (std::getline(file, line) && !line.empty()) {
+    //     block1 += line + "\n";
+    //   }
+    //   while (std::getline(file, line)) {
+    //     block2 += line + "\n";
+    //   }
+    //   Workflows workflows = parseWorkflows(block1);
+    //   std::istringstream iss(block2);
+    //   int total = 0;
+    //   while (std::getline(iss, line)) {
+    //     auto item = parseItem(line);
+    //     std::cout << NL;
+    //     for (const auto& [key, value] : item) {
+    //       std::cout << "," << key << ":" << value;
+    //     }
+    //     if (accept(item, "in", workflows)) {
+    //       total += std::accumulate(item.begin(), item.end(), 0, [](int sum, const auto& pair) {
+    //         auto [ch, n] = pair; 
+    //         return sum + n;
+    //       });
+    //     }
+    //   }
+    //   std::cout << NL << "hyperneutrino says: " << total;
+    //   return total;
+    // }
+
   }
 
   Result solve_for(Model& model) {
@@ -283,68 +353,71 @@ namespace part1 {
 
       Sort through all of the parts you've been given; what do you get if you add together all of the rating numbers for all of the parts that ultimately get accepted?
       */    
-    result = hyperneutrino::main();
+    // result = hyperneutrino::main();
+    auto const& [workflows, items] = model;
+    for (auto const& item : items) {
+      std::cout << NL;
+      for (const auto& [key, value] : item) {
+        std::cout << "," << key << ":" << value;
+      }
+      if (hyperneutrino::accept(item, "in", workflows)) {
+        result += std::accumulate(item.begin(), item.end(), 0, [](int sum, const auto& pair) {
+          auto [ch, n] = pair; 
+          return sum + n;
+        });
+      }
+    }
     return result; // 397134
   }
 }
 
 namespace part2 {
+  using Range = std::pair<int, int>;
+  using Ranges = std::map<char, Range>;
 
   // Based on https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day19p2.py
   // Thanks!
   namespace hyperneutrino {
 
-    using Range = std::pair<int, int>;
-    using Ranges = std::map<char, Range>;
-    using Rule = std::tuple<char, char, int, std::string>;
-    using Rules = std::vector<Rule>;
-
-    // using Workflow = std::pair<std::vector<std::tuple<char, char, int, std::string>>, std::string>;
-    // using Workflows = std::map<std::string, Workflow>;
-
-    using Workflow = std::pair<Rules, std::string>;
-    using Workflows = std::map<std::string, Workflow>;
-
-    Workflows parseWorkflows(const std::string& block) {
-      Workflows workflows;
-      std::istringstream iss(block);
-      std::string line;
-      while (std::getline(iss, line)) {
-        std::cout << NL << "line:" << std::quoted(line) << std::flush;
-        std::string name = line.substr(0, line.find("{"));
-        std::string rest = line.substr(line.find("{") + 1, line.size() - 2);
-        std::istringstream iss2(rest);
-        std::string rule;
-        std::vector<std::tuple<char, char, int, std::string>> rules;
-        while (std::getline(iss2, rule, ',')) {
-          char key = rule[0];
-          char cmp = rule[1];
-          if (auto at = rule.find(":"); at != std::string::npos) {
-            auto n_str = rule.substr(2, at - 2);
-            int n = std::stoi(n_str);
-            std::string target = rule.substr(at + 1);
-            rules.push_back({key, cmp, n, target});
-            std::cout << NT << " key:" << key << " cmp:" << cmp << " n:" << n << " target:" << target << std::flush;
-          }
-          else {
-            rules.push_back({key, cmp, 0, rule.substr(0,rule.size()-1)}); // fallback is the tail with '}' removed (size-1 length)
-          }
-        }
-        std::string fallback = std::get<3>(rules.back());
-        rules.pop_back();
-        workflows[name] = {rules, fallback};
-        std::cout << NT << " workflows[" << name << "]";
-        for (const auto& [key, cmp, n, target] : rules) {
-          std::cout << " if " << key;
-          std::cout << " " << cmp;
-          std::cout << " " << n;
-          std::cout << " then " << std::quoted(target);
-        }
-        std:: cout << " fallback:" << fallback << std::flush;
-      }
-      return workflows;
-    }
-
+    // Workflows parseWorkflows(const std::string& block) {
+    //   Workflows workflows;
+    //   std::istringstream iss(block);
+    //   std::string line;
+    //   while (std::getline(iss, line)) {
+    //     std::cout << NL << "line:" << std::quoted(line) << std::flush;
+    //     std::string name = line.substr(0, line.find("{"));
+    //     std::string rest = line.substr(line.find("{") + 1, line.size() - 2);
+    //     std::istringstream iss2(rest);
+    //     std::string rule;
+    //     std::vector<std::tuple<char, char, int, std::string>> rules;
+    //     while (std::getline(iss2, rule, ',')) {
+    //       char key = rule[0];
+    //       char cmp = rule[1];
+    //       if (auto at = rule.find(":"); at != std::string::npos) {
+    //         auto n_str = rule.substr(2, at - 2);
+    //         int n = std::stoi(n_str);
+    //         std::string target = rule.substr(at + 1);
+    //         rules.push_back({key, cmp, n, target});
+    //         std::cout << NT << " key:" << key << " cmp:" << cmp << " n:" << n << " target:" << target << std::flush;
+    //       }
+    //       else {
+    //         rules.push_back({key, cmp, 0, rule.substr(0,rule.size()-1)}); // fallback is the tail with '}' removed (size-1 length)
+    //       }
+    //     }
+    //     std::string fallback = std::get<3>(rules.back());
+    //     rules.pop_back();
+    //     workflows[name] = {rules, fallback};
+    //     std::cout << NT << " workflows[" << name << "]";
+    //     for (const auto& [key, cmp, n, target] : rules) {
+    //       std::cout << " if " << key;
+    //       std::cout << " " << cmp;
+    //       std::cout << " " << n;
+    //       std::cout << " then " << std::quoted(target);
+    //     }
+    //     std:: cout << " fallback:" << fallback << std::flush;
+    //   }
+    //   return workflows;
+    // }
 
     long long count(Workflows const& workflows, Ranges ranges, const std::string& name = "in") {
       std::cout << NL << "count(" << name << ")" << std::flush;
@@ -391,22 +464,22 @@ namespace part2 {
       return total;
     }
 
-    Result main() {
-      // std::ifstream file("example.txt");
-      std::ifstream file("puzzle.txt");
-      std::string block1, line;
-      while (std::getline(file, line) && !line.empty()) {
-        block1 += line + "\n";
-      }
-      Workflows workflows = parseWorkflows(block1);  
+    // Result main() {
+    //   // std::ifstream file("example.txt");
+    //   std::ifstream file("puzzle.txt");
+    //   std::string block1, line;
+    //   while (std::getline(file, line) && !line.empty()) {
+    //     block1 += line + "\n";
+    //   }
+    //   Workflows workflows = parseWorkflows(block1);  
 
-      Ranges ranges = {{'x', {1, 4000}}, {'m', {1, 4000}}, {'a', {1, 4000}}, {'s', {1, 4000}}};
-      auto result = count(workflows,ranges);
+    //   Ranges ranges = {{'x', {1, 4000}}, {'m', {1, 4000}}, {'a', {1, 4000}}, {'s', {1, 4000}}};
+    //   auto result = count(workflows,ranges);
 
-      std::cout << NL << "hyperneutrino says: " << result;
+    //   std::cout << NL << "hyperneutrino says: " << result;
 
-      return result;
-    }
+    //   return result;
+    // }
 
   }
 
@@ -421,7 +494,12 @@ namespace part2 {
     maybe you can figure out in advance which combinations of ratings will be accepted or rejected.
 
     Each of the four ratings (x, m, a, s) can have an integer value 
-    ranging from a minimum of 1 to a maximum of 4000. 
+    ranging from a minimum of 1 to a maximum of 4000.
+    */
+
+    Ranges ranges = {{'x', {1, 4000}}, {'m', {1, 4000}}, {'a', {1, 4000}}, {'s', {1, 4000}}};
+
+   /*
     
     Of all possible distinct combinations of ratings, your job is to figure out which ones will be accepted.
 
@@ -432,7 +510,11 @@ namespace part2 {
     
     How many distinct combinations of ratings will be accepted by the Elves' workflows?
     */
-    result = hyperneutrino::main();
+    // result = hyperneutrino::main();
+
+    auto const& [workflows, items] = model;
+    result = hyperneutrino::count(workflows,ranges);
+
     return result; // 127517902575337
   }
 }
