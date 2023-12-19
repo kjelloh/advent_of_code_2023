@@ -163,7 +163,8 @@ namespace hyperneutrino {
   }
 
   int main() {
-    std::ifstream file("example.txt"); // replace with your file name
+    // std::ifstream file("example.txt"); // replace with your file name
+    std::ifstream file("puzzle.txt"); // replace with your file name
     std::string block1, block2, line;
     while (std::getline(file, line) && !line.empty()) {
       block1 += line + "\n";
@@ -283,7 +284,7 @@ namespace part1 {
 
       Sort through all of the parts you've been given; what do you get if you add together all of the rating numbers for all of the parts that ultimately get accepted?
       */    
-    hyperneutrino::main();
+    result = hyperneutrino::main();
     return result;
   }
 }
@@ -292,6 +293,9 @@ namespace part2 {
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << NL << "part2";
+/*
+
+*/    
     return result;
   }
 }
