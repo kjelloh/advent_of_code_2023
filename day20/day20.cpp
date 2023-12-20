@@ -106,104 +106,6 @@ void print_model(Model const& model) {
 namespace part1 {
   bool const HIGH{ true };
   bool const LOW{ false };
-  using Signal = std::optional<bool>;
-  using Cache = std::map<std::string,Signal>;
-
-  template <typename T>
-  struct hash {};
-
-  template <>
-  struct hash<Cache> {
-    size_t operator()(const Cache& cache) const {
-      size_t seed = 0;
-      for (const auto& entry : cache) {
-        seed ^= std::hash<std::string>{}(entry.first) ^ (std::hash<Signal>{}(*entry.second) << 1);
-      }
-      return seed;
-    }
-  };
-
-  // Flip-flop modules (prefix %) 
-  //   are either on or off; they are initially off. If a flip-flop module receives a high pulse, it is ignored and nothing happens. 
-  //   However, if a flip-flop module receives a low pulse, it flips between on and off. 
-  //   If it was off, it turns on and sends a high pulse. If it was on, it turns off and sends a low pulse.
-  auto flip_flop = [](Cache const& cache,bool state,Signal const& pulse)->Signal {
-    if (pulse != std::nullopt) {
-      return (state and *pulse == LOW)? state ^ state : state; // xor flip, or nothing
-    }
-    else return std::nullopt;
-  };
-
-  // Conjunction modules (prefix &) 
-  //   remember the type of the most recent pulse received from each of their connected input modules; 
-  //   they initially default to remembering a low pulse for each input. 
-  //   When a pulse is received, the conjunction module first updates its memory for that input. 
-  //   Then, if it remembers high pulses for all inputs, it sends a low pulse; otherwise, it sends a high pulse.
-  auto conjunction = [](Cache const& cache,bool state,Signal const& pulse)->Signal {
-    if (std::all_of(cache.begin(), cache.end(), [](auto const& entry) {
-      auto [name,signal] = entry;
-      return signal and *signal == HIGH; 
-      })) {
-      return LOW;
-    }
-    else return HIGH;
-  };
-
-  auto const broadcast = [](Cache const& cache,bool state,Signal const& pulse)->Signal {
-    return pulse;
-  };
-
-  namespace detail {
-    template <typename F>
-    struct Module {
-      Cache cache{}; // initially all false / low
-      bool state{ LOW };
-      F op{};
-      Signal act_on(std::string name,Signal pulse) {
-        cache[name] = pulse;
-        return op(cache,state,pulse);
-      }
-      size_t hash_value() const {
-        size_t type_hash = std::hash<std::string_view>{}(typeid(F).name());
-        size_t cache_hash = hash<Cache>{}(cache);
-        size_t state_hash = std::hash<bool>{}(state);
-        return type_hash ^ (cache_hash + state_hash + 0x9e3779b9 + (type_hash << 6) + (type_hash >> 2));
-      }
-    };
-  } // namespace detail
-  template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-  template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;   
-  using Module = std::variant<detail::Module<decltype(broadcast)>,detail::Module<decltype(flip_flop)>,detail::Module<decltype(conjunction)>>;
-  using Modules = std::map<std::string,Module>;
-
-  template<>
-  struct hash<Module> {
-    size_t operator()(const Module& module) const {
-      return std::visit([](const auto& arg) {
-        using T = std::decay_t<decltype(arg)>;
-        size_t type_hash = std::hash<std::string_view>{}(typeid(T).name());
-        size_t value_hash = arg.hash_value(); // Assuming each Module type has a hash_value() method
-        return type_hash ^ (value_hash + 0x9e3779b9 + (type_hash << 6) + (type_hash >> 2));
-      }, module);
-    }
-  };
-
-  template<>
-  struct hash<Modules> {
-    size_t operator()(const Modules& modules) const {
-      size_t seed = 0;
-      for (const auto& entry : modules) {
-        seed ^= std::hash<std::string>{}(entry.first) ^ (hash<Module>{}(entry.second) << 1);
-      }
-      return seed;
-    }
-  };
-
-  struct AlwaysDistinct {
-      bool operator()(const Modules& lhs, const Modules& rhs) const {
-          return false;
-      }
-  };  
 
   // Analyze and dig into the problem to find a good solution
   void explore(Model const& model) {
@@ -373,52 +275,28 @@ namespace part1 {
     */
     struct World {
       Model model{};
-      Modules modules{};
-      Result m_low_count{ 0 };
-      Result m_high_count{ 0 };
-      std::unordered_set<Modules, hash<Modules>,AlwaysDistinct> seen{};
-      void act_on(std::string const& from, Signal pulse, std::string const& to) {
-        using Message = std::tuple<std::string,Signal,std::string>;
+      Result m_low_count{};
+      Result m_high_count{};
+      struct State {
+        bool current{};
+        std::vector<std::tuple<std::string, bool>> history{}; // vector for strict ordering to make operator< work
+
+        bool operator<(const State& other) const {
+          return std::tie(current, history) < std::tie(other.current, other.history);
+        }
+      };
+      using Environment = std::vector<std::tuple<std::string,bool>>;
+      void act_on(std::string const& from, bool pulse, std::string const& to) {
+        Environment current_env{};
+        std::set<Environment> seen{};
+        using Message = std::tuple<std::string,bool,std::string>;
         std::queue<Message> message_queue{};
         message_queue.push({ from,pulse,to });
-        while (!seen.contains(modules) and !message_queue.empty()) {
-          auto [from,pulse,to] = message_queue.front();
+        while (!seen.contains(current_env)) {
+          auto new_env = current_env;
+          auto [from, pulse, to] = message_queue.front();
           message_queue.pop();
-          std::cout << NL << "act_on: " << std::quoted(from) << " " << (pulse ? (*pulse ? "high" : "low") : "null") << " " << std::quoted(to);
-          m_low_count += (pulse and *pulse == LOW);
-          m_high_count += (pulse and *pulse == HIGH);
-          std::cout << NL << "act_on: " << std::quoted(from) << " " << (pulse? "high" : "low") << " " << std::quoted(to);
-          auto it = std::find_if(model.begin(), model.end(), [&to](auto const& wiring) { return wiring.name == to; });
-          if (it != model.end()) {
-            auto [name,type,destinations] = *it;
-            if (modules.find(name) == modules.end()) {
-              switch (type[0]) {
-              case '%': modules.insert({name, detail::Module<decltype(flip_flop)>{}}); break;
-              case '&': modules.insert({name, detail::Module<decltype(conjunction)>{}}); break;
-              default: modules.insert({name, detail::Module<decltype(broadcast)>{}}); break;
-              }
-            }
-            
-            Signal out = std::visit(overloaded{
-              [from, pulse](detail::Module<decltype(flip_flop)>& module) {
-                return module.act_on(from, pulse);               
-              },
-              [from, pulse](detail::Module<decltype(conjunction)>& module) {
-                // handle conjunction module using 'from' and 'pulse'
-                return module.act_on(from, pulse);               
-              },
-              [from, pulse](detail::Module<decltype(broadcast)>& module) {
-                // handle broadcast module using 'from' and 'pulse'
-                return module.act_on(from, pulse);               
-              }
-            }, modules.at(name));
-            for (auto const& destination : destinations) {
-              message_queue.push({ name,out,destination });
-            }
-          }
-          else std::cout << NL << "failed to find: " << std::quoted(to);
         }
-
       }
       Result low_count() {
         return m_low_count;
