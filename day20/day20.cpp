@@ -285,18 +285,88 @@ namespace part1 {
           return std::tie(current, history) < std::tie(other.current, other.history);
         }
       };
-      using Environment = std::vector<std::tuple<std::string,bool>>;
-      void act_on(std::string const& from, bool pulse, std::string const& to) {
+      using Environment = std::vector<std::tuple<std::string,State>>;
+      bool act_on(std::string const& from, bool in, std::string const& to) {
         Environment current_env{};
         std::set<Environment> seen{};
         using Message = std::tuple<std::string,bool,std::string>;
-        std::queue<Message> message_queue{};
-        message_queue.push({ from,pulse,to });
+        std::deque<Message> message_queue{};
+        message_queue.push_back({ from,in,to });
         while (!seen.contains(current_env)) {
+          if (message_queue.empty()) {
+            std::cerr << NL << NL << "message_queue is empty before cycle detected";
+            return false;
+          }
           auto new_env = current_env;
           auto [from, pulse, to] = message_queue.front();
-          message_queue.pop();
+          message_queue.pop_front();
+          std::cout << NT << std::quoted(from) << " -" << (pulse == HIGH ? "high" : "low") << "-> " << std::quoted(to);
+          m_low_count += (pulse == LOW);
+          m_high_count += (pulse == HIGH);
+          auto wiring = std::find_if(model.begin(), model.end(), [&](auto const& wiring) { return wiring.name == to; });
+          auto entry = std::find_if(new_env.begin(), new_env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
+          if (entry == new_env.end()) {
+            new_env.push_back({to,State{false,{}}}); // all false works for both flip-flops and conjunction
+            entry = std::prev(new_env.end());
+          }
+          if (wiring != model.end()) {
+            auto& [name, type, destinations] = *wiring;
+            auto& [_, state] = *entry;
+            bool out{};
+            switch (type[0]) {
+              case '%': {
+                // Flip-flop modules (prefix %) 
+                //   are either on or off; they are initially off. If a flip-flop module receives a high pulse, it is ignored and nothing happens. 
+                //   However, if a flip-flop module receives a low pulse, it flips between on and off. 
+                //   If it was off, it turns on and sends a high pulse. If it was on, it turns off and sends a low pulse.
+                if (in == LOW) {
+                  // Flip on LOW
+                  state.current = !state.current;
+                  out = state.current; // sends its internal state
+                  for (auto const& destination : destinations) {
+                    message_queue.push_back({ to,out,destination });
+                  }
+                }
+              } break;
+              case '&': {
+                // Conjunction modules (prefix &) 
+                //   remember the type of the most recent pulse received from each of their connected input modules; 
+                //   they initially default to remembering a low pulse for each input. 
+                //   When a pulse is received, the conjunction module first updates its memory for that input. 
+                //   Then, if it remembers high pulses for all inputs, it sends a low pulse; otherwise, it sends a high pulse.
+                auto it = std::find_if(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<0>(entry) == from; });
+                if (it == state.history.end()) {
+                  state.history.push_back({ from,pulse });
+                  it = std::prev(state.history.end());
+                }
+                auto& [_, history_pulse] = *it;
+                history_pulse = in;
+                if (std::all_of(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<1>(entry) == HIGH; })) {
+                  out = LOW;
+                }
+                else {
+                  out = HIGH;
+                }
+                for (auto const& destination : destinations) {
+                  message_queue.push_back({ to,out,destination });
+                }                
+              } break;
+              default: {
+                // There is a single broadcast module (named broadcaster). 
+                //   When it receives a pulse, it sends the same pulse to all of its destination modules.
+                out = in;
+                for (auto const& destination : destinations) {
+                  message_queue.push_back({ to,out,destination });
+                }
+              }
+            }
+          }
+          else {
+            std::cout << NL << "no wiring found for " << std::quoted(to);
+            return false;
+          }
         }
+        return true;
       }
       Result low_count() {
         return m_low_count;
@@ -307,7 +377,7 @@ namespace part1 {
     };
     auto world = World{model};
     for (int i = 0; i < 1000; ++i) {
-      world.act_on("button", LOW,"broadcaster");
+      if (world.act_on("button", LOW,"broadcaster") == false) break;
     };
     auto low_count = world.low_count();
     auto high_count = world.high_count();
