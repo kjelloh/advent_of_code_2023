@@ -106,6 +106,119 @@ void print_model(Model const& model) {
 namespace part1 {
   bool const HIGH{ true };
   bool const LOW{ false };
+  struct World {
+    Model model;
+    Result m_low_count{};
+    Result m_high_count{};
+    struct State {
+      bool current{};
+      std::vector<std::tuple<std::string, bool>> history{}; // vector for strict ordering to make operator< work
+
+      bool operator<(const State& other) const {
+        return std::tie(current, history) < std::tie(other.current, other.history);
+      }
+    };
+    using Environment = std::vector<std::tuple<std::string,State>>;
+    using Message = std::tuple<std::string,bool,std::string>;
+    std::queue<Message> message_queue{};
+    Environment env{};        
+
+
+    World(Model const& model) : model{ model } {
+      // Create an environment entry for each wiring
+      for (auto const& [name, type, destinations] : model) {
+        std::vector<std::tuple<std::string, bool>> history{};
+        for (auto const& to : destinations) {
+        }
+        env.push_back({ name,State{} });
+      }
+      // Update each wring input memory
+      for (auto const& [from, type, destinations] : model) {
+        for (auto const& to : destinations) {
+          auto rx = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
+          auto& [_, rx_state] = *rx;
+          std::cout << NL << "wiring " << to  << " with from " << std::quoted(from) << " LOW";
+          rx_state.history.push_back({ from,LOW });
+        }
+      }
+    }
+
+
+    Result engage() {
+      Result loop_count{};
+      message_queue.push({ "button",LOW,"broadcaster" });
+      while (!message_queue.empty()) {
+        ++loop_count;
+        auto [from, in, to] = message_queue.front();
+        message_queue.pop();
+
+        std::cout << NT << std::quoted(from) << " -" << (in == HIGH ? "high" : "low") << "-> " << std::quoted(to);
+
+        m_low_count += (in == LOW);
+        m_high_count += (in == HIGH);
+        auto wiring = std::find_if(model.begin(), model.end(), [&](auto const& wiring) { return wiring.name == to; });
+        auto memory = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
+        if (wiring != model.end()) {
+          auto& [name, type, destinations] = *wiring;
+          auto& [_, state] = *memory;
+          bool out{};
+          switch (type[0]) {
+            case '%': {
+              // Flip-flop modules (prefix %) 
+              //   are either on or off; they are initially off. If a flip-flop module receives a high pulse, it is ignored and nothing happens. 
+              //   However, if a flip-flop module receives a low pulse, it flips between on and off. 
+              //   If it was off, it turns on and sends a high pulse. If it was on, it turns off and sends a low pulse.
+              if (in == LOW) {
+                // Flip on LOW
+                state.current = !state.current;
+                out = state.current; // sends its internal state
+                for (auto const& destination : destinations) {
+                  message_queue.push({ to,out,destination });
+                }
+              }
+            } break;
+            case '&': {
+              // Conjunction modules (prefix &) 
+              //   remember the type of the most recent pulse received from each of their connected input modules; 
+              //   they initially default to remembering a low pulse for each input. 
+              //   When a pulse is received, the conjunction module first updates its memory for that input. 
+              //   Then, if it remembers high pulses for all inputs, it sends a low pulse; otherwise, it sends a high pulse.
+              auto it = std::find_if(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<0>(entry) == from; });
+              auto& [_, history_pulse] = *it;
+              history_pulse = in;
+              if (std::all_of(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<1>(entry) == HIGH; })) {
+                out = LOW;
+              }
+              else {
+                out = HIGH;
+              }
+              for (auto const& destination : destinations) {
+                message_queue.push({ to,out,destination });
+              }                
+            } break;
+            default: {
+              // There is a single broadcast module (named broadcaster). 
+              //   When it receives a pulse, it sends the same pulse to all of its destination modules.
+              out = in;
+              for (auto const& destination : destinations) {
+                message_queue.push({ to,out,destination });
+              }
+            }
+          }
+        }
+        else {
+          std::cout << " NULL";
+        }
+      }
+      return loop_count;
+    }
+    Result low_count() {
+      return m_low_count;
+    }
+    Result high_count() {
+      return m_high_count;
+    }
+  };
 
   // Analyze and dig into the problem to find a good solution
   void explore(Model const& model) {
@@ -277,132 +390,27 @@ namespace part1 {
 
     What do you get if you multiply the total number of low pulses sent by the total number of high pulses sent?
     */
-    struct World {
-      Model model;
-      Result m_low_count{};
-      Result m_high_count{};
-      struct State {
-        bool current{};
-        std::vector<std::tuple<std::string, bool>> history{}; // vector for strict ordering to make operator< work
-
-        bool operator<(const State& other) const {
-          return std::tie(current, history) < std::tie(other.current, other.history);
-        }
-      };
-      using Environment = std::vector<std::tuple<std::string,State>>;
-      using Message = std::tuple<std::string,bool,std::string>;
-      std::queue<Message> message_queue{};
-      Environment env{};        
-
-
-      World(Model const& model) : model{ model } {
-        // Create an environment entry for each wiring
-        for (auto const& [name, type, destinations] : model) {
-          std::vector<std::tuple<std::string, bool>> history{};
-          for (auto const& to : destinations) {
-          }
-          env.push_back({ name,State{} });
-        }
-        // Update each wring input memory
-        for (auto const& [from, type, destinations] : model) {
-          for (auto const& to : destinations) {
-            auto rx = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
-            auto& [_, rx_state] = *rx;
-            std::cout << NL << "wiring " << to  << " with from " << std::quoted(from) << " LOW";
-            rx_state.history.push_back({ from,LOW });
-          }
-        }
-      }
-
-
-      bool engage() {
-        message_queue.push({ "button",LOW,"broadcaster" });
-        while (!message_queue.empty()) {
-          auto [from, in, to] = message_queue.front();
-          message_queue.pop();
-
-          std::cout << NT << std::quoted(from) << " -" << (in == HIGH ? "high" : "low") << "-> " << std::quoted(to);
-
-          m_low_count += (in == LOW);
-          m_high_count += (in == HIGH);
-          auto wiring = std::find_if(model.begin(), model.end(), [&](auto const& wiring) { return wiring.name == to; });
-          auto memory = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
-          if (wiring != model.end()) {
-            auto& [name, type, destinations] = *wiring;
-            auto& [_, state] = *memory;
-            bool out{};
-            switch (type[0]) {
-              case '%': {
-                // Flip-flop modules (prefix %) 
-                //   are either on or off; they are initially off. If a flip-flop module receives a high pulse, it is ignored and nothing happens. 
-                //   However, if a flip-flop module receives a low pulse, it flips between on and off. 
-                //   If it was off, it turns on and sends a high pulse. If it was on, it turns off and sends a low pulse.
-                if (in == LOW) {
-                  // Flip on LOW
-                  state.current = !state.current;
-                  out = state.current; // sends its internal state
-                  for (auto const& destination : destinations) {
-                    message_queue.push({ to,out,destination });
-                  }
-                }
-              } break;
-              case '&': {
-                // Conjunction modules (prefix &) 
-                //   remember the type of the most recent pulse received from each of their connected input modules; 
-                //   they initially default to remembering a low pulse for each input. 
-                //   When a pulse is received, the conjunction module first updates its memory for that input. 
-                //   Then, if it remembers high pulses for all inputs, it sends a low pulse; otherwise, it sends a high pulse.
-                auto it = std::find_if(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<0>(entry) == from; });
-                auto& [_, history_pulse] = *it;
-                history_pulse = in;
-                if (std::all_of(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<1>(entry) == HIGH; })) {
-                  out = LOW;
-                }
-                else {
-                  out = HIGH;
-                }
-                for (auto const& destination : destinations) {
-                  message_queue.push({ to,out,destination });
-                }                
-              } break;
-              default: {
-                // There is a single broadcast module (named broadcaster). 
-                //   When it receives a pulse, it sends the same pulse to all of its destination modules.
-                out = in;
-                for (auto const& destination : destinations) {
-                  message_queue.push({ to,out,destination });
-                }
-              }
-            }
-          }
-          else {
-            std::cout << " NULL";
-          }
-        }
-        return true;
-      }
-      Result low_count() {
-        return m_low_count;
-      }
-      Result high_count() {
-        return m_high_count;
-      }
-    };
     auto world = World{model};
-    for (int i = 0; i < 1000; ++i) {
-      if (!world.engage()) break;
+    for (int i = 0; i < 4; ++i) {
+      world.engage();
     };
     auto low_count = world.low_count();
     auto high_count = world.high_count();
-    Result result = low_count * high_count;
+    Result result = low_count * high_count; 
     std::cout << NL << NL << "==> explore says result : " << result; 
-
   }
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << NL << "part1";
-    explore(model); // Until a solution is found :)
-    return result;
+    auto world = World{model};
+    for (int i = 0; i < 1000; ++i) {
+      Result loop_count = world.engage();
+      std::cout << NL << "loop_count" << loop_count;
+    };
+    auto low_count = world.low_count();
+    auto high_count = world.high_count();
+    result = low_count * high_count;
+    return result; // 763500168
   }
 }
 
