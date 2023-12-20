@@ -167,7 +167,6 @@ namespace part1 {
     &inv -> a
 
     */
-      print_model(model);
     /*
 
     In this module configuration, the broadcaster has three destination modules named a, b, and c. 
@@ -204,7 +203,11 @@ namespace part1 {
     %b -> con
     &con -> output
 
-    This module configuration includes the broadcaster, two flip-flops (named a and b), a single-input conjunction module (inv), a multi-input conjunction module (con), and an untyped module named output (for testing purposes). The multi-input conjunction module con watches the two flip-flop modules and, if they're both on, sends a low pulse to the output module.
+    This module configuration includes the broadcaster, two flip-flops (named a and b), 
+    a single-input conjunction module (inv), a multi-input conjunction module (con), 
+    and an untyped module named output (for testing purposes). 
+    
+    The multi-input conjunction module con watches the two flip-flop modules and, if they're both on, sends a low pulse to the output module.
 
     Here's what happens if you push the button once:
 
@@ -256,6 +259,7 @@ namespace part1 {
     inv -high-> b
     con -high-> output
 
+
     This completes the cycle: a turns off, causing con to remember only low pulses and restoring all modules to their original states.
 
     To get the cables warmed up, the Elves have pushed the button 1000 times. 
@@ -266,7 +270,7 @@ namespace part1 {
 
     In the second example, after pushing the button 1000 times, 4250 low pulses and 2750 high pulses are sent. 
     Multiplying these together gives 11687500.
-
+                              
     Consult your module configuration; 
     determine the number of low pulses and high pulses that would be sent after pushing the button 1000 times, 
     waiting for all pulses to be fully handled after each push of the button. 
@@ -274,7 +278,7 @@ namespace part1 {
     What do you get if you multiply the total number of low pulses sent by the total number of high pulses sent?
     */
     struct World {
-      Model model{};
+      Model model;
       Result m_low_count{};
       Result m_high_count{};
       struct State {
@@ -287,40 +291,45 @@ namespace part1 {
       };
       using Environment = std::vector<std::tuple<std::string,State>>;
       using Message = std::tuple<std::string,bool,std::string>;
+      std::queue<Message> message_queue{};
+      Environment env{};        
 
-      bool act_on(std::string const& from, bool pulse, std::string const& to) {
-        std::cout << NL << "atc_on: " << std::quoted(from) << " -" << (pulse == HIGH ? "high" : "low") << "-> " << std::quoted(to);
-        Environment current_env{};        
+
+      World(Model const& model) : model{ model } {
+        // Create an environment entry for each wiring
         for (auto const& [name, type, destinations] : model) {
           std::vector<std::tuple<std::string, bool>> history{};
           for (auto const& to : destinations) {
-            history.push_back({ destination,LOW });
           }
-          current_env.push_back({ name,State{false,history} });
+          env.push_back({ name,State{} });
         }
-        std::set<Environment> seen{};
-        std::queue<Message> message_queue{};
-        message_queue.push({ from,pulse,to });
-        while (!seen.contains(current_env)) {
-          std::cout << NT << "loop";
-          seen.insert(current_env);
-          if (message_queue.empty()) {
-            std::cerr << NL << NL << "message_queue is empty before cycle detected";
-            return false;
+        // Update each wring input memory
+        for (auto const& [from, type, destinations] : model) {
+          for (auto const& to : destinations) {
+            auto rx = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
+            auto& [_, rx_state] = *rx;
+            std::cout << NL << "wiring " << to  << " with from " << std::quoted(from) << " LOW";
+            rx_state.history.push_back({ from,LOW });
           }
-          auto new_env = current_env;
+        }
+      }
+
+
+      bool engage() {
+        message_queue.push({ "button",LOW,"broadcaster" });
+        while (!message_queue.empty()) {
           auto [from, in, to] = message_queue.front();
           message_queue.pop();
 
-          std::cout << NT << "popped " << std::quoted(from) << " -" << (in == HIGH ? "high" : "low") << "-> " << std::quoted(to);
+          std::cout << NT << std::quoted(from) << " -" << (in == HIGH ? "high" : "low") << "-> " << std::quoted(to);
 
-          m_low_count += (pulse == LOW);
-          m_high_count += (pulse == HIGH);
+          m_low_count += (in == LOW);
+          m_high_count += (in == HIGH);
           auto wiring = std::find_if(model.begin(), model.end(), [&](auto const& wiring) { return wiring.name == to; });
-          auto entry = std::find_if(new_env.begin(), new_env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
+          auto memory = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
           if (wiring != model.end()) {
             auto& [name, type, destinations] = *wiring;
-            auto& [_, state] = *entry;
+            auto& [_, state] = *memory;
             bool out{};
             switch (type[0]) {
               case '%': {
@@ -365,11 +374,9 @@ namespace part1 {
                 }
               }
             }
-            current_env = new_env;
           }
           else {
-            std::cout << NL << "no wiring found for " << std::quoted(to);
-            return false;
+            std::cout << " NULL";
           }
         }
         return true;
@@ -382,8 +389,8 @@ namespace part1 {
       }
     };
     auto world = World{model};
-    for (int i = 0; i < 1; ++i) {
-      if (world.act_on("button", LOW,"broadcaster") == false) break;
+    for (int i = 0; i < 1000; ++i) {
+      if (!world.engage()) break;
     };
     auto low_count = world.low_count();
     auto high_count = world.high_count();
@@ -428,6 +435,7 @@ int main(int argc, char *argv[])
       std::ifstream in{ argv[i] };
       if (in) {
         auto model = parse(in);
+        print_model(model);
         part1_answer = { argv[i],part1::solve_for(model) };
         part2_answer = { argv[i],part2::solve_for(model) };
       }
