@@ -103,6 +103,51 @@ void print_model(Model const& model) {
   }
 }
 
+using LevelMap = std::map<int, std::vector<std::string>>;
+// to_root("rx",2,model) gives back a map of levels and names of modules with destinations on previous level
+// names on level 1 has destinations to root on level 0
+LevelMap to_root(std::string const& root,int level,Model const& model) {
+  std::cout << NL << "to_root: " << std::quoted(root) << " level: " << level << std::flush;
+  LevelMap level_map{};
+  if (level < 0) return level_map;
+  // find all that have root as destination
+  std::vector<std::tuple<std::string,std::string>> new_roots{};
+  for (auto const& [name,type,destinations] : model) {
+    auto it = std::find_if(destinations.begin(), destinations.end(), [&](auto const& destination) { 
+      auto result =  destination.find(root) != std::string::npos; 
+      if (result and root=="xm") std::cout << NT << std::quoted(name) << "[" << std::quoted(destination) << "].find(" << root << ") : " << destination.find(root) << std::flush;
+      return result;
+    });
+    if (it != destinations.end()) {
+      // name has destination to root
+      std::cout << " push " << name;
+      new_roots.push_back({type,name});
+    }
+  }
+  // dig into next level of roots
+  for (auto const& [type,new_root] : new_roots) {
+    auto sub_map = to_root(new_root,level-1,model);
+    // merge sub level results
+    level_map.insert(sub_map.begin(),sub_map.end());
+    // add this level result
+    level_map[level].push_back(std::format("{} <-- {}{}",root,type,new_root));
+  }
+    
+  return level_map;
+}
+
+void print_level_map(LevelMap const& level_map) {
+  std::cout << NL << "level_map:";
+  auto levels = std::max_element(level_map.begin(), level_map.end(), [](auto const& a, auto const& b) { return a.first < b.first; });
+  for (int i=levels->first;i>=0 ; --i) {
+    std::string indent(4*(levels->first-i),' ');
+    std::cout << NL << indent << "level " << levels->first-i << ":";
+    for (auto const& entry : level_map.at(i)) {
+      std::cout << NL << indent << entry;
+    }
+  }
+}
+
 namespace part1 {
   bool const HIGH{ true };
   bool const LOW{ false };
@@ -415,9 +460,276 @@ namespace part1 {
 }
 
 namespace part2 {
+  bool const HIGH{ true };
+  bool const LOW{ false };
+  struct World {
+    Model model;
+    Result m_low_count{};
+    Result m_high_count{};
+    struct State {
+      bool current{};
+      std::vector<std::tuple<std::string, bool>> history{}; // vector for strict ordering to make operator< work
+
+      bool operator<(const State& other) const {
+        return std::tie(current, history) < std::tie(other.current, other.history);
+      }
+    };
+    using Environment = std::vector<std::tuple<std::string,State>>;
+    using Message = std::tuple<std::string,bool,std::string>;
+    std::queue<Message> message_queue{};
+    Environment env{};        
+
+
+    World(Model const& model) : model{ model } {
+      // Create an environment entry for each wiring
+      for (auto const& [name, type, destinations] : model) {
+        std::vector<std::tuple<std::string, bool>> history{};
+        for (auto const& to : destinations) {
+        }
+        env.push_back({ name,State{} });
+      }
+      // Update each wring input memory
+      for (auto const& [from, type, destinations] : model) {
+        for (auto const& to : destinations) {
+          auto rx = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
+          auto& [_, rx_state] = *rx;
+          std::cout << NL << "wiring " << to  << " with from " << std::quoted(from) << " LOW";
+          rx_state.history.push_back({ from,LOW });
+        }
+      }
+      // find the names of all modules wired to "rx"
+      std::vector<std::string> rx_wired_modules{};
+      std::string to0{"rx"};
+      for (auto const& [from0, type0, destinations0] : model) {
+        if (std::find(destinations0.begin(), destinations0.end(), to0) != destinations0.end()) {
+          std::cout << NL << type0 << from0 << " is wired to " << to0 << std::flush;
+          std::string to1{from0};
+          for (auto const& [from1, type1, destinations1] : model) {
+            if (std::find(destinations1.begin(), destinations1.end(), to1) != destinations1.end()) {
+              std::cout << NT << type1 << from1 << " is wired to " << to1 << std::flush;
+                std::string to2{from1};
+                for (auto const& [from2, type2, destinations2] : model) {
+                  if (std::find(destinations2.begin(), destinations2.end(), to2) != destinations2.end()) {
+                    std::cout << NT << NT << type2 << from2 << " is wired to " << to2 << std::flush;
+                  }
+                }
+            }
+          }
+        }
+      }
+      // &dh is wired to rx
+      //    &tr is wired to dh  
+      //        &hd is wired to tr
+      //    &xm is wired to dh
+      //        &tn is wired to xm
+      //    &dr is wired to dh
+      //        &vc is wired to dr
+      //    &nh is wired to dh
+      //        &jx is wired to nh      
+    }
+
+    Result call_count{};
+
+    std::tuple<bool,Result,Result> engage() {
+      ++call_count;
+      Result loop_count{};
+      bool match{false};
+      message_queue.push({ "button",LOW,"broadcaster" });
+      while (!message_queue.empty()) {
+        ++loop_count;
+        auto [from, in, to] = message_queue.front();
+        message_queue.pop();
+
+        // std::cout << NT << std::quoted(from) << " -" << (in == HIGH ? "high" : "low") << "-> " << std::quoted(to);
+
+        m_low_count += (in == LOW);
+        m_high_count += (in == HIGH);
+        auto wiring = std::find_if(model.begin(), model.end(), [&](auto const& wiring) { return wiring.name == to; });
+        auto memory = std::find_if(env.begin(), env.end(), [&](auto const& state) { return std::get<0>(state) == to; });
+        if (wiring != model.end()) {
+          auto& [name, type, destinations] = *wiring;
+          auto& [_, state] = *memory;
+          bool out{};
+          switch (type[0]) {
+            case '%': {
+              // Flip-flop modules (prefix %) 
+              //   are either on or off; they are initially off. If a flip-flop module receives a high pulse, it is ignored and nothing happens. 
+              //   However, if a flip-flop module receives a low pulse, it flips between on and off. 
+              //   If it was off, it turns on and sends a high pulse. If it was on, it turns off and sends a low pulse.
+              if (in == LOW) {
+                // Flip on LOW
+                state.current = !state.current;
+                out = state.current; // sends its internal state
+                for (auto const& destination : destinations) {
+                  message_queue.push({ to,out,destination });
+                }
+              }
+            } break;
+            case '&': {
+              // Conjunction modules (prefix &) 
+              //   remember the type of the most recent pulse received from each of their connected input modules; 
+              //   they initially default to remembering a low pulse for each input. 
+              //   When a pulse is received, the conjunction module first updates its memory for that input. 
+              //   Then, if it remembers high pulses for all inputs, it sends a low pulse; otherwise, it sends a high pulse.
+              auto it = std::find_if(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<0>(entry) == from; });
+              auto& [_, history_pulse] = *it;
+              history_pulse = in;
+              if (std::all_of(state.history.begin(), state.history.end(), [&](auto const& entry) { return std::get<1>(entry) == HIGH; })) {
+                out = LOW;
+              }
+              else {
+                out = HIGH;
+              }
+              for (auto const& destination : destinations) {
+                message_queue.push({ to,out,destination });
+              }                
+            } break;
+            default: {
+              // There is a single broadcast module (named broadcaster). 
+              //   When it receives a pulse, it sends the same pulse to all of its destination modules.
+              out = in;
+              for (auto const& destination : destinations) {
+                message_queue.push({ to,out,destination });
+              }
+            }
+          }
+        }
+        else {
+          // rx is not part of the wired machine (NULL module from our point of view)
+          // At least, there is no rx module wiring defined for my input.
+          if (call_count++%100000 == 0) std::cout << NL << call_count << ": to " << std::quoted(to) << " pulse: " << (in == HIGH ? "high" : "low");
+          if (in == LOW) {
+            match = true;
+            std::cout << NL << "match found after " << call_count << " calls and " << loop_count << " loop counts";
+            break;
+          }
+        }
+      }
+      return {match,call_count,loop_count};
+    }
+    Result low_count() {
+      return m_low_count;
+    }
+    Result high_count() {
+      return m_high_count;
+    }
+  };
+
   Result solve_for(Model& model) {
     Result result{};
     std::cout << NL << NL << "part2";
+    auto level_map = to_root("rx",6,model);
+    print_level_map(level_map);
+    // Fo puzzle.txt
+    // level 0:
+    // rx <-- &dh
+    //     level 1:
+    //     dh <-- &tr
+    //     dh <-- &xm
+    //     dh <-- &dr
+    //     dh <-- &nh
+    //         level 2:
+    //         tr <-- &hd
+    //             level 3:
+    //             hd <-- %lj
+    //             hd <-- %sg
+    //             hd <-- %sj
+    //             hd <-- %bh
+    //             hd <-- %sc
+    //             hd <-- %qg
+    //             hd <-- %cp
+    //             hd <-- %ps
+    //                 level 4:
+    //                 lj <-- %bs
+    //                     level 5:
+    //                     bs <-- %gk
+    //                     bs <-- &hd
+    //                         level 6:
+    //                         gk <-- %sg
+    //                         gk <-- &hd%
+
+    /*
+	%th -> gv
+	%dx -> jx, vs
+	%lj -> hd, cx
+	%tt -> lp, tn
+	%bv -> ml, jx
+	%nb -> vc, hb
+	broadcaster -> tb, dv, qg, lf
+	%jv -> xc
+	%sg -> gk, hd
+	%fc -> tt
+	&tr -> dh
+	%sm -> jv
+	%pd -> tn, bm
+	%sj -> ln, hd
+	%lp -> tn, ng
+	%nn -> nv
+	%bh -> hd, cp
+	%lg -> tz, vc
+	%gv -> vc, bk
+	%sc -> hd
+	%qg -> sj, hd
+	%dv -> jx, sm
+	%cp -> sc, hd
+	%cx -> bh
+	%xc -> dx
+	%kf -> bv
+	%gp -> tn, nn
+	%nc -> kk, vc
+	%vs -> qm, jx
+	%bs -> lj
+	%xv -> mz
+	%mc -> vc
+	%kk -> nb
+	%ng -> gp
+	%mz -> fc
+	%bt -> jx
+	%ln -> ps
+	%hb -> vc, mf
+	%lf -> tn, xv
+	&xm -> dh
+	%mf -> lg
+	&dr -> dh
+	&jx -> sm, jv, xc, qm, dv, nh, kf
+	%bk -> nc
+	%gk -> bs
+	&tn -> lf, xv, xm, nn, mz, fc, ng
+	%qm -> kf
+	%ps -> hd, sg
+	%tz -> vc, mc
+	%nv -> pd, tn
+	%ml -> qb, jx
+	&nh -> dh
+	%tb -> vc, th
+	%qb -> bt, jx
+	%bm -> tn
+	&vc -> tb, mf, dr, th, kk, bk
+	&hd -> bs, gk, tr, qg, ln, cx
+	&dh -> rx
+
+    */
+    exit(0);
+/*
+--- Part Two ---
+
+The final machine responsible for moving the sand down to Island Island has a module attached named rx. 
+The machine turns on when a single low pulse is sent to rx.
+
+Reset all modules to their default states. 
+Waiting for all pulses to be fully handled after each button press, 
+what is the fewest number of button presses required to deliver a single low pulse to the module named rx?
+
+*/  
+    auto world = World{model};
+    while (true) {
+      auto [match,button_press_count,loop_count] = world.engage();
+      if (match) {
+        std::cout << NL << "match found after " << button_press_count << " button presses and " << loop_count << " loop counts";
+        result = button_press_count;
+        break;
+      }
+    };
     return result;
   }
 }
@@ -444,7 +756,7 @@ int main(int argc, char *argv[])
       if (in) {
         auto model = parse(in);
         print_model(model);
-        part1_answer = { argv[i],part1::solve_for(model) };
+        // part1_answer = { argv[i],part1::solve_for(model) };
         part2_answer = { argv[i],part2::solve_for(model) };
       }
       else {
