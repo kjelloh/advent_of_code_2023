@@ -127,8 +127,10 @@ LevelMap to_root(std::string const& root,int level,Model const& model) {
   // dig into next level of roots
   for (auto const& [type,new_root] : new_roots) {
     auto sub_map = to_root(new_root,level-1,model);
-    // merge sub level results
-    level_map.insert(sub_map.begin(),sub_map.end());
+    // merge sub level results into the listing on the each level
+    for (auto const& [level,entries] : sub_map) {
+      level_map[level].insert(level_map[level].end(),entries.begin(),entries.end());
+    }
     // add this level result
     level_map[level].push_back(std::format("{} <-- {}{}",root,type,new_root));
   }
@@ -142,6 +144,7 @@ void print_level_map(LevelMap const& level_map) {
   for (int i=levels->first;i>=0 ; --i) {
     std::string indent(4*(levels->first-i),' ');
     std::cout << NL << indent << "level " << levels->first-i << ":";
+    if (!level_map.contains(i)) continue;
     for (auto const& entry : level_map.at(i)) {
       std::cout << NL << indent << entry;
     }
@@ -620,95 +623,55 @@ namespace part2 {
     std::cout << NL << NL << "part2";
     auto level_map = to_root("rx",6,model);
     print_level_map(level_map);
+    // It seems that rx is a conjunction of a single input from dh.
+    // dh in turn is a conjunction of four input.
+    // Each of the inputs to dh is in turn a conjunction of a single input.
+    // And on level 3 back all signals in are flip flops!
+    // Can we use this information to try and find cycles to leap frog looping though each and every step?
     // Fo puzzle.txt
-    // level 0:
     // rx <-- &dh
-    //     level 1:
-    //     dh <-- &tr
-    //     dh <-- &xm
-    //     dh <-- &dr
-    //     dh <-- &nh
-    //         level 2:
-    //         tr <-- &hd
-    //             level 3:
-    //             hd <-- %lj
-    //             hd <-- %sg
-    //             hd <-- %sj
-    //             hd <-- %bh
-    //             hd <-- %sc
-    //             hd <-- %qg
-    //             hd <-- %cp
-    //             hd <-- %ps
-    //                 level 4:
-    //                 lj <-- %bs
-    //                     level 5:
-    //                     bs <-- %gk
-    //                     bs <-- &hd
-    //                         level 6:
-    //                         gk <-- %sg
-    //                         gk <-- &hd%
+    // level 1:
+    // dh <-- &tr
+    // dh <-- &xm
+    // dh <-- &dr
+    // dh <-- &nh
+    //     level 2:
+    //     tr <-- &hd
+    //     xm <-- &tn
+    //     dr <-- &vc
+    //     nh <-- &jx
+    //         level 3:
+    //         hd <-- %lj
+    //         hd <-- %sg
+    //         hd <-- %sj
+    //         hd <-- %bh
+    //         hd <-- %sc
+    //         hd <-- %qg
+    //         hd <-- %cp
+    //         hd <-- %ps
+    //         tn <-- %tt
+    //         tn <-- %pd
+    //         tn <-- %lp
+    //         tn <-- %gp
+    //         tn <-- %lf
+    //         tn <-- %nv
+    //         tn <-- %bm
+    //         vc <-- %nb
+    //         vc <-- %lg
+    //         vc <-- %gv
+    //         vc <-- %nc
+    //         vc <-- %mc
+    //         vc <-- %hb
+    //         vc <-- %tz
+    //         vc <-- %tb
+    //         jx <-- %dx
+    //         jx <-- %bv
+    //         jx <-- %dv
+    //         jx <-- %vs
+    //         jx <-- %bt
+    //         jx <-- %ml
+    //         jx <-- %qb
 
-    /*
-	%th -> gv
-	%dx -> jx, vs
-	%lj -> hd, cx
-	%tt -> lp, tn
-	%bv -> ml, jx
-	%nb -> vc, hb
-	broadcaster -> tb, dv, qg, lf
-	%jv -> xc
-	%sg -> gk, hd
-	%fc -> tt
-	&tr -> dh
-	%sm -> jv
-	%pd -> tn, bm
-	%sj -> ln, hd
-	%lp -> tn, ng
-	%nn -> nv
-	%bh -> hd, cp
-	%lg -> tz, vc
-	%gv -> vc, bk
-	%sc -> hd
-	%qg -> sj, hd
-	%dv -> jx, sm
-	%cp -> sc, hd
-	%cx -> bh
-	%xc -> dx
-	%kf -> bv
-	%gp -> tn, nn
-	%nc -> kk, vc
-	%vs -> qm, jx
-	%bs -> lj
-	%xv -> mz
-	%mc -> vc
-	%kk -> nb
-	%ng -> gp
-	%mz -> fc
-	%bt -> jx
-	%ln -> ps
-	%hb -> vc, mf
-	%lf -> tn, xv
-	&xm -> dh
-	%mf -> lg
-	&dr -> dh
-	&jx -> sm, jv, xc, qm, dv, nh, kf
-	%bk -> nc
-	%gk -> bs
-	&tn -> lf, xv, xm, nn, mz, fc, ng
-	%qm -> kf
-	%ps -> hd, sg
-	%tz -> vc, mc
-	%nv -> pd, tn
-	%ml -> qb, jx
-	&nh -> dh
-	%tb -> vc, th
-	%qb -> bt, jx
-	%bm -> tn
-	&vc -> tb, mf, dr, th, kk, bk
-	&hd -> bs, gk, tr, qg, ln, cx
-	&dh -> rx
-
-    */
     exit(0);
 /*
 --- Part Two ---
