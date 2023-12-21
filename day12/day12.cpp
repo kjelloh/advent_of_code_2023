@@ -190,12 +190,10 @@ namespace part2 {
     }
         
     if (cfg[0] == '#' || cfg[0] == '?') {
-      if (nums[0] <= cfg.size() && std::find(cfg.begin(),cfg.begin()+nums[0],'.') == cfg.begin()+nums[0] && (nums[0] == cfg.size() || cfg[nums[0]] != '#')) {
+      auto head = cfg.subspan(0,nums[0]);
+      if (nums[0] <= cfg.size() && std::find(head.begin(),head.end(),'.') == head.end() && (nums[0] == cfg.size() || cfg[nums[0]] != '#')) {
         auto cfg_next = std::min(cfg.size(),nums[0] + std::size_t{1});
         result += to_conf_count(cfg.subspan(cfg_next),nums.subspan(1),cache);
-      }
-      else {
-        std::cout << NL << "NO MATCH";
       }
     }
     cache[key] = result;
@@ -213,7 +211,7 @@ namespace part2 {
       Cache cache{};
       result += to_conf_count(entry.cfg,entry.nums,cache);
     }
-    return result;
+    return result; // 30568243604962
   }
 }
 
