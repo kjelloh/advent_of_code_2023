@@ -23,6 +23,9 @@
 #include <regex>
 
 /*
+
+--- Part One ---
+
 You manage to catch the airship right as it's dropping someone else off 
 on their all-expenses-paid trip to Desert Island! 
 It even helpfully drops you off near the gardener and his massive farm.
@@ -129,6 +132,78 @@ how many garden plots could the Elf reach in exactly 64 steps?
 
 */
 
+/*
+
+--- Part Two ---
+
+The Elf seems confused by your answer until he realizes his mistake: 
+he was reading from a list of his favorite numbers 
+that are both perfect squares and perfect cubes, not his step counter.
+
+The actual number of steps he needs to get today is exactly 26501365.
+
+He also points out that the garden plots and rocks are set up so 
+that the map repeats infinitely in every direction.
+
+So, if you were to look one additional map-width or map-height out 
+from the edge of the example map above, you would find that it keeps repeating:
+
+.................................
+.....###.#......###.#......###.#.
+.###.##..#..###.##..#..###.##..#.
+..#.#...#....#.#...#....#.#...#..
+....#.#........#.#........#.#....
+.##...####..##...####..##...####.
+.##..#...#..##..#...#..##..#...#.
+.......##.........##.........##..
+.##.#.####..##.#.####..##.#.####.
+.##..##.##..##..##.##..##..##.##.
+.................................
+.................................
+.....###.#......###.#......###.#.
+.###.##..#..###.##..#..###.##..#.
+..#.#...#....#.#...#....#.#...#..
+....#.#........#.#........#.#....
+.##...####..##..S####..##...####.
+.##..#...#..##..#...#..##..#...#.
+.......##.........##.........##..
+.##.#.####..##.#.####..##.#.####.
+.##..##.##..##..##.##..##..##.##.
+.................................
+.................................
+.....###.#......###.#......###.#.
+.###.##..#..###.##..#..###.##..#.
+..#.#...#....#.#...#....#.#...#..
+....#.#........#.#........#.#....
+.##...####..##...####..##...####.
+.##..#...#..##..#...#..##..#...#.
+.......##.........##.........##..
+.##.#.####..##.#.####..##.#.####.
+.##..##.##..##..##.##..##..##.##.
+.................................
+
+This is just a tiny three-map-by-three-map slice 
+of the inexplicably-infinite farm layout; 
+garden plots and rocks repeat as far as you can see. 
+The Elf still starts on the one middle tile marked S, 
+though - every other repeated S is replaced with a normal garden plot (.).
+
+Here are the number of reachable garden plots in this new infinite version 
+of the example map for different numbers of steps:
+
+In exactly 6 steps, he can still reach 16 garden plots.
+In exactly 10 steps, he can reach any of 50 garden plots.
+In exactly 50 steps, he can reach 1594 garden plots.
+In exactly 100 steps, he can reach 6536 garden plots.
+In exactly 500 steps, he can reach 167004 garden plots.
+In exactly 1000 steps, he can reach 668697 garden plots.
+In exactly 5000 steps, he can reach 16733044 garden plots.
+
+However, the step count the Elf needs is much larger! 
+Starting from the garden plot marked S on your infinite map, 
+how many garden plots could the Elf reach in exactly 26501365 steps?
+*/
+
 char const* example = R"(...........
 .....###.#.
 .###.##..#.
@@ -149,10 +224,7 @@ using Integer = int64_t; // 16 bit int: 3.27 x 10^4, 32 bit int: 2.14 x 10^9, 64
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
-struct Solution {
-  Answers part1{};
-  Answers part2{};
-};
+using Solution = std::map<int, Answers>; // Puzzle part -> Answers
 
 using Model = std::vector<std::string>;
 
@@ -173,73 +245,100 @@ void print_model(Model const& model) {
 }
 
 namespace part1 {
-  namespace hyperneutrino {
-
-    int main(Model const& grid, int steps = 64) {
-
-      // Find the starting position
-      std::pair<int, int> start;
-      for (int r = 0; r < grid.size(); ++r) {
-        for (int c = 0; c < grid[r].size(); ++c) {
-          if (grid[r][c] == 'S') {
-            start = {r, c};
-          }
-        }
-      }
-
-      std::set<std::pair<int, int>> ans;
-      auto const& [sr, sc] = start;
-      std::set<std::tuple<int, int, int>> seen = {};
-      std::deque<std::tuple<int, int, int>> q = {{start.first, start.second, steps}};
-
-      // Breath-first search for all reachable positions until steps remaining (s) are 0
-      while (!q.empty()) {
-        auto [r, c, s] = q.front();
-        q.pop_front();
-
-        // if (s % 2 == 0) {
-        //   ans.insert({r, c});
-        // }
-
-        // We have walked all the steps allowed
-        if (s == 0) {
-          ans.insert({r, c});
-          continue;
-        }
-
-        // try all 4 directions for candidate steps
-        for (auto [dr, dc] : std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-          int nr = r + dr;
-          int nc = c + dc;
-
-          // skip invalid or seen steps
-          if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.contains({nr, nc,s+1})) {
-            continue;
-          }
-          seen.insert({nr, nc,s});
-          q.push_back({nr, nc, s - 1});
-        }
-      }
-
-      std::cout << NL << "hyperneutrino says:" << ans.size();
-
-      return 0;
-    }    
-  } // namespace hyperneutrino
-
-  Result solve_for(Model& model,int steps = 64) {
+  Result solve_for(Model& grid,int steps = 64) {
     Result result{};
     std::cout << NL << NL << "part1";
-    print_model(model);
-    hyperneutrino::main(model,steps);
+    print_model(grid);
+    // Find the starting position
+    std::pair<int, int> start;
+    for (int r = 0; r < grid.size(); ++r) {
+      for (int c = 0; c < grid[r].size(); ++c) {
+        if (grid[r][c] == 'S') {
+          start = {r, c};
+        }
+      }
+    }
+
+    std::set<std::pair<int, int>> ans;
+    auto const& [sr, sc] = start;
+    std::set<std::tuple<int, int, int>> seen = {}; // we have been here with the same number of steps remaining
+    std::deque<std::tuple<int, int, int>> q = {{start.first, start.second, steps}};
+
+    // Breath-first search for all reachable positions until steps remaining (s) are 0
+    while (!q.empty()) {
+      auto [r, c, s] = q.front();
+      q.pop_front();
+
+      if (s == 0) {
+        // We have walked all the steps allowed
+        ans.insert({r, c}); // reachable :)
+        continue;
+      }
+
+      // try all 4 directions for candidate steps
+      for (auto [dr, dc] : std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+        int nr = r + dr;
+        int nc = c + dc;
+        auto next = std::make_tuple(nr, nc, s - 1); // next pos with one less remaining steps to go
+        if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.contains(next)) {
+          continue; // skip invalid or seen next step
+        }
+        q.push_back(next);
+        seen.insert(next); // all next steps on queue are seen
+      }
+    }
+    result = ans.size();
+    std::cout << NL << NL << "part1 say " << result << " reachable positions";
+
     return result;
   }
 }
 
 namespace part2 {
-  Result solve_for(Model& model) {
+  Result solve_for(Model& grid,int steps = 64) {
     Result result{};
     std::cout << NL << NL << "part2";
+    print_model(grid);
+    // Find the starting position
+    std::pair<int, int> start;
+    for (int r = 0; r < grid.size(); ++r) {
+      for (int c = 0; c < grid[r].size(); ++c) {
+        if (grid[r][c] == 'S') {
+          start = {r, c};
+        }
+      }
+    }
+
+    std::set<std::pair<int, int>> ans;
+    auto const& [sr, sc] = start;
+    std::set<std::tuple<int, int, int>> seen = {}; // we have been here with the same number of steps remaining
+    std::deque<std::tuple<int, int, int>> q = {{start.first, start.second, steps}};
+
+    // Breath-first search for all reachable positions until steps remaining (s) are 0
+    while (!q.empty()) {
+      auto [r, c, s] = q.front();
+      q.pop_front();
+
+      if (s == 0) {
+        // We have walked all the steps allowed
+        ans.insert({r, c}); // reachable :)
+        continue;
+      }
+
+      // try all 4 directions for candidate steps
+      for (auto [dr, dc] : std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+        int nr = r + dr;
+        int nc = c + dc;
+        auto next = std::make_tuple(nr, nc, s - 1); // next pos with one less remaining steps to go
+        if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.contains(next)) {
+          continue; // skip invalid or seen next step
+        }
+        q.push_back(next);
+        seen.insert(next); // all next steps on queue are seen
+      }
+    }
+    result = ans.size();
+    std::cout << NL << NL << "part2 say " << result << " reachable positions";
     return result;
   }
 }
@@ -262,23 +361,24 @@ int main(int argc, char *argv[])
       if (argc > 3) {
         steps = std::stoi(argv[3]);
       }
+      else {
+        steps = part == 2? 26501365 : 64;
+      }
     }
   }
+  std::cout << NL << "Part : " << part << " file : " << file << " steps : " << steps;
+  std::ifstream in{ file };
+  auto model = parse(in);
+
   switch (part) {
   case 1: {
-    std::cout << NL << "Part 1";
-    std::ifstream in{ file };
-    auto model = parse(in);
     auto answer = part1::solve_for(model,steps);
-    solution.part1.push_back({ file,answer });
+    solution[part].push_back({ file,answer });
     break;
   }
   case 2: {
-    std::cout << NL << "Part 2";
-    std::ifstream in{ file };
-    auto model = parse(in);
-    auto answer = part2::solve_for(model);
-    solution.part2.push_back({ file,answer });
+    auto answer = part1::solve_for(model,steps);
+    solution[part].push_back({ file,answer });
     break;
   }
   default:
@@ -286,16 +386,13 @@ int main(int argc, char *argv[])
   }
 
   std::cout << NL << NL << "------------ REPORT----------------";
-  std::cout << NL << "<Part 1>";
-  for (auto const& answer : solution.part1) {
-    if (answer.second != 0) std::cout << NT << "answer[" << answer.first << "] " << answer.second;
-    else std::cout << NT << "answer[" << answer.first << "] " << " NO OPERATION ";
+  for (auto const& [part, answers] : solution) {
+    std::cout << NL << "Part " << part << " answers";
+    for (auto const& [heading, answer] : answers) {
+      if (answer != 0) std::cout << NT << "answer[" << heading << "] " << answer;
+      else std::cout << NT << "answer[" << heading << "] " << " NO OPERATION ";
+    }
   }
-  std::cout << NL << "<Part 2>";
-  for (auto const& answer : solution.part2) {
-    if (answer.second != 0) std::cout << NT << "answer[" << answer.first << "] " << answer.second;
-    else std::cout << NT << "answer[" << answer.first << "] " << " NO OPERATION ";
-  }
-  std::cout << "\n\n";
+  std::cout << NL << NL;
   return 0;
 }
