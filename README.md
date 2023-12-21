@@ -20,6 +20,38 @@ Then the whole comparison is made "as if" the left hand side is also unsigned. A
 
 For me this seems to be the "most vexing untyped int" trap of all (so easy to fall into)!
 
+# day05
+
+* In part 2 I got bitten by an int that got sneaked in by CoPilot that translated some python code to C++ for me.
+
+I *had* searched and replaced all 'int' to 'Integer' but *still* one remained for some obscure reason.
+
+The code:
+
+      std::vector<int> input_values;
+      ...
+      while (ss >> n) {
+        std::cout << " value:" << n << std::flush;
+        Integer value = std::stoll(n);
+        if (value<0) {
+          std::cout << NL << "ERROR: value < 0" << std::flush;
+          exit(1);
+        }
+        input_values.push_back(value);
+      }
+      ...
+      std::vector<std::pair<Integer, Integer>> seeds;
+      for (Integer i = 0; i < input_values.size(); i += 2) {
+        seeds.push_back({input_values[i], input_values[i] + input_values[i + 1]});
+      }
+
+Because input_values was still an vector of 'int' I got a silent overflow which made seeds push negative values!
+
+The har truth to swallow is that I *did* suspect this, I *did* searhc and replace - and *still* this vector<int> remained in the code.
+
+Hm... Maybe it is time to start using some sanitizer for C++ to detect these for me?
+
+
 # day09
 
 * I got the semantics of std::adjacent_difference wrong.

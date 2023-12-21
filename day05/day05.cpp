@@ -359,6 +359,8 @@ namespace part1 {
 }
 
 namespace part2 {
+  // based on https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day05p2.py
+  // Thanks!
   namespace hyperneutrino {
 
     int main(auto& file) {
