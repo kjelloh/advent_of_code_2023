@@ -44,9 +44,10 @@ struct Solution {
   Answers part2{};
 };
 
+using Nums = std::vector<int>;
 struct Entry {
   std::string cfg{};
-  std::vector<int> nums{};  
+  Nums nums{};  
 };
 
 using Model = std::vector<Entry>;
@@ -70,7 +71,7 @@ namespace part1 {
           auto split_pos = line.find(' ');
           std::string cfg = line.substr(0, split_pos);
           std::string nums_str = line.substr(split_pos + 1);
-          std::vector<int> nums;
+          Nums nums;
           size_t pos = 0;
           while ((pos = nums_str.find(',')) != std::string::npos) {
               nums.push_back(std::stoi(nums_str.substr(0, pos)));
@@ -82,7 +83,7 @@ namespace part1 {
       return result;
   }
 
-  int count(const std::string& cfg, std::vector<int> nums, bool flag = false) {
+  Integer count(const std::string& cfg, Nums nums, bool flag = false) {
       if (cfg.empty()) {
           return std::accumulate(nums.begin(), nums.end(), 0) == 0 ? 1 : 0;
       }
@@ -118,7 +119,7 @@ namespace part1 {
           return count(cfg.substr(1), nums, true);
       }
 
-      std::vector<int> nums_copy(nums);
+      auto nums_copy = nums;
       if (nums_copy[0] > 0) {
           --nums_copy[0];
       }
@@ -227,9 +228,9 @@ namespace part2 {
         iss >> cfg >> nums_str;
         std::cout << NL << "cfg : " << std::quoted(cfg) << " nums_str : " << std::quoted(nums_str) << std::flush; 
 
-        std::vector<int> nums;
+        Nums nums{};
         std::stringstream ss(nums_str);
-        for (int i; ss >> i;) {
+        for (Integer i; ss >> i;) {
             nums.push_back(i);
             std::cout << NT << "nums += " << i << std::flush;
             if (ss.peek() == ',')
@@ -238,13 +239,13 @@ namespace part2 {
 
         // Repeat cfg and nums 5 times
         std::string cfg_repeated;
-        for (int i = 0; i < 5; ++i) {
+        for (Integer i = 0; i < 5; ++i) {
             cfg_repeated += cfg + "?";
             std::cout << NT << "cfg_repeated : " << cfg_repeated;
         }
         cfg_repeated.pop_back(); // '?' is a separator so remove the ending one
 
-        std::vector<int> nums_repeated;
+        Nums nums_repeated;
         for (int i = 0; i < 5; ++i) {
             nums_repeated.insert(nums_repeated.end(), nums.begin(), nums.end());
         }
@@ -255,14 +256,16 @@ namespace part2 {
 
   using Key = std::tuple<std::string, std::vector<int>>;
   struct KeyHash {
-      std::size_t operator()(const Key& k) const {
-          std::size_t h1 = std::hash<std::string>{}(std::get<0>(k));
-          std::size_t h2 = std::accumulate(std::get<1>(k).begin(), std::get<1>(k).end(), std::size_t{0});
-          return h1 ^ (h2 << 1);
+    std::size_t operator()(const Key& k) const {
+      std::size_t h1 = std::hash<std::string>{}(std::get<0>(k));
+      std::size_t h2 = 0;
+      for (const auto& num : std::get<1>(k)) {
+        h2 ^= std::hash<int>{}(num) + 0x9e3779b9 + (h2 << 6) + (h2 >> 2);
       }
+      return h1 ^ (h2 << 1);
+    }
   };
-
-  std::unordered_map<Key, int, KeyHash> cache;
+  std::unordered_map<Key, Integer, KeyHash> cache;
 
   // recursively count the number of ways to make the cfg match the list of numbers
   // The line: "?###???????? 3,2,1"
@@ -283,7 +286,7 @@ namespace part2 {
   // .###...##..#
   // .###....##.#  
 
-  int count(const std::string& cfg, std::vector<int> nums) {
+  Integer count(const std::string& cfg, Nums nums) {
       std::cout << NL << "count(cfg:" << std::quoted(cfg) << ",nums:";
       for (auto const& num : nums) {
           std::cout << " " << num << std::flush;
@@ -304,7 +307,7 @@ namespace part2 {
           return cache[key];
       }
 
-      int result = 0;
+      Integer result = 0;
 
       // add count for cfg stripped of head '.' or '?'
       if (cfg[0] == '.' || cfg[0] == '?') {
@@ -334,7 +337,10 @@ namespace part2 {
       std::cout << NL << n << " arrangements";
       result += n;
     }
-    return result;
+    return result; //     18 661 118 985 too low
+                   //    233 409 483 785 Also too low
+                   // 31 964 627 866 633 Too high...
+                   // Hm... I wonder if my cache does not work?
   }
 }
 
