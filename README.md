@@ -51,6 +51,27 @@ The har truth to swallow is that I *did* suspect this, I *did* searhc and replac
 
 Hm... Maybe it is time to start using some sanitizer for C++ to detect these for me?
 
+* With LLM (for me CoPilot in VSCode) C++ programming has gotten so much better!
+
+I asked CoPilot for recomended sanitizers and it told me about the flags to gcc and clang!
+
+Gcc and clang supports:
+
+        "-fsanitize=undefined",
+        "-fsanitize=address",
+
+Clang support the additional:
+
+        "-fsanitize=integer",
+
+It even told me what syntax to use in VSCode tasks.json :)
+
+Come to think about it, this is of course exactly what we should expect a large language model to be good at!
+
+As a final sugar on the cake CoPilot can also help me read the runtime error from code compiled with these flags
+and direct me to what to change in my code to address the problem!
+
+Programming has gotten so much easier now!
 
 # day09
 
