@@ -22,7 +22,7 @@ auto const NL = "\n";
 auto const T = "\t";
 auto const NT = "\n\t";
 
-using Integer = long long; // int: 843 253 387 long int: 32 762 853 787 275 long long int: 32 762 853 787 275
+using Integer = long long; // 16 bit int: 3.27 x 10^4, 32 bit int: 2.14 x 10^9, 64 bit int: 9.22 x 10^18
 using Result = Integer;
 using Answer = std::pair<std::string, Result>;
 using Answers = std::vector<Answer>;
@@ -366,32 +366,23 @@ namespace part2 {
       std::getline(file,line);
       std::cout << NL << "parsing:" << std::quoted(line) << std::flush;
       std::pair<Category,Category> mapping{undefined,undefined};
-      std::vector<int> input_values;
+      std::vector<Integer> input_values;
       auto s = line.substr(std::strlen("seeds:")+1);
       std::cout << " as seeds " << std::quoted(s) << "-->";
       std::istringstream ss{s};
       std::string n;
       while (ss >> n) {
         std::cout << " value:" << n << std::flush;
-        input_values.push_back(std::stoll(n));
+        Integer value = std::stoll(n);
+        if (value<0) {
+          std::cout << NL << "ERROR: value < 0" << std::flush;
+          exit(1);
+        }
+        input_values.push_back(value);
       }
 
-
-      // std::getline(file, line);
-      // std::string_view inputs = line.substr(line.find(':') + 1);
-      // std::cout << NL << "entry:" << std::quoted(line) << std::flush;
-      // std::vector<int> input_values;
-      // auto temp = inputs;
-      // while (auto pos = inputs.find(' '); pos != std::string_view::npos) {
-      //   temp = inputs.substr(0, pos);
-      //   std::cout << NT << "at ':' " << std::quoted(temp) << std::flush;
-      //   input_values.push_back(std::stoi(temp));
-      //   temp.remove_prefix(pos + 1);
-      // }
-      // input_values.push_back(std::stoi(temp));
-
-      std::vector<std::pair<int, int>> seeds;
-      for (int i = 0; i < input_values.size(); i += 2) {
+      std::vector<std::pair<Integer, Integer>> seeds;
+      for (Integer i = 0; i < input_values.size(); i += 2) {
         seeds.push_back({input_values[i], input_values[i] + input_values[i + 1]});
       }
 
@@ -400,38 +391,50 @@ namespace part2 {
         while (std::getline(file, line) and !line.empty()) block += line + '\n';
         std::cout << NL << "block:" << std::quoted(block) << std::flush;
 
-        std::vector<std::vector<int>> ranges;
+        std::vector<std::vector<Integer>> ranges;
         std::istringstream iss(block);
         std::string line;
         while (std::getline(iss, line)) {
           std::cout << NL << NT << "line:" << std::quoted(line) << std::flush;
           if (line.find(':') != std::string::npos) continue; // skip header
           std::istringstream iss2(line);
-          std::vector<int> temp;
-          int value;
+          std::vector<Integer> temp;
+          Integer value;
           while (iss2 >> value) {
             std::cout << NT << NT << "value:" << value << std::flush;
             temp.push_back(value);
           }
           std::cout << NT << "push temp size:" << temp.size() << std::flush;
           ranges.push_back(temp);
+          if (temp.size() != 3) {
+            std::cout << NL << "ERROR: temp size:" << temp.size() << std::flush;
+            exit(1);
+          }
         }
 
         std::cout << NL << "while seeds : size:" << seeds.size() << std::flush;
 
-        std::vector<std::pair<int, int>> new_seeds;
+        std::vector<std::pair<Integer, Integer>> new_seeds;
         while (!seeds.empty()) {
-          auto [s, e] = seeds.back();
-          std::cout << NT << "seed:" << s << ".." << e << std::flush;
+          auto [s, e] = seeds.back(); // seed range start..end
+          std::cout << NT << "seed: " << s << " .. " << e << std::flush;
           seeds.pop_back();
           bool broken = false;
           for (auto& range : ranges) {
             std::cout << NT << "range size:" << range.size() << std::flush;
-            int a = range[0], b = range[1], c = range[2];
-            int os = std::max(s, b);
-            int oe = std::min(e, b + c);
+            Integer a = range[0], b = range[1], c = range[2];
+            Integer os = std::max(s, b);
+            Integer oe = std::min(e, b + c);
             if (os < oe) {
               std::cout << NT << NT << "new seeds " << os - b + a << ".." << oe - b + a << std::flush;
+              if (os - b + a < 0) {
+                std::cout << NL << "ERROR: os - b + a < 0" << std::flush;
+                exit(1);
+              }
+              if (oe - b + a < 0) {
+                std::cout << NL << "ERROR: oe - b + a < 0" << std::flush;
+                exit(1);
+              }
               new_seeds.push_back({os - b + a, oe - b + a});
               if (os > s) {
                 seeds.push_back({s, os});
@@ -444,7 +447,11 @@ namespace part2 {
             }
           }
           if (!broken) {
-            std::cout << NT << NT << "new seeds" << s << ".." << e << std::flush;
+            std::cout << NT << NT << "new seeds " << s << " .. " << e << std::flush;
+            if (s<0 or e<0) {
+              std::cout << NL << "ERROR: s<0 or e<0" << std::flush;
+              exit(1);  
+            }
             new_seeds.push_back({s, e});
           }
         }
@@ -452,32 +459,25 @@ namespace part2 {
       }
 
       std::cout << NL << "seeds size:" << seeds.size() << std::flush;
-      for (auto [s, e] : seeds) std::cout << NT << "seed:" << s << ".." << e << std::flush;
+      for (auto [s, e] : seeds) {
+        std::cout << NT << "seed: " << s << " .. " << e << std::flush;
+        if (s<0 or e<0) {
+          std::cout << NL << "ERROR: s<0 or e<0" << std::flush;
+          exit(1);  
+        }
+      }
 
       Result result = std::min_element(seeds.begin(), seeds.end())->first; 
 
       std::cout << NL << "hyperneutrino says: " << result << std::endl;
 
-      return result;
+      return result; // 31161857
     }
   } // namespace hyperneutrino
   Result solve_for(auto& in) {
       Result result{std::numeric_limits<Result>::max()};
-      if (true) return hyperneutrino::main(in);
-
-      auto model = parse(in);
-      for (auto i=0;i<model.seeds.size();i+=2) {
-        for (auto j=model.seeds[i];j<model.seeds[i+1];++j) {
-          // std::cout << NL << "seed:" << j << std::flush;
-          // auto candidates = source_to_targets(model.maps,seed,fertilizer);
-          auto candidates = source_to_targets(model.maps,{seed,j},location);
-
-          result = std::accumulate(candidates.begin(),candidates.end(),result,[](auto acc,auto const& candidate){
-            acc = std::min(candidate.value,acc);
-            return acc;});
-        }
-      }
-      return result;
+      if (true) return hyperneutrino::main(in); // 31161857
+      else return 0;
   }
 }
 
