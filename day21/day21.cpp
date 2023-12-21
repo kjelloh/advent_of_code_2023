@@ -21,6 +21,8 @@
 #include <format>
 #include <optional>
 #include <regex>
+#include <cassert>
+
 
 /*
 
@@ -244,6 +246,45 @@ void print_model(Model const& model) {
   }
 }
 
+using Position = std::pair<int, int>;
+
+Result count(Model const& grid,Position start,int steps) {
+  Result result{};
+  std::set<std::pair<int, int>> ans;
+  auto const& [sr, sc] = start;
+  std::set<std::tuple<int, int, int>> seen = {}; // we have been here with the same number of steps remaining
+  std::deque<std::tuple<int, int, int>> q = {{start.first, start.second, steps}};
+
+  // Breath-first search for all reachable positions until steps remaining (s) are 0
+  while (!q.empty()) {
+    auto [r, c, s] = q.front();
+    q.pop_front();
+
+    if (s == 0) {
+      // We have walked all the steps allowed
+      ans.insert({r, c}); // reachable :)
+      continue;
+    }
+
+    // try all 4 directions for candidate steps
+    for (auto [dr, dc] : std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+      int nr = r + dr;
+      int nc = c + dc;
+      auto next = std::make_tuple(nr, nc, s - 1); // next pos with one less remaining steps to go
+      if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.contains(next)) {
+        continue; // skip invalid or seen next step
+      }
+      q.push_back(next);
+      seen.insert(next); // all next steps on queue are seen
+    }
+  }
+  result = ans.size();
+  std::cout << NL << NL << "part1 say " << result << " reachable positions";
+
+  return result;
+
+}
+
 namespace part1 {
   Result solve_for(Model& grid,int steps = 64) {
     Result result{};
@@ -258,88 +299,87 @@ namespace part1 {
         }
       }
     }
-
-    std::set<std::pair<int, int>> ans;
-    auto const& [sr, sc] = start;
-    std::set<std::tuple<int, int, int>> seen = {}; // we have been here with the same number of steps remaining
-    std::deque<std::tuple<int, int, int>> q = {{start.first, start.second, steps}};
-
-    // Breath-first search for all reachable positions until steps remaining (s) are 0
-    while (!q.empty()) {
-      auto [r, c, s] = q.front();
-      q.pop_front();
-
-      if (s == 0) {
-        // We have walked all the steps allowed
-        ans.insert({r, c}); // reachable :)
-        continue;
-      }
-
-      // try all 4 directions for candidate steps
-      for (auto [dr, dc] : std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-        int nr = r + dr;
-        int nc = c + dc;
-        auto next = std::make_tuple(nr, nc, s - 1); // next pos with one less remaining steps to go
-        if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.contains(next)) {
-          continue; // skip invalid or seen next step
-        }
-        q.push_back(next);
-        seen.insert(next); // all next steps on queue are seen
-      }
-    }
-    result = ans.size();
+    result = count(grid,start,steps);
     std::cout << NL << NL << "part1 say " << result << " reachable positions";
 
-    return result;
+    return result; // 3731
   }
 }
 
 namespace part2 {
-  Result solve_for(Model& grid,int steps = 64) {
+  // Refactored from https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day21p2.py
+  // Thanks!
+  // Needed something to hold on to for my own exploration into this problem...
+  namespace hyperneutrino {
+
+    Integer fill(Model const& grid, Integer sr, Integer sc, Integer ss) {
+      Result result = count(grid, {sr, sc}, ss);
+
+      std::cout << NL << NL << "hyperneutrino::fill say " << result << " reachable positions";
+
+      return result;
+    }
+
+    Integer main(Model const& grid,Integer steps = 26501365) {
+
+      Integer sr, sc;
+      for (Integer r = 0; r < grid.size(); ++r) {
+        for (Integer c = 0; c < grid[r].size(); ++c) {
+          if (grid[r][c] == 'S') {
+            sr = r;
+            sc = c;
+          }
+        }
+      }
+
+      Integer size = grid.size();
+
+      std::cout << NL << "assert(sr:" << sr << " == sc:" << sc << " && sr:" << sr << " == size:" << size << " / 2 : "  << size/2 << ")";
+      assert(sr == sc && sr == size / 2);
+      std::cout << NL << "assert(steps:" << steps << " % size:" << size << " : " << steps%size << " == size:" << size << " / 2 : " << size / 2 << ")" << std::flush;
+      assert(steps % size == size / 2);
+
+      Integer grid_width = steps / size - 1;
+
+      Integer odd = (grid_width / 2 * 2 + 1) * (grid_width / 2 * 2 + 1);
+      Integer even = ((grid_width + 1) / 2 * 2) * ((grid_width + 1) / 2 * 2);
+
+      Integer odd_points = fill(grid, sr, sc, size * 2 + 1);
+      Integer even_points = fill(grid, sr, sc, size * 2);
+
+      Integer corner_t = fill(grid, size - 1, sc, size - 1);
+      Integer corner_r = fill(grid, sr, 0, size - 1);
+      Integer corner_b = fill(grid, 0, sc, size - 1);
+      Integer corner_l = fill(grid, sr, size - 1, size - 1);
+
+      Integer small_tr = fill(grid, size - 1, 0, size / 2 - 1);
+      Integer small_tl = fill(grid, size - 1, size - 1, size / 2 - 1);
+      Integer small_br = fill(grid, 0, 0, size / 2 - 1);
+      Integer small_bl = fill(grid, 0, size - 1, size / 2 - 1);
+
+      Integer large_tr = fill(grid, size - 1, 0, size * 3 / 2 - 1);
+      Integer large_tl = fill(grid, size - 1, size - 1, size * 3 / 2 - 1);
+      Integer large_br = fill(grid, 0, 0, size * 3 / 2 - 1);
+      Integer large_bl = fill(grid, 0, size - 1, size * 3 / 2 - 1);
+
+      Integer result = odd * odd_points +
+            even * even_points +
+            corner_t + corner_r + corner_b + corner_l +
+            (grid_width + 1) * (small_tr + small_tl + small_br + small_bl) +
+            grid_width * (large_tr + large_tl + large_br + large_bl);
+
+      std::cout << NL << NL << "hyperneutrino::main say " << result << " reachable positions";
+
+      return result;
+    }    
+  } // namespace hyperneutrino
+  Result solve_for(Model& grid,int steps = 26501365) {
     Result result{};
     std::cout << NL << NL << "part2";
     print_model(grid);
-    // Find the starting position
-    std::pair<int, int> start;
-    for (int r = 0; r < grid.size(); ++r) {
-      for (int c = 0; c < grid[r].size(); ++c) {
-        if (grid[r][c] == 'S') {
-          start = {r, c};
-        }
-      }
-    }
-
-    std::set<std::pair<int, int>> ans;
-    auto const& [sr, sc] = start;
-    std::set<std::tuple<int, int, int>> seen = {}; // we have been here with the same number of steps remaining
-    std::deque<std::tuple<int, int, int>> q = {{start.first, start.second, steps}};
-
-    // Breath-first search for all reachable positions until steps remaining (s) are 0
-    while (!q.empty()) {
-      auto [r, c, s] = q.front();
-      q.pop_front();
-
-      if (s == 0) {
-        // We have walked all the steps allowed
-        ans.insert({r, c}); // reachable :)
-        continue;
-      }
-
-      // try all 4 directions for candidate steps
-      for (auto [dr, dc] : std::vector<std::pair<int, int>>{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
-        int nr = r + dr;
-        int nc = c + dc;
-        auto next = std::make_tuple(nr, nc, s - 1); // next pos with one less remaining steps to go
-        if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.contains(next)) {
-          continue; // skip invalid or seen next step
-        }
-        q.push_back(next);
-        seen.insert(next); // all next steps on queue are seen
-      }
-    }
-    result = ans.size();
+    result = hyperneutrino::main(grid,steps);
     std::cout << NL << NL << "part2 say " << result << " reachable positions";
-    return result;
+    return result; // 617565692567199 (thanks hyperneutrino!)
   }
 }
 
@@ -374,13 +414,11 @@ int main(int argc, char *argv[])
   case 1: {
     auto answer = part1::solve_for(model,steps);
     solution[part].push_back({ file,answer });
-    break;
-  }
+  } break;
   case 2: {
-    auto answer = part1::solve_for(model,steps);
+    auto answer = part2::solve_for(model,steps);
     solution[part].push_back({ file,answer });
-    break;
-  }
+  } break;
   default:
     std::cout << NL << "No part " << part << " only part 1 and 2";
   }
