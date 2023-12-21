@@ -188,7 +188,8 @@ namespace part1 {
       }
 
       std::set<std::pair<int, int>> ans;
-      std::set<std::pair<int, int>> seen = {start};
+      auto const& [sr, sc] = start;
+      std::set<std::tuple<int, int, int>> seen = {};
       std::deque<std::tuple<int, int, int>> q = {{start.first, start.second, steps}};
 
       // Breath-first search for all reachable positions until steps remaining (s) are 0
@@ -196,12 +197,13 @@ namespace part1 {
         auto [r, c, s] = q.front();
         q.pop_front();
 
-        if (s % 2 == 0) {
-          ans.insert({r, c});
-        }
+        // if (s % 2 == 0) {
+        //   ans.insert({r, c});
+        // }
 
-        // End of this path
+        // We have walked all the steps allowed
         if (s == 0) {
+          ans.insert({r, c});
           continue;
         }
 
@@ -211,10 +213,10 @@ namespace part1 {
           int nc = c + dc;
 
           // skip invalid or seen steps
-          if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.count({nr, nc})) {
+          if (nr < 0 || nr >= grid.size() || nc < 0 || nc >= grid[0].size() || grid[nr][nc] == '#' || seen.contains({nr, nc,s+1})) {
             continue;
           }
-          seen.insert({nr, nc});
+          seen.insert({nr, nc,s});
           q.push_back({nr, nc, s - 1});
         }
       }
