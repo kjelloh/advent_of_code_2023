@@ -453,7 +453,7 @@ namespace part2 {
         result += falling.size() - 1; // Count only the cascade count, not the brick to be removed to initiate the cascade
       }
 
-      return result;
+      return result; // 74594
     }
 
   }
@@ -466,7 +466,7 @@ namespace part2 {
     print_model(all_fallen);
     auto const& [lower_supports_upper, upper_rests_on_lower] = to_support_map(all_fallen);
     result = hyperneutrino::count_all(all_fallen, lower_supports_upper, upper_rests_on_lower);
-    return result;
+    return result; // 74594
   }
 }
 
