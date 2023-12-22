@@ -279,9 +279,9 @@ std::string join(const T& container, std::string_view delimiter = " ") {
             os << delimiter;
         }
         if constexpr (is_pair<typename T::value_type>::value) {
-            os << item.first << ": " << item.second;
+            os << item.first << ": " << std::quoted(item.second);
         } else {
-            os << item;
+            os << std::quoted(item);
         }
         first = false;
     }
@@ -298,7 +298,7 @@ public:
     }
 
     operator std::string() const {
-      // Requires g++-13 to link (clang building fails to link due to missing conversion functions...)
+      // Requires g++-13 to link (clang building fails to link due to missing conversion functions...)      
       return std::format("{}{{type={},outputs={},memory={}}}", name, type, join(outputs,", "), join(memory,", "));
     }
 
@@ -308,7 +308,10 @@ public:
     std::map<std::string, std::string> memory;
 };
 
-using Model = std::map<std::string,Module>;
+struct Model {
+  std::map<std::string,Module> modules{};
+  std::vector<std::string> broadcast_targets{};
+};
 
 std::string_view strip(std::string_view line) {
   // Remove leading spaces
@@ -351,25 +354,20 @@ Model parse(auto& in) {
     auto left = left_right[0];
     auto right = left_right[1];
     auto outputs = split(right,", ");
-    std::vector<std::string_view> broadcast_targets{};
     if (left == "broadcaster") {
-      broadcast_targets = outputs;
+      result.broadcast_targets = {outputs.begin(),outputs.end()};
     } else {
         auto type = left[0];
-        std::string name = left.substr(1).data();
+        std::string name{left.substr(1)};
       // modules[name] = Module(name, type, outputs)
-      result.emplace(name,Module(name, type, outputs));
+      result.modules.emplace(name,Module(name, type, outputs));
     }
   }
   // wire all modules together
-  // for name, module in modules.items():
-  //     for output in module.outputs:
-  //         if output in modules and modules[output].type == "&":
-  //             modules[output].memory[name] = "lo"  
-  for (auto& [name,module] : result) {
+  for (auto& [name,module] : result.modules) {
     for (auto& output : module.outputs) {
-      if (result.contains(output) && result.at(output).type == '&') {
-        result.at(output).memory[name] = "lo";
+      if (result.modules.contains(output) && result.modules.at(output).type == '&') {
+        result.modules.at(output).memory[name] = "lo";
       }
     }
   }
@@ -377,30 +375,112 @@ Model parse(auto& in) {
 }
 
 std::ostream& operator<<(std::ostream& os, Module const& module) {
-  os << NL << static_cast<std::string>(module);
+  os << static_cast<std::string>(module);
   return os;
 }
 
 void print_model(Model const& model) {
   std::cout << NL << "Model";
-  for (auto const& [name,module] : model) {
-    std::cout << NL << module;
+  std::cout << NT << "broadcast_targets : " << join(model.broadcast_targets,", ");
+  for (auto const& [name,module] : model.modules) {
+    std::cout << NT <<  module;
   }
 }
 
 namespace part1 {
+  // based on https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day20p1.py
+  // Thanks!
+  namespace hyperneutrino {
+    
+    Result count(Model& model,int pushes) {
+      Result result{};
+      auto& [modules,broadcast_targets] = model;
+      std::cout << NL << "hyperneutrino::count";
+      // lo = hi = 0
+      Result lo{},hi{};
+
+      // for _ in range(1000):
+      for (auto _ = 0;_<pushes;++_) {
+        // lo += 1
+        ++lo; // the "push"
+        // q = deque([("broadcaster", x, "lo") for x in broadcast_targets])
+        std::deque<std::tuple<std::string,std::string,std::string>> q{};
+        for (auto const& x : broadcast_targets) {
+          q.push_back({ "broadcaster",x,"lo" });
+        }
+        // while q:
+        while (!q.empty()) {
+          // origin, target, pulse = q.popleft()
+          auto [origin,target,pulse] = q.front();
+          q.pop_front();
+          // std::cout << NL << std::quoted(origin) << " -" << pulse << "-> " << std::quoted(target);
+          // if pulse == "lo":
+          if (pulse == "lo") {
+            // lo += 1
+            ++lo;
+          } else {
+            // hi += 1
+            ++hi;
+          }
+          // if target not in modules:
+          if (!modules.contains(target)) {
+            // continue
+            // std::cout <<  " not in modules";
+            continue;
+          }
+          // module = modules[target]
+          auto& module = modules.at(target);
+          // if module.type == "%":
+          if (module.type == '%') {
+            // if pulse == "lo":
+            if (pulse == "lo") {
+              // module.memory = "on" if module.memory == "off" else "off"
+              module.memory["self"] = (module.memory.at("self") == "off" ? "on" : "off");
+              // outgoing = "hi" if module.memory == "on" else "lo"
+              auto outgoing = module.memory.at("self") == "on" ? "hi" : "lo";
+              // std::cout << NT << module << " -" << outgoing << "-> " << join(module.outputs,", ");
+              
+              // for x in module.outputs:
+              for (auto const& x : module.outputs) {
+                // q.append((module.name, x, outgoing))
+                q.push_back({ module.name,x,outgoing });
+              }
+            }
+          } else {
+            // module.memory[origin] = pulse
+            module.memory[origin] = pulse;
+            // outgoing = "lo" if all(x == "hi" for x in module.memory.values()) else "hi"
+            auto outgoing = std::all_of(module.memory.begin(),module.memory.end(),[](auto const& x){ return x.second == "hi"; }) ? "lo" : "hi";
+            // std::cout << NT << module << " -" << outgoing << "-> " << join(module.outputs,", ");
+            // for x in module.outputs:
+            for (auto const& x : module.outputs) {
+              // q.append((module.name, x, outgoing))
+              q.push_back({ module.name,x,outgoing });
+            }
+          }
+        }
+      }
+      std::cout << NL << "hyperneutrino::count lo : " << lo << " hi : " << hi << " lo * hi : " << lo * hi;
+      result = lo * hi;
+      // print(lo * hi)
+      return result;
+    } // count
+  } // namespace hyperneutrino
   Result solve_for(Model& model,auto args) {
     Result result{};
-    std::cout << NL << NL << "part1";
+    auto const& [part,file,pushes] = args;
+    std::cout << NL << NL << "part1::solve_for(" << file << "," << pushes << ")";
     print_model(model);
+    result = hyperneutrino::count(model,pushes);
     return result;
   }
-}
+} // namespace part1
 
 namespace part2 {
   Result solve_for(Model& model,auto args) {
     Result result{};
-    std::cout << NL << NL << "part2";
+    auto const& [part,file,pushes] = args;
+    std::cout << NL << NL << "part2::solve_for(" << file << "," << pushes << ")";
     return result;
   }
 }
@@ -412,13 +492,16 @@ int main(int argc, char *argv[])
   for (int i = 0; i < argc; ++i) {
     std::cout << NL << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
-  // day20 x y
-  std::tuple<int,std::string> args{1,"example.txt"};
-  auto& [part,file] = args;
+  // day20 part file ste
+  std::tuple<int,std::string,int> args{1,"example.txt",6};
+  auto& [part,file,pushes] = args;
   if (argc > 1 ) {
     part = std::stoi(argv[1]);
     if (argc > 2) {
       file = argv[2];
+    }
+    if (argc > 3) {
+      pushes = std::stoi(argv[3]);
     }
   }
   std::cout << NL << "Part : " << part << " file : " << file;
