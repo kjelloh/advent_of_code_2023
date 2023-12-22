@@ -463,7 +463,7 @@ namespace part1 {
       std::cout << NL << "hyperneutrino::count lo : " << lo << " hi : " << hi << " lo * hi : " << lo * hi;
       result = lo * hi;
       // print(lo * hi)
-      return result;
+      return result; // 763500168
     } // count
   } // namespace hyperneutrino
   Result solve_for(Model& model,auto args) {
@@ -472,7 +472,7 @@ namespace part1 {
     std::cout << NL << NL << "part1::solve_for(" << file << "," << pushes << ")";
     print_model(model);
     result = hyperneutrino::count(model,pushes);
-    return result;
+    return result; // 763500168
   }
 } // namespace part1
 
