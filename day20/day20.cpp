@@ -242,23 +242,19 @@ What do you get if you multiply the total number of low pulses sent by the total
 */
 
 /*
-modules = {}
-broadcast_targets = []
+--- Part Two ---
 
-for line in open(0):
-    left, right = line.strip().split(" -> ")
-    outputs = right.split(", ")
-    if left == "broadcaster":
-        broadcast_targets = outputs
-    else:
-        type = left[0]
-        name = left[1:]
-        modules[name] = Module(name, type, outputs)
+The final machine responsible for moving the sand down to Island Island 
+as a module attached named rx. 
 
-for name, module in modules.items():
-    for output in module.outputs:
-        if output in modules and modules[output].type == "&":
-            modules[output].memory[name] = "lo"
+The machine turns on when a single low pulse is sent to rx.
+
+Reset all modules to their default states. 
+
+Waiting for all pulses to be fully handled after each button press, 
+  what is the fewest number of button presses required 
+  to deliver a single low pulse to the module named rx?
+
 */
 
 
@@ -410,51 +406,35 @@ namespace part1 {
         }
         // while q:
         while (!q.empty()) {
-          // origin, target, pulse = q.popleft()
           auto [origin,target,pulse] = q.front();
           q.pop_front();
           // std::cout << NL << std::quoted(origin) << " -" << pulse << "-> " << std::quoted(target);
-          // if pulse == "lo":
           if (pulse == "lo") {
-            // lo += 1
             ++lo;
           } else {
-            // hi += 1
             ++hi;
           }
           // if target not in modules:
           if (!modules.contains(target)) {
-            // continue
             // std::cout <<  " not in modules";
             continue;
           }
-          // module = modules[target]
           auto& module = modules.at(target);
-          // if module.type == "%":
           if (module.type == '%') {
-            // if pulse == "lo":
             if (pulse == "lo") {
-              // module.memory = "on" if module.memory == "off" else "off"
               module.memory["self"] = (module.memory.at("self") == "off" ? "on" : "off");
-              // outgoing = "hi" if module.memory == "on" else "lo"
               auto outgoing = module.memory.at("self") == "on" ? "hi" : "lo";
               // std::cout << NT << module << " -" << outgoing << "-> " << join(module.outputs,", ");
               
-              // for x in module.outputs:
               for (auto const& x : module.outputs) {
-                // q.append((module.name, x, outgoing))
                 q.push_back({ module.name,x,outgoing });
               }
             }
           } else {
-            // module.memory[origin] = pulse
             module.memory[origin] = pulse;
-            // outgoing = "lo" if all(x == "hi" for x in module.memory.values()) else "hi"
             auto outgoing = std::all_of(module.memory.begin(),module.memory.end(),[](auto const& x){ return x.second == "hi"; }) ? "lo" : "hi";
             // std::cout << NT << module << " -" << outgoing << "-> " << join(module.outputs,", ");
-            // for x in module.outputs:
             for (auto const& x : module.outputs) {
-              // q.append((module.name, x, outgoing))
               q.push_back({ module.name,x,outgoing });
             }
           }
@@ -477,10 +457,137 @@ namespace part1 {
 } // namespace part1
 
 namespace part2 {
+  using Tree = std::map<std::string,std::vector<std::string>>;
+  using Edge = std::tuple<std::string,std::string,std::string>;
+  Tree bfs(const std::map<std::string, Module>& modules, const std::string& root) {
+    Tree result{};
+    std::queue<std::string> to_process;  // Queue of modules to process
+    std::set<std::string> seen;  // Set of seen module names
+
+    // Start with the root module
+    to_process.push(root);
+    seen.insert(root);
+
+    while (!to_process.empty()) {
+      std::string current = to_process.front();
+      to_process.pop();
+
+      // find all (name.module) with an output to current
+      for (auto const& [name,module] : modules) {
+        if (std::find(module.outputs.begin(), module.outputs.end(), current) != module.outputs.end()) {
+          result[current].push_back(name); // current has an input from module "name"
+          if (!seen.contains(name)) {
+              to_process.push(name); // backtrack from name
+              seen.insert(name);
+          }            
+        }
+      }
+    }
+    return result;
+  }
+  void print_tree(Tree const& tree) {
+    std::cout << NL << "Tree";
+    for (auto const& [name,outputs] : tree) {
+      std::cout << NT << std::quoted(name) << " -> " << join(outputs,", ");
+    }
+  }
+  // From python solution https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day20p2.py
+  // Thanks!
+  namespace hyperneutrino {
+    Result count_to_low_to_rx(Model& model) {
+      auto& [modules,broadcast_targets] = model;
+      /*
+      (feed,) = [name for name, module in modules.items() if "rx" in module.outputs]
+      */      
+      std::string feed;
+      for (const auto& [name, module] : modules) {
+          if (std::find(module.outputs.begin(), module.outputs.end(), "rx") != module.outputs.end()) {
+            std::cout << NL << "module " << name << " meta: " << module << " has an output to 'rx'";
+            feed = name;
+            break;
+          }
+          else {
+            std::cout << NL << "module " << module << " has no output to 'rx'";
+          }
+      }
+      std::cout << NL << "'rx' is feed from " << feed;
+
+      std::map<std::string, Integer> cycle_lengths{};
+      // make seen a map from all module names that in turn is connected to feed to a sufficient large integer
+      std::map<std::string, Integer> seen;
+      for (const auto& [name, module] : modules) {
+          if (std::find(module.outputs.begin(), module.outputs.end(), feed) != module.outputs.end()) {
+            std::cout << NT << "detect cycles between low from " << name << " to " << feed;
+            seen[name] = 0;
+          }
+      }
+      Integer presses{};
+      while (true) {
+        ++presses;
+        // put the signals emitted by broadcaster on push into a queue
+        std::deque<std::tuple<std::string,std::string,std::string>> q{};
+        for (auto const& x : broadcast_targets) {
+          q.push_back({ "broadcaster",x,"lo" });
+        }
+
+        while (!q.empty()) {
+          auto [origin,target,pulse] = q.front();
+          q.pop_front();
+          if (!modules.contains(target)) continue; // skip unexisting modules
+          auto& module = modules.at(target);
+          if (target == feed && pulse == "hi") {
+            ++seen[origin];
+            std::cout << NT << "seen[" << origin << "] = " << seen[origin];
+            if (!cycle_lengths.contains(origin)) {
+              cycle_lengths[origin] = presses;
+            } else {
+              if (presses != seen[origin] * cycle_lengths[origin]) {
+                throw std::runtime_error("Assertion failed: presses != seen[origin] * cycle_lengths[origin]");
+              }
+            }
+            if (std::all_of(seen.begin(), seen.end(), [](const auto& pair) { return pair.second > 0; })) {
+                // All values in the seen map are truthy
+                Result x{1};
+                for (const auto& [name, cycle_length] : cycle_lengths) {
+                  std::cout << NT << "cycle_length[" << name << "] = " << cycle_length << " and " << x;
+                  x = std::lcm(x, cycle_length);
+                  std::cout << " lcm: " << x;
+                }
+                return x;
+            }        
+          }
+          // engage the modules signalling
+          if (module.type == '%') {
+            if (pulse == "lo") {
+              module.memory["self"] = (module.memory.at("self") == "off" ? "on" : "off");
+              auto outgoing = module.memory.at("self") == "on" ? "hi" : "lo";
+              // std::cout << NT << module << " -" << outgoing << "-> " << join(module.outputs,", ");
+              
+              for (auto const& x : module.outputs) {
+                q.push_back({ module.name,x,outgoing });
+              }
+            }
+          } else {
+            module.memory[origin] = pulse;
+            auto outgoing = std::all_of(module.memory.begin(),module.memory.end(),[](auto const& x){ return x.second == "hi"; }) ? "lo" : "hi";
+            // std::cout << NT << module << " -" << outgoing << "-> " << join(module.outputs,", ");
+            for (auto const& x : module.outputs) {
+              q.push_back({ module.name,x,outgoing });
+            }
+          }
+        } // while q
+      } // while
+      return -1; // failed
+    }
+  }
   Result solve_for(Model& model,auto args) {
     Result result{};
     auto const& [part,file,pushes] = args;
     std::cout << NL << NL << "part2::solve_for(" << file << "," << pushes << ")";
+    // These functions don't work yet...
+    // auto to_rx_tree = bfs(model.modules,"rx");
+    // print_tree(to_rx_tree);
+    hyperneutrino::count_to_low_to_rx(model);
     return result;
   }
 }
