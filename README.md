@@ -217,3 +217,25 @@ To get code that "does what I mean" I need to write:
           // add this level result
           level_map[level].push_back(std::format("{} <-- {}{}",root,type,new_root));
         }
+
+* Falsely believed an std::string_view::substr::data could be used to cerate an std::string from the sub-view.
+
+The code:
+
+        std::string name = left.substr(1).data();
+
+So, data() remains to be the char* to the *original* string. It is not adjusted to reflect the substring operation!
+
+So creating a string from an std::string_view::substr turns out to require some "magic" thinking.
+
+You can't assign an std::string_view to a string:
+
+        std::string name = left.substr(1); // Nope
+
+But you *can* construct a string from a string_view!
+
+        std::string name{left.substr(1)}; // ok
+
+Took me a good half hour or more to debug my code before I realized it was the parser with the "std::string name = left.substr(1).data();" that was the culprit.
+
+Again, the code compiled, and to mee, looked liked it was doing the right thing...
