@@ -230,7 +230,7 @@ Model parse(std::istream& in) {
     bricks.push_back(brick);
   }
   std::sort(bricks.begin(), bricks.end(), [](const Brick& a, const Brick& b) {
-    return a[2] < b[2];
+    return a[2] < b[2]; // sort on low to high z (floor and up)
   });
   return bricks;
 }
@@ -258,10 +258,101 @@ void print_model(Model const& model) {
 }
 
 namespace part1 {
+  // based on python solution from https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day22p1.py
+  // Many thanks to hyper-neutrino for the python solution
+  namespace hyperneutrino {
+    // project "from above" z onto the xy plane.
+    // Bricks "overlap" if there xy rectangular projections overlap (i.e. if they overlap on the xy plane)
+    // Each brick is represented by sz,sy,sz,ex,ey,ez, s being start and e being end.
+    // Two rectangles overlap if the max of the left edges is less than the min of the right edges vertical and horizontal.
+    // Or, the rightmost left edge is to the left of the leftmost right edge.
+    // ....(......).....
+    // ..(......).......
+    // or 
+    // ....(......).....
+    // ......(......)...
+    bool overlaps(Brick const& a, Brick const& b) {
+      // 0 and 3 is start and end x, 1 and 4 is start and end y
+      return std::max(a[0], b[0]) <= std::min(a[3], b[3]) && std::max(a[1], b[1]) <= std::min(a[4], b[4]);
+    }
+
+    Model to_fallen(Model const& model) {
+      Model all_fallen{model};
+      for (int ix = 0; ix < all_fallen.size(); ix++) {
+        auto& brick = all_fallen[ix];
+        int max_z = 1; // resting z (floor is 0)
+        for (int jx = 0; jx < ix; jx++) {
+          // Relies on bricks being sorted z low to high (so we have lower bricks fall before higher up bricks)
+          auto const& check = all_fallen[jx]; // relate to each other brick
+          if (overlaps(brick, check)) {
+            max_z = std::max(max_z, check[5] + 1); // may fall to rest on the check-brick
+          }
+        }
+        auto fall_distance = brick[2] - max_z; // fall distance from where "it is" to where "it will rest"
+        brick[5] -= fall_distance; // have the brick "fall"
+        brick[2] -= fall_distance;
+      }
+
+      // Bricks may have fallen "past" each other in z-direction, so sort again
+      std::sort(all_fallen.begin(), all_fallen.end(), [](const Brick& a, const Brick& b) {
+        return a[2] < b[2]; // sort on low to high z (floor and up)
+      });
+      return all_fallen;
+    }
+
+    auto to_support_map(Model const& all_fallen) {
+      // k_supports_v = {i: set() for i in range(len(bricks))}
+      // v_supports_k = {i: set() for i in range(len(bricks))}
+      auto k_supports_v = std::map<int, std::set<int>>{};
+      auto v_supports_k = std::map<int, std::set<int>>{};
+      // for j, upper in enumerate(bricks):
+      //     for i, lower in enumerate(bricks[:j]):
+      //         if overlaps(lower, upper) and upper[2] == lower[5] + 1:
+      //             k_supports_v[i].add(j)
+      //             v_supports_k[j].add(i)
+      for (int jx = 0; jx < all_fallen.size(); jx++) {
+        auto const& upper = all_fallen[jx];
+        for (int ix = 0; ix < jx; ix++) {
+          auto const& lower = all_fallen[ix];
+          if (overlaps(lower, upper) && upper[2] == lower[5] + 1) {
+            // overlaps in x,y plane and upper is 1 above lower in z direction
+            k_supports_v[ix].insert(jx); // lower ix is adjacent to upper jx z-wise
+            v_supports_k[jx].insert(ix); // upper jx is adjacent to lower ix z-wise
+          }
+        }
+      }
+      return std::make_tuple(k_supports_v, v_supports_k);
+    }
+
+    Result count_free(Model const& all_fallen, auto k_supports_v, auto v_supports_k) {
+      Result result{};
+      // for i in range(len(bricks)):
+      //     if all(len(v_supports_k[j]) >= 2 for j in k_supports_v[i]):
+      //         total += 1
+      for (int ix = 0; ix < all_fallen.size(); ix++) {
+        auto const& brick = all_fallen[ix];
+        // A brick is free if it supports a brick which in turn is itself supported by two or more bricks
+        if (std::all_of(k_supports_v[ix].begin(), k_supports_v[ix].end(), [&v_supports_k](int jx) {
+           return v_supports_k[jx].size() >= 2;
+        })) {
+          std::cout << NL << "free brick";
+          print_brick(brick);
+          ++result;
+        }
+      }
+      return result;
+    }
+
+  }
   Result solve_for(Model& model,auto args) {
     Result result{};
     std::cout << NL << NL << "part1";
     print_model(model);
+    auto all_fallen = hyperneutrino::to_fallen(model);
+    std::cout << NL << "all fallen";
+    print_model(all_fallen);
+    auto const& [k_supports_v, v_supports_k] = hyperneutrino::to_support_map(all_fallen);
+    result = hyperneutrino::count_free(all_fallen, k_supports_v, v_supports_k);
     return result;
   }
 }
