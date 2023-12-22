@@ -340,7 +340,7 @@ namespace part1 {
           ++result;
         }
       }
-      return result;
+      return result; // 485
     }
 
   }
@@ -353,7 +353,7 @@ namespace part1 {
     print_model(all_fallen);
     auto const& [k_supports_v, v_supports_k] = hyperneutrino::to_support_map(all_fallen);
     result = hyperneutrino::count_free(all_fallen, k_supports_v, v_supports_k);
-    return result;
+    return result; // 485
   }
 }
 
