@@ -3,7 +3,7 @@
   "tasks": [
     {
       "type": "cppbuild",
-      "label": "macOS C/C++: Brew installed g++-13.2.0 build cratchit",
+      "label": "SANITIZED macOS C/C++: Brew installed g++-13.2.0 build cratchit",
       "command": "/usr/local/Cellar/gcc/13.2.0/bin/g++-13",
       "args": [
         "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
@@ -12,6 +12,29 @@
         "-fcoroutines",
         "-fsanitize=undefined",
         "-fsanitize=address",
+        "-g",
+        "${file}",
+        "-o",
+        "${fileDirname}/${fileBasenameNoExtension}"
+      ],
+      "options": {
+        "cwd": "${fileDirname}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "group": "build",
+      "detail": "compiler: /usr/local/Cellar/gcc/13.2.0/bin/g++-13"
+    },
+    {
+      "type": "cppbuild",
+      "label": "SPEEDY macOS C/C++: Brew installed g++-13.2.0 build cratchit",
+      "command": "/usr/local/Cellar/gcc/13.2.0/bin/g++-13",
+      "args": [
+        "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+        "-fdiagnostics-color=always",
+        "-std=c++23",
+        "-fcoroutines",
         "-g",
         "${file}",
         "-o",

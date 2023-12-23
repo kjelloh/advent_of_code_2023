@@ -6,7 +6,9 @@
 #include <sstream> // E.g., std::istringstream, std::ostringstream
 #include <vector>
 #include <set>
+#include <unordered_set>
 #include <map>
+#include <unordered_map>
 #include <stack>
 #include <queue>
 #include <deque>
@@ -21,6 +23,7 @@
 #include <format>
 #include <optional>
 #include <regex>
+#include <chrono>
 
 
 char const* example = R"(#.#####################
@@ -215,19 +218,52 @@ void print_model(Model const& model) {
 }
 
 using Vector = std::tuple<int,int>;
+namespace std {
+  template <>
+  struct hash<Vector> {
+    std::size_t operator()(const Vector& v) const {
+      auto [row, col] = v;
+      std::size_t seed = 0;
+      // Calculate hash based on vector properties
+      // Combine the hash values of row and col using a hash function
+      seed ^= std::hash<int>{}(row) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+      seed ^= std::hash<int>{}(col) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+      return seed;
+    }
+  };
+}
+
 Vector operator+(Vector const& lhs, Vector const& rhs) {
   auto [row1, col1] = lhs;
   auto [row2, col2] = rhs;
   return { row1 + row2, col1 + col2 };
 }
 
+namespace std {
+  template <>
+  struct hash< std::unordered_map<Vector, int>> {
+    std::size_t operator()(const std::unordered_map<Vector, int>& map) const {
+      std::size_t seed = 0;
+      for (const auto& pair : map) {
+        seed ^= std::hash<Vector>{}(pair.first) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<int>{}(pair.second) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+      }
+      return seed;
+    }
+  };
+}
+
 // Refactored from python solution https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day23p1.py
 // Many thanks to hyperneutrino for the solution!
 namespace hyperneutrino {
 
-  using Graph = std::map<Vector, std::map<Vector, int>>;
-  template <typename State>
-  using Seen = std::set<State>;
+
+  // using Graph = std::map<Vector, std::map<Vector, int>>;
+  using Graph = std::unordered_map<Vector, std::unordered_map<Vector, int>>; // solved in 107 756ms together with seen as std::unordered_set
+
+  template <typename T>
+  // using Seen = std::set<T>; // solved in 233 843 ms when Seen was std::set.
+  using Seen = std::unordered_set<T>; // solved in 134 788 ms when Seen was std::unordered_set.
 
   // Recursively travel the compressed graph to find the longest path from start to end
   // Remember, we have stored the max number of steps to reach each junction.
@@ -250,8 +286,8 @@ namespace hyperneutrino {
     return m;
   }
 
-
-  Result count(Vector start,Vector end,Result max_steps,Model& grid,std::map<char, std::vector<Vector>> dirs) {
+  template <bool ALL>
+  Result count(Vector start,Vector end,Result max_steps,Model& grid) {
     Result result{};
     // Vertices in "compressed" graph between junctions in the order merge junction, split junction, merge junction.
     // In our puzzle we only have splits into two and merge two into one.
@@ -279,7 +315,7 @@ namespace hyperneutrino {
     }
 
     // adjacency list for our compressed graph
-    std::map<Vector, std::map<Vector, int>> graph;
+    Graph graph;
 
     // walk the graph (adjacency list)
     for (auto [sr, sc] : points) {
@@ -298,8 +334,25 @@ namespace hyperneutrino {
           continue; // don't consider any more steps from this junction
         }
 
-        // Consider where to go next based on the tile grid[r][c] we stand on
-        for (auto [dr, dc] : dirs[grid[r][c]]) {
+        std::vector<Vector> neighborhood{};
+        if constexpr (ALL==true) {
+          // Consider all directions regardless of what tile we stand on
+          neighborhood = std::vector<Vector> { {-1, 0}, {1, 0}, {0, -1}, {0, 1} };
+        }
+        else {
+          // Consider where to go next based on the tile grid[r][c] we stand on
+        // directions to consider from a tile based on what the tile is
+          const std::map<char, std::vector<Vector>> dirs = {
+            {'^', {{-1, 0}}},
+            {'v', {{1, 0}}},
+            {'<', {{0, -1}}},
+            {'>', {{0, 1}}},
+            {'.', {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}}
+          };
+          neighborhood = dirs.at(grid[r][c]);
+        }
+        
+        for (auto [dr, dc] : neighborhood) {
           int nr = r + dr;
           int nc = c + dc;
           if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size() && grid[nr][nc] != '#' && seen.find({nr, nc}) == seen.end()) {
@@ -317,7 +370,7 @@ namespace hyperneutrino {
 
     std::cout << NL << "hyperneutrino says:" << result << std::endl;
 
-    return result; // par 1 (slippery slopes):2206 part 2 (ignore slopes):6490
+    return result; // part 1 (slippery slopes):2206 part 2 (ignore slopes):6490
 
   } // main
 
@@ -325,6 +378,7 @@ namespace hyperneutrino {
 
 namespace part1 {
 
+  // 231223, used by my own solution try that is not yet used
   struct Walker {
     Vector pos{};
     Vector dir{};
@@ -336,6 +390,7 @@ namespace part1 {
     }
   };
 
+  // 231223, used by my own solution try that is not yet used
   struct State {
     Walker walker{};
     Result walked{};
@@ -344,11 +399,13 @@ namespace part1 {
     }
   };
 
+  // 231223, used by my own solution try that is not yet used
   bool on_grid(Vector pos,Model const& grid) {
     auto [row,col] = pos;
     return row >= 0 and row < grid.size() and col >= 0 and col < grid[row].size();
   }
 
+  // 231223, used by my own solution try that is not yet used
   // if you step onto a slope tile, 
   // your next step must be downhill (in the direction the arrow is pointing).
   Walker to_slipped(Walker walker,Model const& grid) {
@@ -368,8 +425,8 @@ namespace part1 {
     return (on_grid(result.pos,grid)) ? result : walker;
   }
 
-  // max number of steps to reach end from provided state
   // 20231223, does not work yet (TODO: use hyperneutrino as reference to fix problem?)
+  // max number of steps to reach end from provided state
   Result max_to(Vector start,Vector end,Result max_steps,Model& grid) {
     Result result{};
     auto const& [srow,scol] = start;
@@ -444,16 +501,8 @@ namespace part1 {
     auto eit = std::find(model.back().begin(),model.back().end(),'.');
     Vector start = {0,std::distance(model[0].begin(),sit)};
     Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
-    // result = max_to(start,end,max_steps,model);
-    // directions to consider from a tile based on what the tile is
-    std::map<char, std::vector<Vector>> dirs = {
-      {'^', {{-1, 0}}},
-      {'v', {{1, 0}}},
-      {'<', {{0, -1}}},
-      {'>', {{0, 1}}},
-      {'.', {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}}
-    };
-    result = hyperneutrino::count(start,end,max_steps,model,dirs);
+    // result = max_to(start,end,max_steps,model); // ignored for noe (I failed to get it to work)
+    result = hyperneutrino::count<false>(start,end,max_steps,model); // see namespace comment on source of solution
     std::cout << NL << "result : " << result;
     return result; // 2206
   }
@@ -468,16 +517,7 @@ namespace part2 {
     auto eit = std::find(model.back().begin(),model.back().end(),'.');
     Vector start = {0,std::distance(model[0].begin(),sit)};
     Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
-    // Map all tile types to all possible next steps (slopes are '.' in this part)
-    std::vector<Vector> all{{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}};
-    std::map<char, std::vector<Vector>> dirs = {
-      {'^', all},
-      {'v', all},
-      {'<', all},
-      {'>', all},
-      {'.', all}
-    };
-    result = hyperneutrino::count(start,end,max_steps,model,dirs);
+    result = hyperneutrino::count<true>(start,end,max_steps,model);
 
     return result; // 6490
   }
@@ -502,10 +542,11 @@ int main(int argc, char *argv[])
       max_steps = std::stoi(argv[3]);
     }
   }
-  std::cout << NL << "Part : " << part << " file : " << file << " max_steps : " << max_steps;
+  std::cout << NL << "Part : " << part << " file : " << file /* << " max_steps : " << max_steps */;
   std::ifstream in{ file };
   auto model = parse(in);
-
+  // Get the start time
+  auto start = std::chrono::high_resolution_clock::now();
   switch (part) {
   case 1: {
     auto answer = part1::solve_for(model,args);
@@ -518,6 +559,7 @@ int main(int argc, char *argv[])
   default:
     std::cout << NL << "No part " << part << " only part 1 and 2";
   }
+  auto end = std::chrono::high_resolution_clock::now();
 
   std::cout << NL << NL << "------------ REPORT----------------";
   for (auto const& [part, answers] : solution) {
@@ -527,6 +569,9 @@ int main(int argc, char *argv[])
       else std::cout << NT << "answer[" << heading << "] " << " NO OPERATION ";
     }
   }
+    // Calculate and print the difference
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  std::cout << NT << "solved in: " << duration.count() << "ms" << std::endl;  
   std::cout << NL << NL;
   return 0;
 }
