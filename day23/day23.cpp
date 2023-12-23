@@ -180,6 +180,9 @@ namespace part1 {
     bool operator<(Walker const& rhs) const {
       return std::tie(pos,dir) < std::tie(rhs.pos,rhs.dir);
     }
+    bool operator!=(Walker const& rhs) const {
+      return std::tie(pos,dir) != std::tie(rhs.pos,rhs.dir);
+    }
   };
 
   struct State {
@@ -190,20 +193,32 @@ namespace part1 {
     }
   };
 
+  bool on_grid(Vector pos,Model const& grid) {
+    auto [row,col] = pos;
+    return row >= 0 and row < grid.size() and col >= 0 and col < grid[row].size();
+  }
+
   // if you step onto a slope tile, 
   // your next step must be downhill (in the direction the arrow is pointing).
-  Vector to_turned(Vector dir,char turn) {
-    switch (turn) {
-    case '^': return {-1,0}; // point up
-    case '>': return {0,1}; // point right
-    case 'v': return {1,0}; // point down
-    case '<': return {0,-1}; // point left
-    default: return dir;
+  Walker to_slipped(Walker walker,Model const& grid) {
+    Walker result{walker};
+    auto [pos,dir] = walker;
+    if (on_grid(pos,grid)) {
+      auto [row,col] = pos;
+      switch (grid[row][col]) {
+      case '^': dir = {row-1,col};break; // slip up
+      case '>': dir = {row,col+1};break; // slip right
+      case 'v': dir = {row+1,col};break; // slip down
+      case '<': dir =  {row,col-1};break; // slip left
+      default: dir = {0,0};break; // no slip
+      }
     }
+    result = {pos + dir,dir}; // apply any slip
+    return (on_grid(result.pos,grid)) ? result : walker;
   }
 
   // max number of steps to reach end from provided state
-  Result max_to(Vector start,Vector end,Result max_steps,Model const& grid) {
+  Result max_to(Vector start,Vector end,Result max_steps,Model& grid) {
     Result result{};
     auto const& [srow,scol] = start;
     auto const& [erow,ecol] = end;
@@ -227,7 +242,7 @@ namespace part1 {
       if (dont_visit_again.contains(walker)) continue;
       dont_visit_again.insert(walker); // block walking here again
       if (walker.pos == end) {
-        // Did we get here with walked more steps than previously known?
+        // Did we get here and walked more steps than previously known?
         if (walked > result) {
           result = walked;
           best_from_start[walker.pos] = result;
@@ -243,18 +258,19 @@ namespace part1 {
         std::cout << NL << "MAX walked " << walked << " max_steps " << max_steps << " still in queue are:" << q.size() << std::flush;
       }
       else {
-        // continue walking
+        // try next possible steps
         std::vector<Vector> dirs{{0,1},{1,0},{0,-1},{-1,0}};
         for (auto const& dir : dirs) {
-          auto next = Walker{ walker.pos + dir, dir }; // step in direction dir
-          auto [nr, nc] = next.pos;
-          if (nr<0 or nr > grid.size()-1) continue; // dont walk off row
-          if (nc<0 or nc > grid[nr].size()-1) continue; // dont walk off col
+          Walker candidate{walker.pos + dir,dir};
+          if (!on_grid(candidate.pos,grid)) continue; // can't walk off the grid ;
+          candidate = to_slipped(candidate,grid);
+          auto [nr,nc] = candidate.pos;
           if (grid[nr][nc] == '#') continue; // can't walk into the forrest ;)
-
-          next.dir = to_turned(next.dir,grid[nr][nc]); // turn if we step onto a slope tile
-          q.push({next,walked+1}); // push next to examine later
-          std::cout << NL << "pushed " << nr << "," << nc << " walked " << walked+1 << std::flush; 
+          if (candidate != walker) {
+            // Queue an actual step
+            q.push({candidate,walked+1}); // push next to examine later
+            std::cout << NL << "pushed " << nr << "," << nc << " walked " << walked+1 << std::flush; 
+          }
         }
       }
     }
