@@ -148,6 +148,54 @@ How many steps long is the longest hike?
 
 */
 
+/*
+
+--- Part Two ---
+
+As you reach the trailhead, 
+you realize that the ground isn't as slippery as you expected; 
+you'll have no problem climbing up the steep slopes.
+
+Now, treat all slopes as if they were normal paths (.). 
+
+You still want to make sure you have the most scenic hike possible, 
+so continue to ensure that you never step onto the same tile twice. 
+
+What is the longest hike you can take?
+
+In the example above, this increases the longest hike to 154 steps:
+
+#S#####################
+#OOOOOOO#########OOO###
+#######O#########O#O###
+###OOOOO#.>OOO###O#O###
+###O#####.#O#O###O#O###
+###O>...#.#O#OOOOO#OOO#
+###O###.#.#O#########O#
+###OOO#.#.#OOOOOOO#OOO#
+#####O#.#.#######O#O###
+#OOOOO#.#.#OOOOOOO#OOO#
+#O#####.#.#O#########O#
+#O#OOO#...#OOO###...>O#
+#O#O#O#######O###.###O#
+#OOO#O>.#...>O>.#.###O#
+#####O#.#.###O#.#.###O#
+#OOOOO#...#OOO#.#.#OOO#
+#O#########O###.#.#O###
+#OOO###OOO#OOO#...#O###
+###O###O#O###O#####O###
+#OOO#OOO#O#OOO>.#.>O###
+#O###O###O#O###.#.#O###
+#OOOOO###OOO###...#OOO#
+#####################O#
+
+Find the longest hike you can take 
+through the surprisingly dry hiking trails listed on your map. 
+
+How many steps long is the longest hike?
+
+*/
+
 using Model = std::vector<std::string>;
 
 Model parse(auto& in) {
@@ -166,13 +214,116 @@ void print_model(Model const& model) {
   }
 }
 
-namespace part1 {
-  using Vector = std::tuple<int,int>;
-  Vector operator+(Vector const& lhs, Vector const& rhs) {
-    auto [row1, col1] = lhs;
-    auto [row2, col2] = rhs;
-    return { row1 + row2, col1 + col2 };
+using Vector = std::tuple<int,int>;
+Vector operator+(Vector const& lhs, Vector const& rhs) {
+  auto [row1, col1] = lhs;
+  auto [row2, col2] = rhs;
+  return { row1 + row2, col1 + col2 };
+}
+
+// Refactored from python solution https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day23p1.py
+// Many thanks to hyperneutrino for the solution!
+namespace hyperneutrino {
+
+  using Graph = std::map<Vector, std::map<Vector, int>>;
+  template <typename State>
+  using Seen = std::set<State>;
+
+  // Recursively travel the compressed graph to find the longest path from start to end
+  // Remember, we have stored the max number of steps to reach each junction.
+  // So all left to do is to find a way to travel between junctions the most inefficient way possible (longest path) ;)
+  int dfs(Vector pt,Graph& graph, Seen<Vector>& seen,Vector const& end) {
+    if (pt == end) {
+      return 0;
+    }
+
+    int m = std::numeric_limits<int>::min();
+
+    seen.insert(pt);
+    for (auto nx : graph[pt]) {
+      if (seen.find(nx.first) == seen.end()) {
+        m = std::max(m, dfs(nx.first,graph,seen,end) + nx.second);
+      }
+    }
+    seen.erase(pt);
+
+    return m;
   }
+
+
+  Result count(Vector start,Vector end,Result max_steps,Model& grid,std::map<char, std::vector<Vector>> dirs) {
+    Result result{};
+    // Vertices in "compressed" graph between junctions in the order merge junction, split junction, merge junction.
+    // In our puzzle we only have splits into two and merge two into one.
+    // We also regard start and end as junctions, only the graph has no incoming to start and no outgoings from end.
+    std::vector<Vector> points = {start, end}; 
+
+    // Find the junctions (tiles that have three "outs" = not blocked by '#')
+    for (int r = 0; r < grid.size(); r++) {
+      for (int c = 0; c < grid[0].size(); c++) {
+        if (grid[r][c] == '#') {
+          continue;
+        }
+        int neighbors = 0;
+        for (auto [nr, nc] : std::vector<Vector>{{r - 1, c}, {r + 1, c}, {r, c - 1}, {r, c + 1}}) {
+          if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size() && grid[nr][nc] != '#') {
+            // non blocked neighbour
+            neighbors += 1;
+          }
+        }
+        if (neighbors >= 3) {
+          // a junction one-to-two or two-to-one or start or end.
+          points.push_back({r, c});
+        }
+      }
+    }
+
+    // adjacency list for our compressed graph
+    std::map<Vector, std::map<Vector, int>> graph;
+
+    // walk the graph (adjacency list)
+    for (auto [sr, sc] : points) {
+      std::stack<std::tuple<int, int, int>> stack; // step count, row, col
+      Seen<Vector> seen; // We don't care about the direction with which we reach a tile (as we are walking a labyrinth and are not allowed to back track)
+      stack.push({0, sr, sc}); // push start with zero step count
+      seen.insert({sr, sc}); // Block coming back to seen.
+
+      while (!stack.empty()) {
+        auto [n, r, c] = stack.top(); // step count,row,column
+        stack.pop();
+
+        if (n != 0 && std::find(points.begin(), points.end(), Vector{r, c}) != points.end()) {
+          // we have gone steps and reached a junction (n>0 skips start)
+          graph[{sr, sc}][{r, c}] = n; // add edge from start to the pair ((r,c),n steps)
+          continue; // don't consider any more steps from this junction
+        }
+
+        // Consider where to go next based on the tile grid[r][c] we stand on
+        for (auto [dr, dc] : dirs[grid[r][c]]) {
+          int nr = r + dr;
+          int nc = c + dc;
+          if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size() && grid[nr][nc] != '#' && seen.find({nr, nc}) == seen.end()) {
+            // We reached a new valid position, that is on grid, not seen and not a forrest tile
+            stack.push({n + 1, nr, nc}); // push an increment step count and the new position
+            seen.insert({nr, nc}); // dont allow coming back to this position again
+          }
+        }
+      }
+    }
+
+    Seen<Vector> seen;
+
+    result = dfs(start,graph, seen,end);
+
+    std::cout << NL << "hyperneutrino says:" << result << std::endl;
+
+    return result; // par 1 (slippery slopes):2206 part 2 (ignore slopes):6490
+
+  } // main
+
+} // namespace hyperneutrino
+
+namespace part1 {
 
   struct Walker {
     Vector pos{};
@@ -218,6 +369,7 @@ namespace part1 {
   }
 
   // max number of steps to reach end from provided state
+  // 20231223, does not work yet (TODO: use hyperneutrino as reference to fix problem?)
   Result max_to(Vector start,Vector end,Result max_steps,Model& grid) {
     Result result{};
     auto const& [srow,scol] = start;
@@ -283,116 +435,6 @@ namespace part1 {
     return result;
   }
 
-  // Refactored from python solution 
-  namespace hyperneutrino {
-
-    using Graph = std::map<Vector, std::map<Vector, int>>;
-    template <typename State>
-    using Seen = std::set<State>;
-
-    // Recursively travel the compressed graph to find the longest path from start to end
-    // Remember, we have stored the max number of steps to reach each junction.
-    // So all left to do is to find a way to travel between junctions the most inefficient way possible (longest path) ;)
-    int dfs(Vector pt,Graph& graph, Seen<Vector>& seen,Vector const& end) {
-      if (pt == end) {
-        return 0;
-      }
-
-      int m = std::numeric_limits<int>::min();
-
-      seen.insert(pt);
-      for (auto nx : graph[pt]) {
-        if (seen.find(nx.first) == seen.end()) {
-          m = std::max(m, dfs(nx.first,graph,seen,end) + nx.second);
-        }
-      }
-      seen.erase(pt);
-
-      return m;
-    }
-
-
-    Result main(Vector start,Vector end,Result max_steps,Model& grid) {
-      Result result{};
-      // Vertices in "compressed" graph between junctions in the order merge junction, split junction, merge junction.
-      // In our puzzle we only have splits into two and merge two into one.
-      // We also regard start and end as junctions, only the graph has no incoming to start and no outgoings from end.
-      std::vector<Vector> points = {start, end}; 
-
-      // Find the junctions (tiles that have three "outs" = not blocked by '#')
-      for (int r = 0; r < grid.size(); r++) {
-        for (int c = 0; c < grid[0].size(); c++) {
-          if (grid[r][c] == '#') {
-            continue;
-          }
-          int neighbors = 0;
-          for (auto [nr, nc] : std::vector<Vector>{{r - 1, c}, {r + 1, c}, {r, c - 1}, {r, c + 1}}) {
-            if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size() && grid[nr][nc] != '#') {
-              // non blocked neighbour
-              neighbors += 1;
-            }
-          }
-          if (neighbors >= 3) {
-            // a junction one-to-two or two-to-one or start or end.
-            points.push_back({r, c});
-          }
-        }
-      }
-
-      // adjacency list for our compressed graph
-      std::map<Vector, std::map<Vector, int>> graph;
-
-      // directions to consider from a tile based on what the tile is
-      std::map<char, std::vector<Vector>> dirs = {
-        {'^', {{-1, 0}}},
-        {'v', {{1, 0}}},
-        {'<', {{0, -1}}},
-        {'>', {{0, 1}}},
-        {'.', {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}}
-      };
-
-      // walk the graph (adjacency list)
-      for (auto [sr, sc] : points) {
-        std::stack<std::tuple<int, int, int>> stack; // step count, row, col
-        Seen<Vector> seen; // We don't care about the direction with which we reach a tile (as we are walking a labyrinth and are not allowed to back track)
-        stack.push({0, sr, sc}); // push start with zero step count
-        seen.insert({sr, sc}); // Block coming back to seen.
-
-        while (!stack.empty()) {
-          auto [n, r, c] = stack.top(); // step count,row,column
-          stack.pop();
-
-          if (n != 0 && std::find(points.begin(), points.end(), Vector{r, c}) != points.end()) {
-            // we have gone steps and reached a junction (n>0 skips start)
-            graph[{sr, sc}][{r, c}] = n; // add edge from start to the pair ((r,c),n steps)
-            continue; // don't consider any more steps from this junction
-          }
-
-          // Consider where to go next based on the tile grid[r][c] we stand on
-          for (auto [dr, dc] : dirs[grid[r][c]]) {
-            int nr = r + dr;
-            int nc = c + dc;
-            if (nr >= 0 && nr < grid.size() && nc >= 0 && nc < grid[0].size() && grid[nr][nc] != '#' && seen.find({nr, nc}) == seen.end()) {
-              // We reached a new valid position, that is on grid, not seen and not a forrest tile
-              stack.push({n + 1, nr, nc}); // push an increment step count and the new position
-              seen.insert({nr, nc}); // dont allow coming back to this position again
-            }
-          }
-        }
-      }
-
-      Seen<Vector> seen;
-
-      result = dfs(start,graph, seen,end);
-
-      std::cout << NL << "hyperneutrino says:" << result << std::endl;
-
-      return result; // 2206
-
-    } // main
-
-  } // namespace hyperneutrino
-
   Result solve_for(Model& model,auto args) {
     Result result{};
     std::cout << NL << NL << "part1";
@@ -403,7 +445,15 @@ namespace part1 {
     Vector start = {0,std::distance(model[0].begin(),sit)};
     Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
     // result = max_to(start,end,max_steps,model);
-    result = hyperneutrino::main(start,end,max_steps,model);
+    // directions to consider from a tile based on what the tile is
+    std::map<char, std::vector<Vector>> dirs = {
+      {'^', {{-1, 0}}},
+      {'v', {{1, 0}}},
+      {'<', {{0, -1}}},
+      {'>', {{0, 1}}},
+      {'.', {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}}
+    };
+    result = hyperneutrino::count(start,end,max_steps,model,dirs);
     std::cout << NL << "result : " << result;
     return result; // 2206
   }
@@ -413,7 +463,23 @@ namespace part2 {
   Result solve_for(Model& model,auto args) {
     Result result{};
     std::cout << NL << NL << "part2";
-    return result;
+    auto const& [part,file,max_steps] = args;
+    auto sit = std::find(model[0].begin(),model[0].end(),'.');
+    auto eit = std::find(model.back().begin(),model.back().end(),'.');
+    Vector start = {0,std::distance(model[0].begin(),sit)};
+    Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
+    // Map all tile types to all possible next steps (slopes are '.' in this part)
+    std::vector<Vector> all{{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}};
+    std::map<char, std::vector<Vector>> dirs = {
+      {'^', all},
+      {'v', all},
+      {'<', all},
+      {'>', all},
+      {'.', all}
+    };
+    result = hyperneutrino::count(start,end,max_steps,model,dirs);
+
+    return result; // 6490
   }
 }
 
