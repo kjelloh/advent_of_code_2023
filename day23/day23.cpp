@@ -204,20 +204,22 @@ namespace part1 {
 
   // max number of steps to reach end from provided state
   Result max_to(Vector start,Vector end,Result max_steps,Model const& grid) {
+    Result result{};
     auto const& [srow,scol] = start;
     auto const& [erow,ecol] = end;
     std::cout << NL << "max_to(start:" << srow << "," << scol << " end:" << erow << "," << ecol << " max_steps:" << max_steps << ")" << std::flush;
     // 1) Get the walking working and flood fill in n steps.
     // 2) Find any path to end
-    // 3) Find the longest path to end
-    // 4) Walk with heuristics? (are there any preferred steps to try before others?)
+    // 3) Find the longest path to seen positions (break at max_steps)
+    // 4) Find the longest path to end (break at max_int of result)
+    // 5) Walk with heuristics? (are there any preferred steps to try before others?)
     std::queue<State> q{};
     State down_state{ {start,{1,0}},0 };
     State right_state{ {start,{0,1}},0 };
     q.push({down_state});
     q.push({right_state});
     std::set<Walker> dont_visit_again{};
-    std::map<Vector,Result> best_to_end{};
+    std::map<Vector,Result> best_from_start{};
     while (!q.empty()) {
       auto current = q.front();
       q.pop();
@@ -226,16 +228,22 @@ namespace part1 {
       dont_visit_again.insert(walker); // block walking here again
       if (walker.pos == end) {
         // Did we get here with walked more steps than previously known?
-        if (walked > best_to_end[walker.pos]) {
-          best_to_end[walker.pos] = walked;
+        if (walked > result) {
+          result = walked;
+          best_from_start[walker.pos] = result;
         }
-        std::cout << NL << "walked " << walked << " best_to_end " << best_to_end[walker.pos] << std::flush;
+        std::cout << NL << "END! walked " << walked << " best_from_start " << best_from_start[walker.pos] << " still in queue:" << q.size() << std::flush;
       }
       else if (walked > max_steps) {
-        std::cout << NL << "walked " << walked << " max_steps " << max_steps << std::flush;
-        break; // give up
+        // update best walking up to the limit of steps
+        if (walked > result) {
+          result = walked;
+          best_from_start[walker.pos] = result;
+        }
+        std::cout << NL << "MAX walked " << walked << " max_steps " << max_steps << " still in queue are:" << q.size() << std::flush;
       }
       else {
+        // continue walking
         std::vector<Vector> dirs{{0,1},{1,0},{0,-1},{-1,0}};
         for (auto const& dir : dirs) {
           auto next = Walker{ walker.pos + dir, dir }; // step in direction dir
@@ -243,21 +251,20 @@ namespace part1 {
           if (nr<0 or nr > grid.size()-1) continue; // dont walk off row
           if (nc<0 or nc > grid[nr].size()-1) continue; // dont walk off col
           if (grid[nr][nc] == '#') continue; // can't walk into the forrest ;)
-          next.dir = to_turned(next.dir,grid[nr][nc]); // turn if we steps onto a slope tile
-          if (dont_visit_again.find(next) == dont_visit_again.end()) {
-            q.push({next,walked+1}); // push next to examine later
-            std::cout << NL << "pushed " << nr << "," << nc << " walked " << walked+1 << std::flush; 
-          }
+
+          next.dir = to_turned(next.dir,grid[nr][nc]); // turn if we step onto a slope tile
+          q.push({next,walked+1}); // push next to examine later
+          std::cout << NL << "pushed " << nr << "," << nc << " walked " << walked+1 << std::flush; 
         }
       }
     }
     auto walked_grid = grid;
     for (auto const& walker : dont_visit_again) {
       auto [row,col] = walker.pos;
-      walked_grid[row][col] = 'O';
+      if (grid[row][col] == '.') walked_grid[row][col] = 'O';
     }
     print_model(walked_grid);
-    return 0; // not yet implemented
+    return result;
   }
 
   Result solve_for(Model& model,auto args) {
