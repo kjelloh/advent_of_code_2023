@@ -3,7 +3,7 @@
   "tasks": [
     {
       "type": "cppbuild",
-      "label": "SANITIZED macOS C/C++: Brew installed g++-13.2.0 build cratchit",
+      "label": "SANITIZED macOS C/C++: Brew installed g++-13.2.0 build",
       "command": "/usr/local/Cellar/gcc/13.2.0/bin/g++-13",
       "args": [
         "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
@@ -28,7 +28,7 @@
     },
     {
       "type": "cppbuild",
-      "label": "SPEEDY macOS C/C++: Brew installed g++-13.2.0 build cratchit",
+      "label": "SPEEDY macOS C/C++: Brew installed g++-13.2.0 build",
       "command": "/usr/local/Cellar/gcc/13.2.0/bin/g++-13",
       "args": [
         "--sysroot=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
@@ -51,7 +51,7 @@
     },
     {
       "type": "cppbuild",
-      "label": "macOS C/C++: Brew installed clang-17.0.5 build cratchit",
+      "label": "macOS C/C++: Brew installed clang-17.0.5 build",
       "command": "/usr/local/Cellar/llvm/17.0.5/bin/clang++",
       "args": [
         "-fdiagnostics-color=always",
@@ -74,5 +74,15 @@
       "group": "build",
       "detail": "compiler: /usr/local/Cellar/llvm/17.0.5/bin/clang++"
     },
+    {
+      "label": "clang analyze and build",
+      "type": "shell",
+      "command": "/usr/local/Cellar/llvm/17.0.5/bin/clang++ --analyze ${file} && clang -o ${fileDirname}/${fileBasenameNoExtension} ${file}",
+      "group": "build",
+      "presentation": {
+          "reveal": "always"
+      },
+      "problemMatcher": []
+  }    
  ]
 }

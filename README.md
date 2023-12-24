@@ -239,3 +239,112 @@ But you *can* construct a string from a string_view!
 Took me a good half hour or more to debug my code before I realized it was the parser with the "std::string name = left.substr(1).data();" that was the culprit.
 
 Again, the code compiled, and to mee, looked liked it was doing the right thing...
+
+#day 24
+
+* Learned today that a C++ structured binding does not keep const refs "alive" in the same way as cont ref arguments to functions do.
+
+The code:
+
+    auto const& [head,tail] = SplitOn<'@'>{}.parse(line)[0];
+
+Uses structured binding to get head and tail be cont refs to the temporary returned by left hand size call.
+
+But - "structured bound const refs" does *not* keep the temporary alive. So in the following code head and tail will refer to deleted object!
+
+That was not the semantics I inferred...
+
+* Learned that std::array and std::vector uses mirrored syntax to define a fixed count of values.
+
+To declare an *std::array* with six members you provide the *count* as the *second* argument
+
+    std::array<int,6> values{};
+
+But to instantiate an *std::vector* with six member of an int value you provide the *count* as the *first* argument.
+
+    std::vector<int> vec(6, value);
+
+To add to confusion, trying to use "uniform" initialization (also called brace initialization) can *not* be used to get the "count of value" constructor of std::vector
+
+The code:
+
+    std::vector{6,0}
+
+,will create a vector with two elements 6 and 0 in that order...
+
+* I learned that C++ does not infer a type to hold a literal integer too large for the built in int.
+
+The code:
+
+    if (file == "puzzle.txt") {
+      min = 200000000000000;
+      max = 400000000000000;
+    }
+
+,does not compile. I need, as a programmer, suffix the literals with the correct type suffix (in this case LL for lon long int)
+
+* And I did it again, sneahed in an int that caused my algorithm to silently overflow (fail)
+
+The code:
+
+    using Entry = std::array<int,6>; // px py pz @ vx vy vz
+
+,parsed from input as,
+
+      ...
+      result.back()[ix++] = std::stoll(std::string(split[0].first));
+      ...
+
+,then propagated to code like
+
+    class Hailstone {
+      public:
+        Integer sx, sy, sz, vx, vy, vz;
+        Integer a, b, c;
+
+        Hailstone(Integer sx, Integer sy, Integer sz, Integer vx, Integer vy, Integer vz)
+          : sx(sx), sy(sy), sz(sz), vx(vx), vy(vy), vz(vz), a(vy), b(-vx), c(vy * sx - vx * sy) {}
+
+and finally used as,
+
+          double a1 = hailstones[i].a, b1 = hailstones[i].b, c1 = hailstones[i].c;
+          double a2 = hailstones[j].a, b2 = hailstones[j].b, c2 = hailstones[j].c;
+          if (a1 * b2 == b1 * a2) {
+            std::cout << NL << "Parallel lines i:" << i << " j:" << j;
+            continue; // skip parallel lines
+          }
+          auto x = static_cast<double>(c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
+          auto y = static_cast<double>(c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
+
+Interestingly enough, even code compiled with "-fsanitize=undefined" failed to detect that the result of std::stoll may not fit into an int!
+
+So much for the help a sanitized-compiled code can help me with.
+
+Hm...I wonder if I should find me a static analyzer to check future code I write?
+
+* Learned today to see the potential overflows when multiplying large integers :)
+
+In the code:
+
+          auto x = (c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
+          auto y = (c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
+
+If the arguments are std::int64_t we must ensure the result does not overflow.
+
+==> In todays problem we cared only that we got the whole number part correct to compare against the integer test area.
+    This is because in an expression (x > a) with x a float and a an int, the int if first converted to float and then
+    the comparison is made on the two floats.
+
+After asking an AI I got to know that in C++ "When an operation involves two operands of different types, 
+the operand of the "smaller" type is converted to the "larger" type before the operation is performed.
+
+Now this is a bit fuzzy to me. Ok, so a float is deemed "larger" than an int (based on the size of the value it can hold I suppose).
+But "larger" can also imply "precision" in my intuition. Because which value is actually larger is not known until runtime.
+But already at compile time we know that the int that are say 32 bits, have a value range of -2,147,483,648..2,147,483,647, which 
+is 10 digits of precision. While a float only have 7 digits of precision.
+
+So, for floats with no decimals, it would in fact bet better to cast the float to an int to *not* loose precision in the int?
+Say the int x=10000001 (8 digits) and the float a = 10000000.0. Now (x > a) becomes (float(10000001) > 10000000.0)
+which is (10000000.0 > 10000000.0) which is *false*! The other way around would work - (10000001 > int(10000000.0))
+becomes (10000001 > 10000000) with is *true* as expected :)
+
