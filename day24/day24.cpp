@@ -21,6 +21,7 @@
 #include <format>
 #include <optional>
 #include <regex>
+#include <cassert> // 
 
 
 char const* example = R"(19, 13, 30 @ -2,  1, -2
@@ -177,7 +178,7 @@ public:
     }
 };
 
-using Entry = std::array<int,6>; // px py pz @ vx vy vz
+using Entry = std::array<Integer,6>; // px py pz @ vx vy vz
 using Model = std::vector<Entry>;
 
 Model parse(auto& in) {
@@ -190,11 +191,11 @@ Model parse(auto& in) {
     int ix{};
     for (auto split = SplitOn<','>{}.parse(split_line.first); !split.empty(); split = SplitOn<','>{}.parse(split[0].second)) {
       std::cout << NT << NT << "head : " << std::quoted(split[0].first) << " tail : " << std::quoted(split[0].second);
-      result.back()[ix++] = std::stoi(std::string(split[0].first));
+      result.back()[ix++] = std::stoll(std::string(split[0].first));
     }
     for (auto split = SplitOn<','>{}.parse(split_line.second); !split.empty(); split = SplitOn<','>{}.parse(split[0].second)) {
       std::cout << NT << NT << "head : " << std::quoted(split[0].first) << " tail : " << std::quoted(split[0].second);
-      result.back()[ix++] = std::stoi(std::string(split[0].first));
+      result.back()[ix++] = std::stoll(std::string(split[0].first));
     }
   }
   return result;
@@ -214,12 +215,14 @@ namespace part1 {
   // refactored from hyperneutrino youtube video 
   namespace hyperneutrino {
 
+    // Hailstone trajectory on the form ax + by  = c
+    // with: a = dx/dt, b = -dy/dt, the velocities vx and vy.
     class Hailstone {
     public:
-      int sx, sy, sz, vx, vy, vz;
-      int a, b, c;
+      Integer sx, sy, sz, vx, vy, vz;
+      Integer a, b, c;
 
-      Hailstone(int sx, int sy, int sz, int vx, int vy, int vz)
+      Hailstone(Integer sx, Integer sy, Integer sz, Integer vx, Integer vy, Integer vz)
         : sx(sx), sy(sy), sz(sz), vx(vx), vy(vy), vz(vz), a(vy), b(-vx), c(vy * sx - vx * sy) {}
 
       friend std::ostream& operator<<(std::ostream& os, const Hailstone& hs) {
@@ -230,33 +233,56 @@ namespace part1 {
     int count(Model const& model,auto args) {
       std::vector<Hailstone> hailstones;
       for (auto const& entry : model) {
-        hailstones.emplace_back(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]);
+        hailstones.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
 
       int total = 0;
       auto const& [_,__,min,max] = args;
 
-      for (size_t i = 0; i < hailstones.size(); ++i) {
-        for (size_t j = 0; j < i; ++j) {
-          int a1 = hailstones[i].a, b1 = hailstones[i].b, c1 = hailstones[i].c;
-          int a2 = hailstones[j].a, b2 = hailstones[j].b, c2 = hailstones[j].c;
+      for (Integer i = 0; i < hailstones.size(); ++i) {
+        for (Integer j = 0; j < i; ++j) {
+          // Solve the system:
+          // e1: a1 * x + b1 * y = c1
+          // e2: a2 * x + b2 * y = c2
+          // e1 * a2 - e2 * a1: (a1 * b2 - a2 * b1) * y = c1 * a2 - c2 * a1; x = (c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1)
+          // e2 * b1 - e1 * b2: (a1 * b2 - a2 * b1) * x = c2 * b1 - c1 * b2; y = (c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1)
+          // BUT: a1 * b2 - a2 * b1 == 0 iff a1 * b2 == a2 * b1 (the lines are parallel = never intersects)
+          double a1 = hailstones[i].a, b1 = hailstones[i].b, c1 = hailstones[i].c;
+          double a2 = hailstones[j].a, b2 = hailstones[j].b, c2 = hailstones[j].c;
           if (a1 * b2 == b1 * a2) {
-            continue;
+            std::cout << NL << "Parallel lines i:" << i << " j:" << j;
+            continue; // skip parallel lines
           }
-          double x = static_cast<double>(c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
-          double y = static_cast<double>(c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
+          auto x = static_cast<double>(c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
+          auto y = static_cast<double>(c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
+          std::cout << NL << "Intersection candidate x : " << x << " y : " << y;
           if (min <= x && x <= max && min <= y && y <= max) {
+            // Intersection point is in the test area
+            // But, is the intersection point in the future?
+            // Note: We can imagine a point starting beyond the test area, and intersect with the test area for negative time.
+            // Also, we have solved for any time t such that the lines intersect at time t. But we don't know if t is positive or negative... 
+            // The intersection is in the future (positive time) if the point p(t) > p(0) for dp > 0 and or p(t) < p(0) for dp < 0.
+            // That is, if the point p(t) is in the same direction as the velocity vector v, we will move to p(t) in the future.
+            // Here p(0), start p, is represented by sx,sy And intersection point p(t) is represented by x,y.
+            // So, the intersection is in the future if dx = x - sx > 0 and vx > 0 (test area to the right of start) or dx < 0 and vx < 0 (test area to the left of start)
+            // And the same goes for y.
             if ((x - hailstones[i].sx) * hailstones[i].vx >= 0 && (y - hailstones[i].sy) * hailstones[i].vy >= 0 &&
               (x - hailstones[j].sx) * hailstones[j].vx >= 0 && (y - hailstones[j].sy) * hailstones[j].vy >= 0) {
               total += 1;
             }
+            else {
+              std::cout << " is in the past";
+            }
+          }
+          else {
+            std::cout <<  " is outside the test area x:" << min << ".." << max << " y:" << min << ".." << max;
           }
         }
       }
 
       std::cout << NL << "hyperneutrion says : " << total << std::endl;
 
-      return total;
+      return total; // 17867
     }
   }
 
@@ -265,7 +291,7 @@ namespace part1 {
     std::cout << NL << NL << "part1";
     print_model(model);
     result = hyperneutrino::count(model,args);
-    return result;
+    return result; // 17867
   }
 }
 
