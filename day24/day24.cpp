@@ -211,10 +211,60 @@ void print_model(Model const& model) {
 }
 
 namespace part1 {
+  // refactored from hyperneutrino youtube video 
+  namespace hyperneutrino {
+
+    class Hailstone {
+    public:
+      int sx, sy, sz, vx, vy, vz;
+      int a, b, c;
+
+      Hailstone(int sx, int sy, int sz, int vx, int vy, int vz)
+        : sx(sx), sy(sy), sz(sz), vx(vx), vy(vy), vz(vz), a(vy), b(-vx), c(vy * sx - vx * sy) {}
+
+      friend std::ostream& operator<<(std::ostream& os, const Hailstone& hs) {
+        return os << "Hailstone{a=" << hs.a << ", b=" << hs.b << ", c=" << hs.c << "}";
+      }
+    };
+
+    int count(Model const& model,auto args) {
+      std::vector<Hailstone> hailstones;
+      for (auto const& entry : model) {
+        hailstones.emplace_back(entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]);
+      }
+
+      int total = 0;
+      auto const& [_,__,min,max] = args;
+
+      for (size_t i = 0; i < hailstones.size(); ++i) {
+        for (size_t j = 0; j < i; ++j) {
+          int a1 = hailstones[i].a, b1 = hailstones[i].b, c1 = hailstones[i].c;
+          int a2 = hailstones[j].a, b2 = hailstones[j].b, c2 = hailstones[j].c;
+          if (a1 * b2 == b1 * a2) {
+            continue;
+          }
+          double x = static_cast<double>(c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
+          double y = static_cast<double>(c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
+          if (min <= x && x <= max && min <= y && y <= max) {
+            if ((x - hailstones[i].sx) * hailstones[i].vx >= 0 && (y - hailstones[i].sy) * hailstones[i].vy >= 0 &&
+              (x - hailstones[j].sx) * hailstones[j].vx >= 0 && (y - hailstones[j].sy) * hailstones[j].vy >= 0) {
+              total += 1;
+            }
+          }
+        }
+      }
+
+      std::cout << NL << "hyperneutrion says : " << total << std::endl;
+
+      return total;
+    }
+  }
+
   Result solve_for(Model& model,auto args) {
     Result result{};
     std::cout << NL << NL << "part1";
     print_model(model);
+    result = hyperneutrino::count(model,args);
     return result;
   }
 }
@@ -234,16 +284,24 @@ int main(int argc, char *argv[])
   for (int i = 0; i < argc; ++i) {
     std::cout << NL << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
-  // day00 x y
-  std::tuple<int,std::string> args{1,"example.txt"};
-  auto& [part,file] = args;
+  // day24 part file min max
+  std::tuple<int,std::string,Integer,Integer> args{1,"example.txt",7,17};
+  auto& [part,file,min,max] = args;
   if (argc > 1 ) {
     part = std::stoi(argv[1]);
     if (argc > 2) {
       file = argv[2];
     }
+    if (file == "puzzle.txt") {
+      min = 200000000000000LL;
+      max = 400000000000000LL;
+    }
+    if (argc > 4) {
+      min = std::stoi(argv[3]);
+      max = std::stoi(argv[4]);
+    }
   }
-  std::cout << NL << "Part : " << part << " file : " << file;
+  std::cout << NL << "Part : " << part << " file : " << file << " min : " << min << " max : " << max;;
   std::ifstream in{ file };
   auto model = parse(in);
 
