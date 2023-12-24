@@ -468,74 +468,77 @@ namespace part2 {
     }
 
     template <typename INTERSECT_TYPE>
-    static std::optional<std::array<INTERSECT_TYPE, 2>>
-    intersect(const Line &a, const Line &b) {
-        const auto &p1 = a[0];
-        const auto &v1 = a[1];
-        const auto &p2 = b[0];
-        const auto &v2 = b[1];
-        INTERSECT_TYPE s, t;
-        const auto den1 = v2[0] * v1[1];
-        const auto den2 = v2[1] * v1[0];
-        if (den1 == den2) {
-            // parallel or identical
-            return std::nullopt;
-        } else {
-            const auto nom1 =
-                ((p2[1] - p1[1]) * v1[0] + (p1[0] - p2[0]) * v1[1]);
-            if constexpr (std::is_integral_v<INTERSECT_TYPE>) {
-                if (0 != nom1 % (den1 - den2)) {
-                    // not an integer solution
-                    return std::nullopt;
-                }
-            }
-            s = nom1 / static_cast<INTERSECT_TYPE>(den1 - den2);
-            const auto nom2 = (p2[0] - p1[0]) + s * v2[0];
-            t = nom2 / static_cast<INTERSECT_TYPE>(v1[0]);
-        }
-        return std::array<INTERSECT_TYPE, 2>{t, s};
-    }
-    template <typename INTERSECT_TYPE>
-    static bool checkIntersect(const Line &a, const Line &b, int64_t start,
-                               int64_t end, bool ignoreZ) {
-        const auto ts = intersect<INTERSECT_TYPE>(a, b);
-        const auto &p1 = a[0];
-        const auto &v1 = a[1];
-        const auto &p2 = b[0];
-        const auto &v2 = b[1];
-        if (!ts.has_value()) {
-            const auto isParallel =
-                (p2[0] - p1[0]) * v1[1] == (p2[1] - p1[1]) * v1[0];
-            if (ignoreZ) {
-                return isParallel;
-            } else {
-                return isParallel ||
-                       (p2[0] - p1[0]) * v1[2] == (p2[2] - p1[2]) * v1[0];
-            }
-        }
-        const auto [t, s] = ts.value();
-        auto isInter = s >= 0 && t >= 0;
+    static std::optional<std::array<INTERSECT_TYPE, 2>> intersect(const Line &a, const Line &b) {
+      const auto &p1 = a[0];
+      const auto &v1 = a[1];
+      const auto &p2 = b[0];
+      const auto &v2 = b[1];
+      INTERSECT_TYPE s, t;
+      const auto den1 = v2[0] * v1[1];
+      const auto den2 = v2[1] * v1[0];
+      if (den1 == den2) {
+        // parallel or identical
+        return std::nullopt;
+      } 
+      else {
+        const auto nom1 = ((p2[1] - p1[1]) * v1[0] + (p1[0] - p2[0]) * v1[1]);
         if constexpr (std::is_integral_v<INTERSECT_TYPE>) {
-            if (isInter && !ignoreZ) {
-                const auto r1 = p1[2] + t * v1[2];
-                const auto r2 = p2[2] + s * v2[2];
-                isInter = isInter && r1 == r2;
-            }
-        } else {
-            for (uint8_t i = 0; i < 3; ++i) {
-                if (!isInter) {
-                    break;
-                }
-                if (ignoreZ && 2 == i) {
-                    break;
-                }
-                const auto r1 = p1[i] + t * v1[i];
-                const auto r2 = p2[i] + s * v2[i];
-                isInter = isInter && r1 >= start && r2 >= start;
-                isInter = isInter && r1 <= end && r2 <= end;
-            }
+          if (0 != nom1 % (den1 - den2)) {
+            // not an integer solution
+            return std::nullopt;
+          }
         }
-        return isInter;
+        s = nom1 / static_cast<INTERSECT_TYPE>(den1 - den2);
+        const auto nom2 = (p2[0] - p1[0]) + s * v2[0];
+        t = nom2 / static_cast<INTERSECT_TYPE>(v1[0]);
+      }
+      return std::array<INTERSECT_TYPE, 2>{t, s};
+    }
+
+    template <typename INTERSECT_TYPE>
+    static bool checkIntersect(
+       const Line &a
+      ,const Line &b
+      ,int64_t start
+      ,int64_t end, bool ignoreZ) {
+      const auto ts = intersect<INTERSECT_TYPE>(a, b);
+      const auto &p1 = a[0];
+      const auto &v1 = a[1];
+      const auto &p2 = b[0];
+      const auto &v2 = b[1];
+      if (!ts.has_value()) {
+        const auto isParallel =
+            (p2[0] - p1[0]) * v1[1] == (p2[1] - p1[1]) * v1[0];
+        if (ignoreZ) {
+          return isParallel;
+        } else {
+          return isParallel ||
+                 (p2[0] - p1[0]) * v1[2] == (p2[2] - p1[2]) * v1[0];
+        }
+      }
+      const auto [t, s] = ts.value();
+      auto isInter = s >= 0 && t >= 0;
+      if constexpr (std::is_integral_v<INTERSECT_TYPE>) {
+        if (isInter && !ignoreZ) {
+          const auto r1 = p1[2] + t * v1[2];
+          const auto r2 = p2[2] + s * v2[2];
+          isInter = isInter && r1 == r2;
+        }
+      } else {
+        for (uint8_t i = 0; i < 3; ++i) {
+          if (!isInter) {
+            break;
+          }
+          if (ignoreZ && 2 == i) {
+            break;
+          }
+          const auto r1 = p1[i] + t * v1[i];
+          const auto r2 = p2[i] + s * v2[i];
+          isInter = isInter && r1 >= start && r2 >= start;
+          isInter = isInter && r1 <= end && r2 <= end;
+        }
+      }
+      return isInter;
     }
 
     template <typename INTERSECT_TYPE>
@@ -558,43 +561,46 @@ namespace part2 {
       return true;
     }
 
-    static V findRock(const Lines &lines)
-    {
-      constexpr int64_t vRange = 300;
-      for (int64_t v1 = -vRange; v1 <= vRange; ++v1)
-      {
-        for (int64_t v2 = -vRange; v2 <= vRange; ++v2)
-        {
-          if (const auto v = V{v1, v2, 0}; !checkIntersect<int64_t>(lines, v, true))
-          {
+    static V findRock(const Lines &lines) {
+      constexpr int64_t vRange = 300; // scan range
+      for (int64_t v1 = -vRange; v1 <= vRange; ++v1) {
+        // x coordinate
+        for (int64_t v2 = -vRange; v2 <= vRange; ++v2) {
+          // y coordinate
+          // +/- vRange for two line candidates
+          if (const auto v = V{v1, v2, 0};!checkIntersect<int64_t>(lines, v, true)) {
+            // Don't even overlap in 2D (x,y plane)
             continue;
           }
-          for (int64_t v3 = -vRange; v3 <= vRange; ++v3)
-          {
-            if (const auto v = V{v1, v2, v3}; checkIntersect<int64_t>(lines, v, false))
-            {
+          for (int64_t v3 = -vRange; v3 <= vRange; ++v3) {
+            // z coordinate
+            if (const auto v = V{v1, v2, v3};checkIntersect<int64_t>(lines, v, false)) {
+              // The line v intersects all lines
               // get the actual intersection point (from any two lines)
               const auto pi = lines[0][0];
               const auto vi = lines[0][1] - v;
               const auto pj = lines[1][0];
               const auto vj = lines[1][1] - v;
-              const auto [t, s] = intersect<int64_t>({pi, vi}, {pj, vj}).value();
-              // std::cout << NL << "tbeu says: " << " " <<  pi[0] + t * vi[0] << " , " <<  pi[1] + t * vi[1] << " , " <<  pi[2] + t * vi[2];
-              return V{pi[0] + t * vi[0], pi[1] + t * vi[1], pi[2] + t * vi[2]};
+              const auto [t, s] =
+                  intersect<int64_t>({pi, vi}, {pj, vj}).value();
+              std::cout << NL << "tbeu says: "
+                        << " " << pi[0] + t * vi[0] << " , "
+                        << pi[1] + t * vi[1] << " , " << pi[2] + t * vi[2];
+              return V{pi[0] + t * vi[0], pi[1] + t * vi[1], pi[2] + t * vi[2]}; // 557743507346379
             }
           }
         }
       }
       return V{0, 0, 0};
     }
-  }
+  } // namespace tbeu
 
-  Result solve_for(Model& model,auto args) {
-    Result result{};
-    std::cout << NL << NL << "part2";
-    const auto rock = tbeu::findRock(tbeu::to_lines(model));
-    result = rock[0] + rock[1] + rock[2];
-    return result;
+  Result solve_for(Model &model, auto args) {
+      Result result{};
+      std::cout << NL << NL << "part2";
+      const auto rock = tbeu::findRock(tbeu::to_lines(model));
+      result = rock[0] + rock[1] + rock[2]; // 557743507346379
+      return result; // 557743507346379
   }
 }
 
