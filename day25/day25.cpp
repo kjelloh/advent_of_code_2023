@@ -307,19 +307,19 @@ namespace part1 {
     // We need to try edges to disconnect in some clever way to find the right ones without having to exhaust the full search space
     auto component_count = ConnectedComponents{tree}.getCount();
 
-    auto start = std::chrono::high_resolution_clock::now(); // Start the clock
-    for (int first = 0;first < edge_count; ++first) {
-      for (int second = first+1;second < edge_count; ++second) {
-        for (int third = second+1;third < edge_count; ++third) {
-          // disconnect edges first, second, third
-          // count components
-          // if component_count == 2 return
-        }
-      }
-    }
-    auto end = std::chrono::high_resolution_clock::now(); // Stop the clock
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start); // Calculate the duration in milliseconds
-    std::cout << NT << "brute force loop elapsed time: " << duration.count() << " milliseconds";
+    // auto start = std::chrono::high_resolution_clock::now(); // Start the clock
+    // for (int first = 0;first < edge_count; ++first) {
+    //   for (int second = first+1;second < edge_count; ++second) {
+    //     for (int third = second+1;third < edge_count; ++third) {
+    //       // disconnect edges first, second, third
+    //       // count components
+    //       // if component_count == 2 return
+    //     }
+    //   }
+    // }
+    // auto end = std::chrono::high_resolution_clock::now(); // Stop the clock
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start); // Calculate the duration in milliseconds
+    // std::cout << NT << "brute force loop elapsed time: " << duration.count() << " milliseconds";
     // For puzzle : brute force loop elapsed time: 10 693 milliseconds
 
     // What do we get if we sort the edges on how many components they connect?
@@ -340,14 +340,38 @@ namespace part1 {
         else std::get<0>(*neighbor_to_node) += 1;
       }
     }
+    // Remove mirrored edges /bidirectional edges
+    for (auto it = connection_counts.begin();it != connection_counts.end();) {
+      auto const& [node,edge,neighbor] = *it;
+      auto const& [first,second] = edge;
+      Edge mirrored_edge{second,first};
+      auto neighbor_to_node = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
+        auto const& [node,edge,neighbor] = connection_count;
+        return edge == mirrored_edge;
+      });
+      if (neighbor_to_node != connection_counts.end()) it = connection_counts.erase(it);
+      else ++it;
+    }
+    // Remove edges that does not connect to any node on its left or right side
+    for (auto it = connection_counts.begin();it != connection_counts.end();) {
+      if (std::get<0>(*it) == 0) it = connection_counts.erase(it);
+      else if (std::get<2>(*it) == 0) it = connection_counts.erase(it);
+      else ++it;
+    }
+
     std::sort(connection_counts.begin(),connection_counts.end(),[](auto const& lhs,auto const& rhs) {
       return std::tie(std::get<0>(lhs),std::get<2>(lhs)) < std::tie(std::get<0>(rhs),std::get<2>(rhs));
     });
     for (auto const& connection_count : connection_counts) {
       std::cout << NT << "connection_count : " << std::get<0>(connection_count) << " : " << std::get<1>(connection_count).first << " --> " << std::get<1>(connection_count).second << " : " << std::get<2>(connection_count);
     }
-
-    std::cout << NT << "component_count : " << component_count;
+    auto edge_of_interest_count = connection_counts.size();
+    std::cout << NL << "edge of interest count : " << edge_of_interest_count;
+    auto reduced_search_space = edge_of_interest_count * (edge_of_interest_count-1) * (edge_of_interest_count-2); // brute force search space
+    std::cout << NL << "reduced search space : " << reduced_search_space;
+    // For puzzle reduced search space : 134 217 216 (brute force search space : 33 448 493 826)
+    std::cout << NL << "reduced search space / brute force search space : " << reduced_search_space / (double)search_space;
+    // reduced search space / brute force search space : 0.00401265 (i.e. about 4/1000 of original search space)
     return {{},{}};
   }
 
