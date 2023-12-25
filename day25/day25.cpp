@@ -198,106 +198,6 @@ void print_model(Model const& model) {
 
 namespace part1 {
 
-  class BidirectionalTree {
-  public:
-    using Node = std::string;
-    using AdjacencyList = std::map<Node, std::vector<Node>>;
-
-    BidirectionalTree() = default;
-
-    BidirectionalTree(Model const& model) {
-      for (auto const& [head, tails] : model) {
-        for (auto const& tail : tails) {
-          addEdge(head, tail);
-        }
-      }
-    }
-
-    void addEdge(const Node& from, const Node& to) {
-      adjacencyList[from].push_back(to);
-      adjacencyList[to].push_back(from);
-    }
-
-    void printTree() const {
-      std::cout << NL << "Bidirectional Tree"; 
-      for (const auto& [node, neighbors] : adjacencyList) {
-        std::cout << NT << std::quoted(node) << " --> ";
-        for (const auto& neighbor : neighbors) {
-          std::cout << " " << std::quoted(neighbor);
-        }
-      }
-      std::cout << NT << "vertex_count : " << vertex_count() << " edge_count : " << edge_count();
-    }
-
-    Integer vertex_count() const {
-      return adjacencyList.size();
-    }
-
-    Integer edge_count() const {
-      int result = 0;
-      for (auto const& [node, neighbors] : adjacencyList) {
-        result += neighbors.size();
-      }
-      return result / 2; // bidirectional means the edges are counted twice
-    }
-
-    AdjacencyList const& getAdjacencyList() const {
-      return adjacencyList;
-    }
-
-  private:
-    AdjacencyList adjacencyList;
-  };
-
-  class ConnectedComponents {
-  public:
-    using Node = std::string;
-    using AdjacencyList = std::map<Node, std::vector<Node>>;
-
-    ConnectedComponents(BidirectionalTree const& tree) {
-      for (auto const& [node, _] : tree.getAdjacencyList()) {
-        nodeToIndex[node] = nodeToIndex.size();
-      }
-      marked.resize(tree.vertex_count());
-      id.resize(tree.vertex_count());
-      count = 0;
-      for (auto const& [node, _] : tree.getAdjacencyList()) {
-        if (!marked[getIndex(node)]) {
-          dfs(tree, node);
-          count++;
-        }
-      }
-    }
-
-    int getCount() const {
-      return count;
-    }
-
-    int getId(const Node& node) const {
-      return id[getIndex(node)];
-    }
-
-  private:
-    std::map<Node,int> nodeToIndex{};
-    std::vector<bool> marked;
-    std::vector<int> id;
-    int count{0};
-
-    void dfs(BidirectionalTree const& tree, const Node& node) {
-      marked[getIndex(node)] = true;
-      id[getIndex(node)] = count;
-      for (const auto& neighbor : tree.getAdjacencyList().at(node)) {
-        if (!marked[getIndex(neighbor)]) {
-          dfs(tree, neighbor);
-        }
-      }
-    }
-    int getIndex(const Node& node) const {
-      // use index as the position in the adjacency list of the string node
-      return nodeToIndex.at(node);
-    }
-  };
-
   // In this class, addEdge adds an edge with capacity 1 between two nodes, 
   // bfs performs a breadth-first search from the source to the sink, 
   // fordFulkerson finds the maximum flow from the source to the sink, 
@@ -432,11 +332,7 @@ namespace part1 {
     std::map<std::string, std::map<std::string, int>> adj;
   };
 
-  std::pair<std::set<std::string>, std::set<std::string>> split(BidirectionalTree const& tree) {
-    auto edge_count = tree.edge_count();
-    Integer search_space = edge_count * (edge_count-1) * (edge_count-2); // brute force search space
-    std::cout << NL << "split() on tree with edge_count : " << edge_count << " brute force search space : " << search_space;
-    // For puzzle input split() on tree with edge_count : 3223 brute force search space : 33 448 493 826
+  std::pair<std::set<std::string>, std::set<std::string>> split(Model const& model) {
 
     // Assume there is only one way to cut the graph into two components?
     // Then, if we select two nodes at random, we may quite soon find two that belong to each of the components after the cut?
@@ -444,12 +340,12 @@ namespace part1 {
 
     for (int i = 0; i < 10; ++i) {
       std::set<std::tuple<std::string,std::string>> seen{};
-      auto graph = MinCutGraph{tree.getAdjacencyList()};
+      auto graph = MinCutGraph{model};
 
       // Randomly select two yet unseen nodes as source and sink.
       std::random_device rd;
       std::mt19937 gen(rd());
-      std::uniform_int_distribution<> dis(0, tree.vertex_count() - 1);
+      std::uniform_int_distribution<> dis(0, graph.vertex_count() - 1);
 
       std::string source = graph.getVertex(dis(gen));
       std::string sink = graph.getVertex(dis(gen));
@@ -461,10 +357,10 @@ namespace part1 {
         std::string source = graph.getVertex(dis(gen));
       }
       auto const& [max_flow,reachable,non_reachable] = graph.minCut(source, sink);
+      std::cout << NL << std::quoted(source) << " -- max flow: " << max_flow << " -> " << std::quoted(sink);
       if (max_flow==3) {
         // We know it should be sufficient to sever 3 edges to split the graph into two components.
         // So if the maxflow found for the randomly selected source and sink we can asume we found the two components.
-        std::cout << NL << std::quoted(source) << " -- " << max_flow << " -> " << std::quoted(sink);
         std::cout << NT << reachable.size()  << " :";
         for (auto const& node : reachable) {
           std::cout << " " << std::quoted(node);
@@ -475,9 +371,6 @@ namespace part1 {
         }
         return {reachable,non_reachable};
       }
-      else {
-        std::cout << NL << std::quoted(source) << " -- " << max_flow << " -> " << std::quoted(sink);
-      }
     }
 
     return {{}, {}}; // failed.
@@ -487,9 +380,7 @@ namespace part1 {
     Result result{};
     std::cout << NL << NL << "part1";
     print_model(model);
-    auto tree = BidirectionalTree{model};
-    tree.printTree(); // For example: vertex_count : 15 edge_count : 33 , for puzzle: vertex_count : 1443 edge_count : 3223
-    auto [first,second] = split(tree);
+    auto [first,second] = split(model);
     result = first.size() * second.size();
     return result; // 520380
   }
