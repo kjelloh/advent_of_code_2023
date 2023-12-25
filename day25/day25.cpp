@@ -321,7 +321,7 @@ namespace part1 {
       }
       // Add unvisited nodes that are in the graph but not reachable from source
       for (const auto& [v, _] : adj) {
-          if (is_visited.find(v) == is_visited.end()) {
+          if (!is_visited.contains(v)) {
               non_reachable.insert(v);
           }
       }      
