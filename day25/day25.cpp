@@ -205,15 +205,15 @@ namespace part1 {
   class MinCutGraph {
   public:
     MinCutGraph(Model const &model) {
+      // Build adjacency list
       for (auto const &[node, adjs] : model) {
-        for (auto const &adj : adjs) {
-          addEdge(node, adj);
-        }
+        for (auto const &adj : adjs) addEdge(node, adj);
       }
     }
     void addEdge(const std::string &u, const std::string &v) {
+      // Bidirectional graph, define flow in both directions
       adj[u][v] = 1;
-      adj[v][u] = 1; // add reverse edge for bidirectional graph
+      adj[v][u] = 1;
     }
 
     int vertex_count() const {
@@ -222,9 +222,7 @@ namespace part1 {
 
     int edge_count() const {
       int result = 0;
-      for (auto const &[node, neighbors] : adj) {
-        result += neighbors.size();
-      }
+      for (auto const &[node, neighbors] : adj) result += neighbors.size();
       return result / 2; // bidirectional means the edges are counted twice
     }
 
@@ -240,14 +238,11 @@ namespace part1 {
     }
 
     std::string getVertex(int index) {
-      if (index < 0 || index >= adj.size()) {
-        throw std::out_of_range("index out of range");
-      }
+      if (index < 0 || index >= adj.size()) throw std::out_of_range("index out of range");
       return std::next(adj.begin(), index)->first;
     }
 
-    bool bfs(const std::string &source, const std::string &sink,
-             std::map<std::string, std::string> &parent) {
+    bool bfs(const std::string &source, const std::string &sink,std::map<std::string, std::string> &parent) {
       std::map<std::string, bool> visited;
       std::queue<std::string> q;
       q.push(source);
@@ -266,7 +261,6 @@ namespace part1 {
           }
         }
       }
-
       return visited[sink];
     }
 
@@ -274,25 +268,22 @@ namespace part1 {
       std::string u, v;
       std::map<std::string, std::string> parent;
       int max_flow = 0;
+      int const path_flow = 1; // as all edges have capacity 1
 
       while (bfs(source, sink, parent)) {
-        int path_flow = 1; // as all edges have capacity 1
-
         for (v = sink; v != source; v = parent[v]) {
           u = parent[v];
-          adj[u][v] -= path_flow;
-          adj[v][u] += path_flow;
+          adj[u][v] -= path_flow; 
+          adj[v][u] += path_flow; 
         }
-
         max_flow += path_flow;
       }
-
       return max_flow;
     }
 
-    std::tuple<Integer,std::set<std::string>, std::set<std::string>>
-    minCut(const std::string &source, const std::string &sink) {
+    std::tuple<Integer,std::set<std::string>, std::set<std::string>> minCut(const std::string &source, const std::string &sink) {
       std::tuple<Integer,std::set<std::string>, std::set<std::string>> result{};
+
       auto& [max_flow,reachable,non_reachable] = result;
       max_flow = fordFulkerson(source, sink);
 
@@ -314,16 +305,12 @@ namespace part1 {
       }
 
       for (const auto &[v, _] : is_visited) {
-        if (is_visited[v])
-          reachable.insert(v);
-        else
-          non_reachable.insert(v);
+        if (is_visited[v]) reachable.insert(v);
+        else non_reachable.insert(v);
       }
       // Add unvisited nodes that are in the graph but not reachable from source
       for (const auto& [v, _] : adj) {
-          if (!is_visited.contains(v)) {
-              non_reachable.insert(v);
-          }
+          if (!is_visited.contains(v)) non_reachable.insert(v);
       }      
       return result;
     }
