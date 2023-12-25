@@ -491,7 +491,7 @@ namespace part1 {
     tree.printTree(); // For example: vertex_count : 15 edge_count : 33 , for puzzle: vertex_count : 1443 edge_count : 3223
     auto [first,second] = split(tree);
     result = first.size() * second.size();
-    return result;
+    return result; // 520380
   }
 }
 
