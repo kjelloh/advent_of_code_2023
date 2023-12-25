@@ -323,6 +323,29 @@ namespace part1 {
     // For puzzle : brute force loop elapsed time: 10 693 milliseconds
 
     // What do we get if we sort the edges on how many components they connect?
+    using Edge = std::pair<std::string,std::string>;
+    using ConnectionCounts = std::vector<std::tuple<int,Edge,int>>;
+    ConnectionCounts connection_counts{};
+    for (auto const& [node,neighbors] : tree.getAdjacencyList()) {
+      for (auto const& neighbor : neighbors) {
+        auto node_to_neighbor = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
+          return std::get<1>(connection_count).second == neighbor;
+        });
+        if (node_to_neighbor == connection_counts.end()) connection_counts.push_back({0,Edge{node,neighbor},0});
+        else std::get<2>(*node_to_neighbor) += 1;
+        auto neighbor_to_node = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
+          return std::get<1>(connection_count).first == node;
+        });
+        if (neighbor_to_node == connection_counts.end()) connection_counts.push_back({0,Edge{neighbor,node},0});
+        else std::get<0>(*neighbor_to_node) += 1;
+      }
+    }
+    std::sort(connection_counts.begin(),connection_counts.end(),[](auto const& lhs,auto const& rhs) {
+      return std::tie(std::get<0>(lhs),std::get<2>(lhs)) < std::tie(std::get<0>(rhs),std::get<2>(rhs));
+    });
+    for (auto const& connection_count : connection_counts) {
+      std::cout << NT << "connection_count : " << std::get<0>(connection_count) << " : " << std::get<1>(connection_count).first << " --> " << std::get<1>(connection_count).second << " : " << std::get<2>(connection_count);
+    }
 
     std::cout << NT << "component_count : " << component_count;
     return {{},{}};
