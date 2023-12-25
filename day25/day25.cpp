@@ -390,13 +390,15 @@ namespace part1 {
       return max_flow;
     }
 
-    std::pair<std::set<std::string>, std::set<std::string>>
+    std::tuple<Integer,std::set<std::string>, std::set<std::string>>
     minCut(const std::string &source, const std::string &sink) {
-      fordFulkerson(source, sink);
+      std::tuple<Integer,std::set<std::string>, std::set<std::string>> result{};
+      auto& [max_flow,reachable,non_reachable] = result;
+      max_flow = fordFulkerson(source, sink);
 
       std::map<std::string, bool> is_visited;
       std::queue<std::string> q;
-      q.push(source);
+      q.push(source); // reachable set will be all reachable from source
       is_visited[source] = true;
 
       while (!q.empty()) {
@@ -411,22 +413,26 @@ namespace part1 {
         }
       }
 
-      std::set<std::string> reachable, non_reachable;
       for (const auto &[v, _] : is_visited) {
         if (is_visited[v])
           reachable.insert(v);
         else
           non_reachable.insert(v);
       }
-
-      return {reachable, non_reachable};
+      // Add unvisited nodes that are in the graph but not reachable from source
+      for (const auto& [v, _] : adj) {
+          if (is_visited.find(v) == is_visited.end()) {
+              non_reachable.insert(v);
+          }
+      }      
+      return result;
     }
 
   private:
     std::map<std::string, std::map<std::string, int>> adj;
   };
 
-  std::pair<BidirectionalTree, BidirectionalTree> split(BidirectionalTree const& tree) {
+  std::pair<std::set<std::string>, std::set<std::string>> split(BidirectionalTree const& tree) {
     auto edge_count = tree.edge_count();
     Integer search_space = edge_count * (edge_count-1) * (edge_count-2); // brute force search space
     std::cout << NL << "split() on tree with edge_count : " << edge_count << " brute force search space : " << search_space;
@@ -454,25 +460,27 @@ namespace part1 {
         if (!seen.contains({source,sink})) break;
         std::string source = graph.getVertex(dis(gen));
       }
-      auto max_flow = graph.fordFulkerson(source, sink);
+      auto const& [max_flow,reachable,non_reachable] = graph.minCut(source, sink);
       if (max_flow==3) {
-        auto result = graph.minCut(source, sink);
+        // We know it should be sufficient to sever 3 edges to split the graph into two components.
+        // So if the maxflow found for the randomly selected source and sink we can asume we found the two components.
         std::cout << NL << std::quoted(source) << " -- " << max_flow << " -> " << std::quoted(sink);
-        std::cout << NT << result.first.size()  << " :";
-        for (auto const& node : result.first) {
+        std::cout << NT << reachable.size()  << " :";
+        for (auto const& node : reachable) {
           std::cout << " " << std::quoted(node);
         }
-        std::cout << NT << result.second.size() << " :";
-        for (auto const& node : result.second) {
+        std::cout << NT << non_reachable.size() << " :";
+        for (auto const& node : non_reachable) {
           std::cout << " " << std::quoted(node);
         }
+        return {reachable,non_reachable};
       }
       else {
         std::cout << NL << std::quoted(source) << " -- " << max_flow << " -> " << std::quoted(sink);
       }
     }
 
-    return {{}, {}};
+    return {{}, {}}; // failed.
   }
 
   Result solve_for(Model& model,auto args) {
@@ -482,7 +490,7 @@ namespace part1 {
     auto tree = BidirectionalTree{model};
     tree.printTree(); // For example: vertex_count : 15 edge_count : 33 , for puzzle: vertex_count : 1443 edge_count : 3223
     auto [first,second] = split(tree);
-    result = first.vertex_count() * second.vertex_count();
+    result = first.size() * second.size();
     return result;
   }
 }
