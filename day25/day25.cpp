@@ -22,6 +22,7 @@
 #include <optional>
 #include <regex>
 #include <chrono>
+#include <random>
 
 char const* example = R"(jqt: rhn xhk nvd
 rsh: frs pzl lsr
@@ -297,197 +298,181 @@ namespace part1 {
     }
   };
 
-  #include <chrono>
+  // In this class, addEdge adds an edge with capacity 1 between two nodes, 
+  // bfs performs a breadth-first search from the source to the sink, 
+  // fordFulkerson finds the maximum flow from the source to the sink, 
+  // and minCut finds the minimum cut after finding the maximum flow.
+  class MinCutGraph {
+  public:
+    MinCutGraph(Model const &model) {
+      for (auto const &[node, adjs] : model) {
+        for (auto const &adj : adjs) {
+          addEdge(node, adj);
+        }
+      }
+    }
+    void addEdge(const std::string &u, const std::string &v) {
+      adj[u][v] = 1;
+      adj[v][u] = 1; // add reverse edge for bidirectional graph
+    }
+
+    int vertex_count() const {
+      return adj.size();
+    }
+
+    int edge_count() const {
+      int result = 0;
+      for (auto const &[node, neighbors] : adj) {
+        result += neighbors.size();
+      }
+      return result / 2; // bidirectional means the edges are counted twice
+    }
+
+    void print_graph() const {
+      std::cout << NL << "MinCutGraph";
+      for (const auto &[u, neighbors] : adj) {
+        std::cout << NT << std::quoted(u) << " -->";
+        for (const auto &[v, capacity] : neighbors) {
+          std::cout << " " << std::quoted(v);
+        }
+      }
+      std::cout << NT << "vertex_count : " << vertex_count() << " edge_count : " << edge_count();
+    }
+
+    std::string getVertex(int index) {
+      if (index < 0 || index >= adj.size()) {
+        throw std::out_of_range("index out of range");
+      }
+      return std::next(adj.begin(), index)->first;
+    }
+
+    bool bfs(const std::string &source, const std::string &sink,
+             std::map<std::string, std::string> &parent) {
+      std::map<std::string, bool> visited;
+      std::queue<std::string> q;
+      q.push(source);
+      visited[source] = true;
+      parent[source] = "-1";
+
+      while (!q.empty()) {
+        std::string u = q.front();
+        q.pop();
+
+        for (const auto &[v, capacity] : adj[u]) {
+          if (!visited[v] && capacity > 0) {
+            q.push(v);
+            parent[v] = u;
+            visited[v] = true;
+          }
+        }
+      }
+
+      return visited[sink];
+    }
+
+    int fordFulkerson(const std::string &source, const std::string &sink) {
+      std::string u, v;
+      std::map<std::string, std::string> parent;
+      int max_flow = 0;
+
+      while (bfs(source, sink, parent)) {
+        int path_flow = 1; // as all edges have capacity 1
+
+        for (v = sink; v != source; v = parent[v]) {
+          u = parent[v];
+          adj[u][v] -= path_flow;
+          adj[v][u] += path_flow;
+        }
+
+        max_flow += path_flow;
+      }
+
+      return max_flow;
+    }
+
+    std::pair<std::set<std::string>, std::set<std::string>>
+    minCut(const std::string &source, const std::string &sink) {
+      fordFulkerson(source, sink);
+
+      std::map<std::string, bool> is_visited;
+      std::queue<std::string> q;
+      q.push(source);
+      is_visited[source] = true;
+
+      while (!q.empty()) {
+        std::string u = q.front();
+        q.pop();
+
+        for (const auto &[v, capacity] : adj[u]) {
+          if (!is_visited[v] && capacity > 0) {
+            q.push(v);
+            is_visited[v] = true;
+          }
+        }
+      }
+
+      std::set<std::string> reachable, non_reachable;
+      for (const auto &[v, _] : is_visited) {
+        if (is_visited[v])
+          reachable.insert(v);
+        else
+          non_reachable.insert(v);
+      }
+
+      return {reachable, non_reachable};
+    }
+
+  private:
+    std::map<std::string, std::map<std::string, int>> adj;
+  };
 
   std::pair<BidirectionalTree, BidirectionalTree> split(BidirectionalTree const& tree) {
     auto edge_count = tree.edge_count();
     Integer search_space = edge_count * (edge_count-1) * (edge_count-2); // brute force search space
     std::cout << NL << "split() on tree with edge_count : " << edge_count << " brute force search space : " << search_space;
     // For puzzle input split() on tree with edge_count : 3223 brute force search space : 33 448 493 826
-    // We need to try edges to disconnect in some clever way to find the right ones without having to exhaust the full search space
-    auto component_count = ConnectedComponents{tree}.getCount();
 
-    // auto start = std::chrono::high_resolution_clock::now(); // Start the clock
-    // for (int first = 0;first < edge_count; ++first) {
-    //   for (int second = first+1;second < edge_count; ++second) {
-    //     for (int third = second+1;third < edge_count; ++third) {
-    //       // disconnect edges first, second, third
-    //       // count components
-    //       // if component_count == 2 return
-    //     }
-    //   }
-    // }
-    // auto end = std::chrono::high_resolution_clock::now(); // Stop the clock
-    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start); // Calculate the duration in milliseconds
-    // std::cout << NT << "brute force loop elapsed time: " << duration.count() << " milliseconds";
-    // For puzzle : brute force loop elapsed time: 10 693 milliseconds
+    // Assume there is only one way to cut the graph into two components?
+    // Then, if we select two nodes at random, we may quite soon find two that belong to each of the components after the cut?
+    // So, using the Ford-Fulkerson, that finds the max flow between a source and a sink, we may detect when we found such a source and sink?
 
-    // What do we get if we sort the edges on how many components they connect?
-    using Edge = std::pair<std::string,std::string>;
-    using ConnectionCounts = std::vector<std::tuple<std::set<std::string>,Edge,std::set<std::string>>>;
-    ConnectionCounts connection_counts{};
+    for (int i = 0; i < 10; ++i) {
+      std::set<std::tuple<std::string,std::string>> seen{};
+      auto graph = MinCutGraph{tree.getAdjacencyList()};
 
-    // Initiate with all possible edges
-    for (auto const& [node,neighbors] : tree.getAdjacencyList()) {
-      for (auto const& neighbor : neighbors) {
-        auto node_to_neighbor = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
-          return std::get<1>(connection_count) == Edge{node,neighbor};
-        });
-        if (node_to_neighbor == connection_counts.end()) 
-          connection_counts.push_back({std::set<std::string>{},Edge{node,neighbor},std::set<std::string>{}}); // initiate _,edge,_ with empty sets
+      // Randomly select two yet unseen nodes as source and sink.
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_int_distribution<> dis(0, tree.vertex_count() - 1);
+
+      std::string source = graph.getVertex(dis(gen));
+      std::string sink = graph.getVertex(dis(gen));
+      while (true) {
+        while (source == sink) {
+          sink = graph.getVertex(dis(gen));
+        }
+        if (!seen.contains({source,sink})) break;
+        std::string source = graph.getVertex(dis(gen));
+      }
+      auto max_flow = graph.fordFulkerson(source, sink);
+      if (max_flow==3) {
+        auto result = graph.minCut(source, sink);
+        std::cout << NL << std::quoted(source) << " -- " << max_flow << " -> " << std::quoted(sink);
+        std::cout << NT << result.first.size()  << " :";
+        for (auto const& node : result.first) {
+          std::cout << " " << std::quoted(node);
+        }
+        std::cout << NT << result.second.size() << " :";
+        for (auto const& node : result.second) {
+          std::cout << " " << std::quoted(node);
+        }
+      }
+      else {
+        std::cout << NL << std::quoted(source) << " -- " << max_flow << " -> " << std::quoted(sink);
       }
     }
 
-    // Update lhs and rhs sets of nodes connected to lhs and rhs of each edge
-    for (auto const& [node,neighbors] : tree.getAdjacencyList()) {
-        // E.g. "bvb" -->  "xhk" "hfx" "cmg" "ntq" "rhn"
-      for (auto const& neighbor : neighbors) {
-        //       node      neighbor
-        // E.g., "bvb" --> "xhk"
-        //       "bvb" --> "hfx"
-        //       "bvb" --> "cmg"
-        //       "bvb" --> "ntq"
-        //       "bvb" --> "rhn"
-
-        auto rhs_is_neighbor = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
-          return std::get<1>(connection_count).second == neighbor; // node has rhs of edge as neighbor
-        });
-        if (rhs_is_neighbor != connection_counts.end()) std::get<2>(*rhs_is_neighbor).insert(node); // node has rhs of edge as its neighbor
-        
-        auto lhs_is_neighbor = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
-          return std::get<1>(connection_count).first == neighbor; // node has lhs of edge as neighbor
-        });
-        if (lhs_is_neighbor != connection_counts.end()) std::get<0>(*lhs_is_neighbor).insert(node); // node has lhs of edge as its neighbor
-      }
-    }
-    std::cout << NL << "connection_counts.size() : " << connection_counts.size();
-    for (auto const& connection_count : connection_counts) {
-      std::cout << NT << std::get<1>(connection_count).first << " <--> " << std::get<1>(connection_count).second;
-      std::cout << NT << T << "lefts : ";
-      for (auto const& lhs : std::get<0>(connection_count)) {
-        std::cout << " " << std::quoted(lhs); 
-      }
-      std::cout << NT << T << "rights : ";
-      for (auto const& rhs : std::get<2>(connection_count)) {
-        std::cout << " " << std::quoted(rhs); 
-      }
-    }
-    // Remove mirrored edges /bidirectional edges
-    for (auto it = connection_counts.begin();it != connection_counts.end();) {
-      auto const& [lhs,edge,rhs] = *it;
-      auto const& [first,second] = edge;
-      Edge mirrored_edge{second,first};
-      auto neighbor_to_node = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
-        auto const& [_,edge2,__] = connection_count;
-        return edge2 == mirrored_edge;
-      });
-      if (neighbor_to_node != connection_counts.end()) it = connection_counts.erase(it);
-      else ++it;
-    }
-    std::cout << NL << "reduced mirrored connection_counts.size() : " << connection_counts.size();
-    for (auto const& connection_count : connection_counts) {
-      std::cout << NT << std::get<1>(connection_count).first << " <--> " << std::get<1>(connection_count).second;
-      std::cout << NT << T << "lefts : ";
-      for (auto const& lhs : std::get<0>(connection_count)) {
-        std::cout << " " << std::quoted(lhs); 
-      }
-      std::cout << NT << T << "rights : ";
-      for (auto const& rhs : std::get<2>(connection_count)) {
-        std::cout << " " << std::quoted(rhs); 
-      }
-    }
-    // Remove edges that does not connect to any node on its left or right side
-    for (auto it = connection_counts.begin();it != connection_counts.end();) {
-      if (std::get<0>(*it).size() == 0) it = connection_counts.erase(it);
-      else if (std::get<2>(*it).size() == 0) it = connection_counts.erase(it);
-      else ++it;
-    }
-    std::sort(connection_counts.begin(),connection_counts.end(),[](auto const& lhs,auto const& rhs) {
-      return std::tie(std::get<0>(lhs),std::get<2>(lhs)) < std::tie(std::get<0>(rhs),std::get<2>(rhs));
-    });
-    std::cout << NL << "reduced left right zero connected  connection_counts.size() : " << connection_counts.size();
-    for (auto const& connection_count : connection_counts) {
-      std::cout << NT << std::get<1>(connection_count).first << " <--> " << std::get<1>(connection_count).second;
-      std::cout << NT << T << "lefts : ";
-      for (auto const& lhs : std::get<0>(connection_count)) {
-        std::cout << " " << std::quoted(lhs); 
-      }
-      std::cout << NT << T << "rights : ";
-      for (auto const& rhs : std::get<2>(connection_count)) {
-        std::cout << " " << std::quoted(rhs); 
-      }
-    }
-    auto edge_of_interest_count = connection_counts.size();
-    std::cout << NL << "edge of interest count : " << edge_of_interest_count;
-    auto reduced_search_space = edge_of_interest_count * (edge_of_interest_count-1) * (edge_of_interest_count-2); // brute force search space
-    std::cout << NL << "reduced search space size: " << reduced_search_space;
-    // For puzzle reduced search space : 134 217 216 (brute force search space : 33 448 493 826)
-    std::cout << NL << "reduced search space / brute force search space : " << reduced_search_space / (double)search_space;
-    // reduced search space / brute force search space : 0.00401265 (i.e. about 4/1000 of original search space)
-/*
-For test input:
-
-In this example, if you disconnect the wire between 
-  hfx <--> pzl
-  bvb <--> cmg
-  nvd <--> jqt
-
-9 components: cmg, frs, lhk, lsr, nvd, pzl, qnr, rsh, and rzs.
-6 components: bvb, hfx, jqt, ntq, rhn, and xhk.
-
-My analysis of example graph:
-
-	pzl <--> hfx <--> 
-		lefts :  "lsr" "nvd" "rsh"
-		rights : 
-	cmg <--> bvb <--> 
-		lefts :  "lhk" "nvd" "qnr" "rzs"
-		rights : 
-
-
-reduced mirrored connection_counts.size() : 13
-	xhk <--> bvb <--> 
-		lefts :  "hfx" "jqt" "ntq" "rhn"
-		rights :  "cmg" "hfx" "ntq" "rhn" "xhk"
-	hfx <--> bvb <--> 
-		lefts :  "ntq" "pzl" "rhn" "xhk"
-		rights : 
-	cmg <--> bvb <--> 
-		lefts :  "lhk" "nvd" "qnr" "rzs"
-		rights : 
-	ntq <--> bvb <--> 
-		lefts :  "hfx" "jqt" "xhk"
-		rights : 
-	rhn <--> bvb <--> 
-		lefts :  "hfx" "jqt" "xhk"
-		rights : 
-	qnr <--> cmg <--> 
-		lefts :  "frs" "nvd" "rzs"
-		rights : 
-	nvd <--> cmg <--> 
-		lefts :  "jqt" "lhk" "pzl" "qnr"
-		rights : 
-	lhk <--> cmg <--> 
-		lefts :  "frs" "lsr" "nvd"
-		rights : 
-	rzs <--> cmg <--> 
-		lefts :  "lsr" "qnr" "rsh"
-		rights : 
-	lsr <--> frs <--> 
-		lefts :  "lhk" "pzl" "rsh" "rzs"
-		rights :  "lhk" "lsr" "qnr" "rsh"
-	rsh <--> frs <--> 
-		lefts :  "lsr" "pzl" "rzs"
-		rights : 
-	pzl <--> hfx <--> 
-		lefts :  "lsr" "nvd" "rsh"
-		rights : 
-	jqt <--> ntq <--> 
-		lefts :  "nvd" "rhn" "xhk"
-		rights : 
-
-*/    
-    return {{},{}};
+    return {{}, {}};
   }
 
   Result solve_for(Model& model,auto args) {
