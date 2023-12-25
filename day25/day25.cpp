@@ -324,54 +324,169 @@ namespace part1 {
 
     // What do we get if we sort the edges on how many components they connect?
     using Edge = std::pair<std::string,std::string>;
-    using ConnectionCounts = std::vector<std::tuple<int,Edge,int>>;
+    using ConnectionCounts = std::vector<std::tuple<std::set<std::string>,Edge,std::set<std::string>>>;
     ConnectionCounts connection_counts{};
+
+    // Initiate with all possible edges
     for (auto const& [node,neighbors] : tree.getAdjacencyList()) {
       for (auto const& neighbor : neighbors) {
         auto node_to_neighbor = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
-          return std::get<1>(connection_count).second == neighbor;
+          return std::get<1>(connection_count) == Edge{node,neighbor};
         });
-        if (node_to_neighbor == connection_counts.end()) connection_counts.push_back({0,Edge{node,neighbor},0});
-        else std::get<2>(*node_to_neighbor) += 1;
-        auto neighbor_to_node = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
-          return std::get<1>(connection_count).first == node;
+        if (node_to_neighbor == connection_counts.end()) 
+          connection_counts.push_back({std::set<std::string>{},Edge{node,neighbor},std::set<std::string>{}}); // initiate _,edge,_ with empty sets
+      }
+    }
+
+    // Update lhs and rhs sets of nodes connected to lhs and rhs of each edge
+    for (auto const& [node,neighbors] : tree.getAdjacencyList()) {
+        // E.g. "bvb" -->  "xhk" "hfx" "cmg" "ntq" "rhn"
+      for (auto const& neighbor : neighbors) {
+        //       node      neighbor
+        // E.g., "bvb" --> "xhk"
+        //       "bvb" --> "hfx"
+        //       "bvb" --> "cmg"
+        //       "bvb" --> "ntq"
+        //       "bvb" --> "rhn"
+
+        auto rhs_is_neighbor = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
+          return std::get<1>(connection_count).second == neighbor; // node has rhs of edge as neighbor
         });
-        if (neighbor_to_node == connection_counts.end()) connection_counts.push_back({0,Edge{neighbor,node},0});
-        else std::get<0>(*neighbor_to_node) += 1;
+        if (rhs_is_neighbor != connection_counts.end()) std::get<2>(*rhs_is_neighbor).insert(node); // node has rhs of edge as its neighbor
+        
+        auto lhs_is_neighbor = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
+          return std::get<1>(connection_count).first == neighbor; // node has lhs of edge as neighbor
+        });
+        if (lhs_is_neighbor != connection_counts.end()) std::get<0>(*lhs_is_neighbor).insert(node); // node has lhs of edge as its neighbor
+      }
+    }
+    std::cout << NL << "connection_counts.size() : " << connection_counts.size();
+    for (auto const& connection_count : connection_counts) {
+      std::cout << NT << std::get<1>(connection_count).first << " <--> " << std::get<1>(connection_count).second;
+      std::cout << NT << T << "lefts : ";
+      for (auto const& lhs : std::get<0>(connection_count)) {
+        std::cout << " " << std::quoted(lhs); 
+      }
+      std::cout << NT << T << "rights : ";
+      for (auto const& rhs : std::get<2>(connection_count)) {
+        std::cout << " " << std::quoted(rhs); 
       }
     }
     // Remove mirrored edges /bidirectional edges
     for (auto it = connection_counts.begin();it != connection_counts.end();) {
-      auto const& [node,edge,neighbor] = *it;
+      auto const& [lhs,edge,rhs] = *it;
       auto const& [first,second] = edge;
       Edge mirrored_edge{second,first};
       auto neighbor_to_node = std::find_if(connection_counts.begin(),connection_counts.end(),[&](auto const& connection_count) {
-        auto const& [node,edge,neighbor] = connection_count;
-        return edge == mirrored_edge;
+        auto const& [_,edge2,__] = connection_count;
+        return edge2 == mirrored_edge;
       });
       if (neighbor_to_node != connection_counts.end()) it = connection_counts.erase(it);
       else ++it;
     }
+    std::cout << NL << "reduced mirrored connection_counts.size() : " << connection_counts.size();
+    for (auto const& connection_count : connection_counts) {
+      std::cout << NT << std::get<1>(connection_count).first << " <--> " << std::get<1>(connection_count).second;
+      std::cout << NT << T << "lefts : ";
+      for (auto const& lhs : std::get<0>(connection_count)) {
+        std::cout << " " << std::quoted(lhs); 
+      }
+      std::cout << NT << T << "rights : ";
+      for (auto const& rhs : std::get<2>(connection_count)) {
+        std::cout << " " << std::quoted(rhs); 
+      }
+    }
     // Remove edges that does not connect to any node on its left or right side
     for (auto it = connection_counts.begin();it != connection_counts.end();) {
-      if (std::get<0>(*it) == 0) it = connection_counts.erase(it);
-      else if (std::get<2>(*it) == 0) it = connection_counts.erase(it);
+      if (std::get<0>(*it).size() == 0) it = connection_counts.erase(it);
+      else if (std::get<2>(*it).size() == 0) it = connection_counts.erase(it);
       else ++it;
     }
-
     std::sort(connection_counts.begin(),connection_counts.end(),[](auto const& lhs,auto const& rhs) {
       return std::tie(std::get<0>(lhs),std::get<2>(lhs)) < std::tie(std::get<0>(rhs),std::get<2>(rhs));
     });
+    std::cout << NL << "reduced left right zero connected  connection_counts.size() : " << connection_counts.size();
     for (auto const& connection_count : connection_counts) {
-      std::cout << NT << "connection_count : " << std::get<0>(connection_count) << " : " << std::get<1>(connection_count).first << " --> " << std::get<1>(connection_count).second << " : " << std::get<2>(connection_count);
+      std::cout << NT << std::get<1>(connection_count).first << " <--> " << std::get<1>(connection_count).second;
+      std::cout << NT << T << "lefts : ";
+      for (auto const& lhs : std::get<0>(connection_count)) {
+        std::cout << " " << std::quoted(lhs); 
+      }
+      std::cout << NT << T << "rights : ";
+      for (auto const& rhs : std::get<2>(connection_count)) {
+        std::cout << " " << std::quoted(rhs); 
+      }
     }
     auto edge_of_interest_count = connection_counts.size();
     std::cout << NL << "edge of interest count : " << edge_of_interest_count;
     auto reduced_search_space = edge_of_interest_count * (edge_of_interest_count-1) * (edge_of_interest_count-2); // brute force search space
-    std::cout << NL << "reduced search space : " << reduced_search_space;
+    std::cout << NL << "reduced search space size: " << reduced_search_space;
     // For puzzle reduced search space : 134 217 216 (brute force search space : 33 448 493 826)
     std::cout << NL << "reduced search space / brute force search space : " << reduced_search_space / (double)search_space;
     // reduced search space / brute force search space : 0.00401265 (i.e. about 4/1000 of original search space)
+/*
+For test input:
+
+In this example, if you disconnect the wire between 
+  hfx <--> pzl
+  bvb <--> cmg
+  nvd <--> jqt
+
+9 components: cmg, frs, lhk, lsr, nvd, pzl, qnr, rsh, and rzs.
+6 components: bvb, hfx, jqt, ntq, rhn, and xhk.
+
+My analysis of example graph:
+
+	pzl <--> hfx <--> 
+		lefts :  "lsr" "nvd" "rsh"
+		rights : 
+	cmg <--> bvb <--> 
+		lefts :  "lhk" "nvd" "qnr" "rzs"
+		rights : 
+
+
+reduced mirrored connection_counts.size() : 13
+	xhk <--> bvb <--> 
+		lefts :  "hfx" "jqt" "ntq" "rhn"
+		rights :  "cmg" "hfx" "ntq" "rhn" "xhk"
+	hfx <--> bvb <--> 
+		lefts :  "ntq" "pzl" "rhn" "xhk"
+		rights : 
+	cmg <--> bvb <--> 
+		lefts :  "lhk" "nvd" "qnr" "rzs"
+		rights : 
+	ntq <--> bvb <--> 
+		lefts :  "hfx" "jqt" "xhk"
+		rights : 
+	rhn <--> bvb <--> 
+		lefts :  "hfx" "jqt" "xhk"
+		rights : 
+	qnr <--> cmg <--> 
+		lefts :  "frs" "nvd" "rzs"
+		rights : 
+	nvd <--> cmg <--> 
+		lefts :  "jqt" "lhk" "pzl" "qnr"
+		rights : 
+	lhk <--> cmg <--> 
+		lefts :  "frs" "lsr" "nvd"
+		rights : 
+	rzs <--> cmg <--> 
+		lefts :  "lsr" "qnr" "rsh"
+		rights : 
+	lsr <--> frs <--> 
+		lefts :  "lhk" "pzl" "rsh" "rzs"
+		rights :  "lhk" "lsr" "qnr" "rsh"
+	rsh <--> frs <--> 
+		lefts :  "lsr" "pzl" "rzs"
+		rights : 
+	pzl <--> hfx <--> 
+		lefts :  "lsr" "nvd" "rsh"
+		rights : 
+	jqt <--> ntq <--> 
+		lefts :  "nvd" "rhn" "xhk"
+		rights : 
+
+*/    
     return {{},{}};
   }
 
