@@ -280,11 +280,13 @@ void print_model(Model const& model) {
   }
 }
 
-// Hailstone trajectory on the form ax + by  = c
-// with: a = dx/dt, b = -dy/dt, the velocities vx and vy.
+// Hailstone trajectory 
+// 1) in 3D space on the form s + t * v
+// 2) on the xy-plane on the form ax + by  = c
+//    with: a = dx/dt, b = -dy/dt, the velocities vx and vy.
 class Hailstone {
 public:
-  Integer sx, sy, sz, vx, vy, vz;
+  Integer sx, sy, sz, vx, vy, vz; // Trajectory s + t * v in 3D space
   Integer a, b, c;
 
   Hailstone(Integer sx, Integer sy, Integer sz, Integer vx, Integer vy, Integer vz)
@@ -367,199 +369,30 @@ namespace part1 {
 
 namespace part2 {
 
-  class Trajectory {
-  public:
-    Integer sx, sy, sz, vx, vy, vz;
-    Integer a, b, c, d;
 
-      // From:
-      // x = x0 + vx * t
-      // y = y0 + vy * t
-      // z = z0 + vz * t
-      // eliminate t
-      // x(vy-vz) + y(vz-vx) + z(vx-vy) = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
-      // x(vy-vz) + y(vz-vx) + z(vx-vy) - x0(vy-vz) - y0(vz-vx) - z0(vx-vy) = 0
-      // ax + by + cz = d
-      // with a = vy-vz, b = vz-vx, c = vx-vy, d = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
-    Trajectory(Integer sx, Integer sy, Integer sz, Integer vx, Integer vy, Integer vz)
-      : sx(sx), sy(sy), sz(sz), vx(vx), vy(vy), vz(vz), a(vy-vz), b(vz-vx), c(vx-vy),d(sx*(vy-vz) + sy*(vz-vx) + sz*(vx-vy)) {}
+  namespace mine {
+    class Trajectory {
+    public:
+      Integer x0, y0, z0, dx, dy, dz;
+    };
 
-    friend std::ostream& operator<<(std::ostream& os, const Hailstone& hs) {
-      return os << "Hailstone{a=" << hs.a << ", b=" << hs.b << ", c=" << hs.c << "}";
+    Trajectory to_stone_trajectory(Model const& model) {
+      return {0,0,0,0,0,0}; // Todo, implement ;)
+
+      // Idea: To find the trajectory of a stone that will hit every hailstone at some time t in the future,
+      //       maybe we can begin by finding a plane that all hailstones trajectory will intersect at some time t in the future.
+      //       Hm... I can imagine hailstone trajectories such that many such planes exist that all hailstones goes through at some point in time.
+      //       But we want the plane where the intersection point on this plane for a line!     
     }
-  };
-  using Trajectories = std::vector<Trajectory>;
-
-  // Function to calculate the Jacobian matrix
-  // The Jacobian matrix is a matrix of partial derivatives, 
-  // where the entry in the i-th row and j-th column 
-  // is the derivative of the i-th equation with respect to the j-th variable
-  // In our case the variables x are rx0, ry0, rz0, da, db, dc
-  struct H {
-    Integer hx0, hy0, hz0;
-  };
-  std::vector<std::vector<double>> calculateJacobian(const std::vector<double>& x,Trajectories const& h) {
-    std::vector<std::vector<double>> J(6, std::vector<double>(6));
-    // Calculate partial derivatives and fill in the Jacobian matrix
-    for (int i = 0; i < 6; i++) {
-        for (int j = 0; j < 6; j++) {
-          // With f = hx0*ra -rx0*ra + hy0*rb -ry0rb + hz0*rc - rz0*rc = hx0*ha + hy0*hb + hz0*hc.
-          //        = hx0*x[3] - x[0]*x[3] + hy0*x[4] - x[1]*x[4] + hz0*x[5] - x[2]*x[5]
-          // calculate df[i]/dx[j]
-          // for the i'th function. 
-          //    df/dx[0] = -x[3] (negative rock x velocity)
-          //    df/dx[1] = -x[4] (negative rock y velocity
-          //    df/dx[2] = -x[5] (negative rock z velocity)
-          //    df/dx[3] = hx0 - x[0] (hailstone x0 in rock frame)
-          //    df/dx[4] = hy0 - x[1] (hailstone y0 in rock frame)
-          //    df/dx[5] = hz0 - x[2] (hailstone z0 in rock frame)
-          J[i] = {-x[3], -x[4], -x[5], h[i].sx- x[0], h[i].sy - x[1], h[i].sz - x[2]};
-        }
-    }
-    return J;
-  }
-
-  // Function to calculate the residual vector
-  // Calculate the residual vector, 
-  // which is the vector of the values of your equations at the current guess
-  std::vector<double> calculateResidual(const std::vector<double>& x,Trajectories const& hailstones) {
-    std::vector<double> r(6);
-    // Calculate partial derivatives and fill in the Jacobian matrix
-    for (int i = 0; i < 6; i++) {
-        for (int j = 0; j < 6; j++) {
-          // With f = hx0*ra -rx0*ra + hy0*rb -ry0rb + hz0*rc - rz0*rc = hx0*ha + hy0*hb + hz0*hc.
-          //        = hx0*x[3] - x[0]*x[3] + hy0*x[4] - x[1]*x[4] + hz0*x[5] - x[2]*x[5]
-          r[i] = 0;
-        }
-    }
-    return r;
-  }
-
-  // Function to solve the linear system J*dx = -r
-  std::vector<double> solveLinearSystem(const std::vector<std::vector<double>>& J, const std::vector<double>& r) {
-    // TODO: Implement this function
-    return {};
-  }
-
-  // Function to implement Newton's method
-  // x0 is the initial initial guess for the variables rx0, ry0, rz0, da, db, dc
-  std::vector<double> newtonsMethod(std::vector<double> x0,Trajectories const& hailstones) {
-    std::vector<double> x = x0;
-    double tolerance = 1e-6;
-
-    while (true) {
-      std::vector<std::vector<double>> J = calculateJacobian(x,hailstones);
-      std::vector<double> r = calculateResidual(x,hailstones);
-
-      std::vector<double> dx = solveLinearSystem(J, r);
-
-      // Update the guess
-      for (int i = 0; i < x.size(); i++) {
-        x[i] -= dx[i];
-      }
-
-      // Check for convergence
-      double dx_norm = 0.0;
-      for (double val : dx) {
-        dx_norm += val * val;
-      }
-      dx_norm = std::sqrt(dx_norm);
-
-      if (dx_norm < tolerance) {
-        break;
-      }
-    }
-
-    return x;
-  }
-
-  Trajectories to_three_random(Trajectories const& hailstones) {
-    Trajectories result;
-    
-    // Create a random number generator
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    
-    // Shuffle the hailstones vector
-    Trajectories shuffledHailstones = hailstones;
-    std::shuffle(shuffledHailstones.begin(), shuffledHailstones.end(), gen);
-    
-    // Pick the first three stones from the shuffled vector
-    for (int i = 0; i < 3 && i < shuffledHailstones.size(); ++i) {
-      result.push_back(shuffledHailstones[i]);
-    }
-    
-    return result;
-  }
-
-  std::vector<double> to_guess(Trajectories const& hailstones) {
-    // Find some good-enough guess given the provided hailstone trajectories we are trying to collide with
-    return {0,0,0,0,0,0}; // Todo: Pick a good starting guess for a trajectory that intersects all hailstones
-  }
-
-  Trajectory to_stone(Model const& model) {
-    Trajectory result{0,0,0,0,0,0};
-    Trajectories hailstones{};
-    for (auto const& entry : model) {
-      hailstones.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
-    }
-
-    // Try a number of times to find a solution
-    for (int i=0;i<3;++i) {
-      // a) Pick three random hailstones
-      auto three_random = to_three_random(hailstones);
-      // b) Imagine a reference frame of a thrown rock 
-      Trajectory rock{0,0,0,0,0,0};
-      // c) Find a velocity vector for the reference frame so that all hailstones will intersect 
-      //    with the origo of the frame (intersect with the rock from the rocks point of view)
-
-      // Each trajectory is on the form ax + by + cz = d:
-      // with a = vy-vz, b = vz-vx, c = vx-vy, d = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
-
-      // We are looking to project these trajectories to the reference frame of the rock.
-      // If the rock has the velocity vector rvx,rvy,rvz
-      // And a hailstone has the velocity vector hvx,hvy,hvz
-      // In the reference frame of the rock the hailstone will have the velocity vector hvx-rvx,hvy-rvy,hvz-rvz
-      // and the trajectory will now have 
-      // a´= (hvy-rvy) - (hvz-rvz) = (hvy-hvz) - (rvy - rvz) = a -da with da = rvy - rvz = ra (trajectory parameter a of rock)
-      // b´= (hvz-rvz) - (hvx-rvx) = (hvz-hvx) - (rvz - rvx) = b -db with db = rvz - rvx = rb (trajectory parameter b of rock
-      // c´= (hvx-rvx) - (hvy-rvy) = (hvx-hvy) - (rvx - rvy) = c -dc with dc = rvx - rvy = rc (trajectory parameter c of rock )
-      // d´= x0´*a´+ y0´*b´+ z0´*c´ = x0´*(a - da) + y0´*(b - db) + z0´*(c - dc) = d - (x0´*da + y0´*db + z0´*dc) = d - dd with dd = x0´*da + y0´*db + z0´*dc
-      // Where x0´,y0, z0´are the hailstone starting position as seen from the rocks reference frame.      
-
-      // The hailstone will pass through the origo of the rock reference frame if d´ = 0 or d = dd
-      // x0´= hx0 - rx0, y0´= hy0 - ry0, z0´= hz0 - rz0
-      // d - dd = 0 with d known for the hailstone gives:
-      // d - (x0´*da + y0´*db + z0´*dc) = d - ((hx0 - rx0)da + (hy0 - ry0)db + (hz0 - rz0)dc)
-      // The problem now is that the equation to solve includes the products of rock speeds and rock starting positions...
-      // This equation dos not have a linear solution (it is quadratic).
-      // Specifically: (hx0 - rx0)da + (hy0 - ry0)db + (hz0 - rz0)dc = hx0*da -rx0*da + hy0*db -ry0db + hz0*dc - rz0*dc
-      // The linear terms are hx0*da, hy0*db, hz0*dc while the quadratic terms are -rx0*da, -ry0db, -rz0*dc
-      // 1) I suppose we could solve for the quadratic terms using newton rapson (a numerical method)...
-
-        // lets newtons method ;)
-        // I Propose each function of the system to be f = dd = d
-        // f = hx0*ra -rx0*ra + hy0*rb -ry0rb + hz0*rc - rz0*rc = hx0*ha + hy0*hb + hz0*hc.
-
-        auto x = newtonsMethod(to_guess(hailstones),hailstones);
-
-
-      // 2) Or we could search a range for rx,ry,rx and see if we can find the rvx,rvy,rvx that solves the equation...
-
-
-      // d) Use the rock velocity to backtrack to its starting position from the intersection point
-      // d) assign the rock to result and break out of loop if there is an integer solution
-    }
-    
-    return result;
   }
 
   // Refactored from C++ solution https://github.com/tbeu/AdventOfCode/blob/master/2023/day24/day24.cpp
   // many thanks!
+  // Note: The comments are mostly mine made while refactoring!
   namespace tbeu {
 
-    using V = std::array<int64_t, 3>;
-    using Line = std::array<V, 2>;
+    using V = std::array<int64_t, 3>; // 3D vector
+    using Line = std::array<V, 2>; // start,velocity vectors pair
     using Lines = std::vector<Line>;
 
     V operator-(const V& lhs, const V& rhs) {
@@ -585,6 +418,9 @@ namespace part2 {
       return lines;
     }
 
+    // Returns the two times t and s.
+    // The time t when object on Line a intersects with line b, 
+    // and time s when object on line b intersects with line a.
     template <typename INTERSECT_TYPE>
     static std::optional<std::array<INTERSECT_TYPE, 2>> intersect(const Line &a, const Line &b) {
       const auto &p1 = a[0];
@@ -592,10 +428,10 @@ namespace part2 {
       const auto &p2 = b[0];
       const auto &v2 = b[1];
       INTERSECT_TYPE s, t;
-      const auto den1 = v2[0] * v1[1];
-      const auto den2 = v2[1] * v1[0];
+      const auto den1 = v2[0] * v1[1]; // v2x*v1y
+      const auto den2 = v2[1] * v1[0]; // v2y*v1x
       if (den1 == den2) {
-        // parallel or identical
+        // parallel or identical (v2x*v1y - v2y*v1x == 0)
         return std::nullopt;
       } 
       else {
@@ -613,12 +449,11 @@ namespace part2 {
       return std::array<INTERSECT_TYPE, 2>{t, s};
     }
 
+    // Check objects on line a and b intersect each others trajectory at some positive time.
+    // Note: They do not have to collide, just intersect each trajectories as an integral time value.
     template <typename INTERSECT_TYPE>
-    static bool checkIntersect(
-       const Line &a
-      ,const Line &b
-      ,int64_t start
-      ,int64_t end, bool ignoreZ) {
+    static bool checkIntersect(const Line &a,const Line &b,int64_t start,int64_t end, bool ignoreZ) {
+
       const auto ts = intersect<INTERSECT_TYPE>(a, b);
       const auto &p1 = a[0];
       const auto &v1 = a[1];
@@ -626,23 +461,25 @@ namespace part2 {
       const auto &v2 = b[1];
       if (!ts.has_value()) {
         const auto isParallel =
-            (p2[0] - p1[0]) * v1[1] == (p2[1] - p1[1]) * v1[0];
+            (p2[0] - p1[0]) * v1[1] == (p2[1] - p1[1]) * v1[0]; // xy-projection is parallel
         if (ignoreZ) {
           return isParallel;
         } else {
           return isParallel ||
-                 (p2[0] - p1[0]) * v1[2] == (p2[2] - p1[2]) * v1[0];
+                 (p2[0] - p1[0]) * v1[2] == (p2[2] - p1[2]) * v1[0]; // Parallel in xyz space
         }
       }
       const auto [t, s] = ts.value();
-      auto isInter = s >= 0 && t >= 0;
+      bool isInter = s >= 0 && t >= 0; // In the future
       if constexpr (std::is_integral_v<INTERSECT_TYPE>) {
         if (isInter && !ignoreZ) {
           const auto r1 = p1[2] + t * v1[2];
           const auto r2 = p2[2] + s * v2[2];
-          isInter = isInter && r1 == r2;
+          isInter = isInter && r1 == r2; // r1 is at the same position at time t as r2 is at time s.
         }
       } else {
+        // Floating point comparison
+        // Find an overlap in the test area.
         for (uint8_t i = 0; i < 3; ++i) {
           if (!isInter) {
             break;
@@ -656,9 +493,11 @@ namespace part2 {
           isInter = isInter && r1 <= end && r2 <= end;
         }
       }
-      return isInter;
+      return isInter; // True if the lines intersect each others trajectories at some positive time
     }
 
+    // V is a velocity vector
+    // returns true if all hailstones with a velocity reduced by vDiff will intersect
     template <typename INTERSECT_TYPE>
     static bool checkIntersect(const Lines &lines, const V &vDiff, bool ignoreZ = true)
     {
@@ -682,29 +521,79 @@ namespace part2 {
     static V findRock(const Lines &lines) {
       constexpr int64_t vRange = 300; // scan range
       for (int64_t v1 = -vRange; v1 <= vRange; ++v1) {
-        // x coordinate
+        // vx velocity
         for (int64_t v2 = -vRange; v2 <= vRange; ++v2) {
-          // y coordinate
-          // +/- vRange for two line candidates
+          // vy velocity
           if (const auto v = V{v1, v2, 0};!checkIntersect<int64_t>(lines, v, true)) {
             // Don't even overlap in 2D (x,y plane)
             continue;
           }
           for (int64_t v3 = -vRange; v3 <= vRange; ++v3) {
-            // z coordinate
+            // vz velocity
+            // Check if all lines reduced with velocity v (vx,vy,vz) (rock reference frame) intersects each other
             if (const auto v = V{v1, v2, v3};checkIntersect<int64_t>(lines, v, false)) {
-              // The line v intersects all lines
-              // get the actual intersection point (from any two lines)
+              // All lines intersect each other in the rocks reference frame (when their velocity is reduced by v))
+              // get the actual intersection point (from any two lines) as seen in global reference frame
               const auto pi = lines[0][0];
-              const auto vi = lines[0][1] - v;
+              const auto vi = lines[0][1] - v; // vi is the hailstone i velocity as seen within rocks reference frame
               const auto pj = lines[1][0];
-              const auto vj = lines[1][1] - v;
+              const auto vj = lines[1][1] - v; // vj is the hailstone j velocity as seen within rocks reference frame
               const auto [t, s] =
                   intersect<int64_t>({pi, vi}, {pj, vj}).value();
-              std::cout << NL << "tbeu says: "
-                        << " " << pi[0] + t * vi[0] << " , "
-                        << pi[1] + t * vi[1] << " , " << pi[2] + t * vi[2];
-              return V{pi[0] + t * vi[0], pi[1] + t * vi[1], pi[2] + t * vi[2]}; // 557743507346379
+              // t and s are times such that pi + t * vi = pj + s * vj
+              // The velocity v is the rocks velocity, and the hailstone velocity is vi and vj in rocks reference frame.
+              // Hm... Dear tbeu, I do not get why the rock starting position is pi + t+vi?
+              // Maybe t and s are the starting times in the past so that the two hailstones collide at rocks time=0?
+              // I leave this be for now and just accept the solution as it has proven to be correct!
+              Line rock{V{pi[0]+vi[0]*t,pi[1]+vi[1]*t,pi[2]+vi[2]*t},v};
+              std::cout << NL << "tbeu found rock: ";
+              std::cout << NT << "x0:" << rock[0][0] << " y0:" << rock[0][1] << " z0:" << rock[0][2];
+              std::cout << NT << "vx:" << rock[1][0] << " vy:" << rock[1][1] << " vz:" << rock[1][2];
+
+              // Lets check that the solution works.
+              for (auto const& line : lines) {
+                const auto &p = line[0];
+                const auto &v = line[1];
+                Integer tx{},ty{},tz{};
+                if (rock[1][0] - v[0] != 0) {
+                  tx = (p[0] - rock[0][0]) / (rock[1][0] - v[0]);
+                }
+                if (rock[1][1] - v[1] != 0) {
+                  ty = (p[1] - rock[0][1]) / (rock[1][1] - v[1]);
+                }
+                if (rock[1][2] - v[2] != 0) {
+                  tz = (p[2] - rock[0][2]) / (rock[1][2] - v[2]);
+                }
+                if (tx == ty and ty == tz) {
+                  std::cout << NT << "at time:" << tx << " rock collides with hailstone at position:" << p[0] + tx * v[0] << " " << p[1] + tx * v[1] << " " << p[2] + tx * v[2];
+                }
+                else {
+                  std::cout << NT << "ERROR: time check failed for hailstone:" << p[0] << " " << p[1] << " " << p[2] << " velocity:" << v[0] << " " << v[1] << " " << v[2];
+                  std::cout << NT << "tx:" << tx << " ty:" << ty << " tz:" << tz << " NOT same time?";
+                }
+              }
+
+              // return V{pi[0] + t * vi[0], pi[1] + t * vi[1], pi[2] + t * vi[2]}; // 557743507346379
+              return rock[0]; // 557743507346379
+
+              // part2
+              // tbeu found rock: 
+              // 	x0:159153037374407 y0:228139153674672 z0:170451316297300
+              // 	vx:245 vy:75 vz:221
+              // tbeu says solution is:  159153037374407 , 228139153674672 , 170451316297300
+
+              // ------------ REPORT----------------
+              // Part 2 answers
+              // 	answer[puzzle.txt] 557743507346379
+
+              // Lets check the solution for the first hailstone.
+              // 308205470708820, 82023714100543, 475164418926765 @ 42, 274, -194
+              // x: 159153037374407 + t*245 = 308205470708820 + t*42 ?
+              // y: 228139153674672 + t*75 = 82023714100543 + t*274 ?
+              // z: 170451316297300 + t*221 = 475164418926765 + t*-194 ?
+              // 245t - 42t = 308205470708820 - 159153037374407;
+              // 75t - 274t = 82023714100543 - 228139153674672;
+              // 221t + 194t = 475164418926765 - 170451316297300;
             }
           }
         }
