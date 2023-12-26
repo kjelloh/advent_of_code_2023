@@ -21,8 +21,9 @@
 #include <format>
 #include <optional>
 #include <regex>
-#include <cassert> // 
-
+#include <cassert>
+#include <random>
+#include <vector>
 
 char const* example = R"(19, 13, 30 @ -2,  1, -2
 18, 19, 22 @ -1, -1, -2
@@ -365,75 +366,192 @@ namespace part1 {
 }
 
 namespace part2 {
-  // Refactored from hyperneutrino python https://github.com/hyper-neutrino/advent-of-code/blob/main/2023/day24p2.py
-  // Note: This python code uses a python library to solve the system of equations.
-  // The C++ code below solves the system of equations directly.
-  namespace hyperneutrino {
 
-    class Hailstone {
-    public:
-      Integer sx, sy, sz, vx, vy, vz;
-      Integer a, b, c, d;
+  class Trajectory {
+  public:
+    Integer sx, sy, sz, vx, vy, vz;
+    Integer a, b, c, d;
 
-        // From:
-        // x = x0 + vx * t
-        // y = y0 + vy * t
-        // z = z0 + vz * t
-        // eliminate t
-        // x(vy-vz) + y(vz-vx) + z(vx-vy) = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
-        // x(vy-vz) + y(vz-vx) + z(vx-vy) - x0(vy-vz) - y0(vz-vx) - z0(vx-vy) = 0
-        // ax + by + cz = d
-        // with a = vy-vz, b = vz-vx, c = vx-vy, d = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
-      Hailstone(Integer sx, Integer sy, Integer sz, Integer vx, Integer vy, Integer vz)
-        : sx(sx), sy(sy), sz(sz), vx(vx), vy(vy), vz(vz), a(vy-vz), b(vz-vx), c(vx-vy),d(sx*(vy-vz) + sy*(vz-vx) + sz*(vx-vy)) {}
+      // From:
+      // x = x0 + vx * t
+      // y = y0 + vy * t
+      // z = z0 + vz * t
+      // eliminate t
+      // x(vy-vz) + y(vz-vx) + z(vx-vy) = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
+      // x(vy-vz) + y(vz-vx) + z(vx-vy) - x0(vy-vz) - y0(vz-vx) - z0(vx-vy) = 0
+      // ax + by + cz = d
+      // with a = vy-vz, b = vz-vx, c = vx-vy, d = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
+    Trajectory(Integer sx, Integer sy, Integer sz, Integer vx, Integer vy, Integer vz)
+      : sx(sx), sy(sy), sz(sz), vx(vx), vy(vy), vz(vz), a(vy-vz), b(vz-vx), c(vx-vy),d(sx*(vy-vz) + sy*(vz-vx) + sz*(vx-vy)) {}
 
-      friend std::ostream& operator<<(std::ostream& os, const Hailstone& hs) {
-        return os << "Hailstone{a=" << hs.a << ", b=" << hs.b << ", c=" << hs.c << "}";
-      }
-    };
-
-    using Equation = std::array<Integer,4>; // a,b,c,d in ax + by + cz - d = 0
-    using System = std::vector<Equation>;
-
-    std::optional<System> solve(System system) {
-      // Solve the system of equations using Gauss-Jordan elimination
-      if (std::all_of(system.begin(), system.end(), [](auto const& eq) { return std::count(eq.begin(), eq.end(), 0) == eq.size()-1;})) {
-        // All equations are 0 = 0
-        return system;
-      }
-      else return std::nullopt; // System is underdetermined
+    friend std::ostream& operator<<(std::ostream& os, const Hailstone& hs) {
+      return os << "Hailstone{a=" << hs.a << ", b=" << hs.b << ", c=" << hs.c << "}";
     }
+  };
+  using Trajectories = std::vector<Trajectory>;
 
-    int count(Model const& model,auto args) {
-      std::vector<Hailstone> hailstones;
-      for (auto const& entry : model) {
-        hailstones.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
-      }
-
-      int total = 0;
-      auto const& [_,__,min,max] = args;
-
-      for (Integer i = 0; i < hailstones.size(); ++i) {
-        for (Integer j = 0; j < i; ++j) {
-          // We are looking for the trajectory of a rock with which all hailstones will intersect.
-          // As the only thing we can control is the thrown rock meaning we have siz degrees of freedom.
-          // We need to solve for the six unknowns sx,sy,sz,vx,vy,vz.
-          // So worst case we need six independent equations to solve for six unknowns.
-          // Now, how many hailstone trajectories do we need to tie down all the six unknowns of the thrown stone trajectory?
-          // Well, we dont know. It depends on how the hailstone trajectories we seek to intersect with relate to each other.
-
-          // Wait! No, for our thrown stone and a hailstone to actually collide, they need to be at the same location at the same time!
-          // So, for each stone position p(t) = p0 + v * t, and hailstone position h(t) = h0 + u * t, there need to be a t when p(t) = h(t).
-          // But the stone does not have to hit all the hailstones at the same time, it can hit one at a time.
-          // Also, we are not actually interested in the time of collision, only the trajectory of the thrown stone.
-          // hm...
+  // Function to calculate the Jacobian matrix
+  // The Jacobian matrix is a matrix of partial derivatives, 
+  // where the entry in the i-th row and j-th column 
+  // is the derivative of the i-th equation with respect to the j-th variable
+  // In our case the variables x are rx0, ry0, rz0, da, db, dc
+  struct H {
+    Integer hx0, hy0, hz0;
+  };
+  std::vector<std::vector<double>> calculateJacobian(const std::vector<double>& x,Trajectories const& h) {
+    std::vector<std::vector<double>> J(6, std::vector<double>(6));
+    // Calculate partial derivatives and fill in the Jacobian matrix
+    for (int i = 0; i < 6; i++) {
+        for (int j = 0; j < 6; j++) {
+          // With f = hx0*ra -rx0*ra + hy0*rb -ry0rb + hz0*rc - rz0*rc = hx0*ha + hy0*hb + hz0*hc.
+          //        = hx0*x[3] - x[0]*x[3] + hy0*x[4] - x[1]*x[4] + hz0*x[5] - x[2]*x[5]
+          // calculate df[i]/dx[j]
+          // for the i'th function. 
+          //    df/dx[0] = -x[3] (negative rock x velocity)
+          //    df/dx[1] = -x[4] (negative rock y velocity
+          //    df/dx[2] = -x[5] (negative rock z velocity)
+          //    df/dx[3] = hx0 - x[0] (hailstone x0 in rock frame)
+          //    df/dx[4] = hy0 - x[1] (hailstone y0 in rock frame)
+          //    df/dx[5] = hz0 - x[2] (hailstone z0 in rock frame)
+          J[i] = {-x[3], -x[4], -x[5], h[i].sx- x[0], h[i].sy - x[1], h[i].sz - x[2]};
         }
+    }
+    return J;
+  }
+
+  // Function to calculate the residual vector
+  // Calculate the residual vector, 
+  // which is the vector of the values of your equations at the current guess
+  std::vector<double> calculateResidual(const std::vector<double>& x,Trajectories const& hailstones) {
+    std::vector<double> r(6);
+    // Calculate partial derivatives and fill in the Jacobian matrix
+    for (int i = 0; i < 6; i++) {
+        for (int j = 0; j < 6; j++) {
+          // With f = hx0*ra -rx0*ra + hy0*rb -ry0rb + hz0*rc - rz0*rc = hx0*ha + hy0*hb + hz0*hc.
+          //        = hx0*x[3] - x[0]*x[3] + hy0*x[4] - x[1]*x[4] + hz0*x[5] - x[2]*x[5]
+          r[i] = 0;
+        }
+    }
+    return r;
+  }
+
+  // Function to solve the linear system J*dx = -r
+  std::vector<double> solveLinearSystem(const std::vector<std::vector<double>>& J, const std::vector<double>& r) {
+    // TODO: Implement this function
+    return {};
+  }
+
+  // Function to implement Newton's method
+  // x0 is the initial initial guess for the variables rx0, ry0, rz0, da, db, dc
+  std::vector<double> newtonsMethod(std::vector<double> x0,Trajectories const& hailstones) {
+    std::vector<double> x = x0;
+    double tolerance = 1e-6;
+
+    while (true) {
+      std::vector<std::vector<double>> J = calculateJacobian(x,hailstones);
+      std::vector<double> r = calculateResidual(x,hailstones);
+
+      std::vector<double> dx = solveLinearSystem(J, r);
+
+      // Update the guess
+      for (int i = 0; i < x.size(); i++) {
+        x[i] -= dx[i];
       }
 
-      std::cout << NL << "hyperneutrion says : " << total << std::endl;
+      // Check for convergence
+      double dx_norm = 0.0;
+      for (double val : dx) {
+        dx_norm += val * val;
+      }
+      dx_norm = std::sqrt(dx_norm);
 
-      return total;
+      if (dx_norm < tolerance) {
+        break;
+      }
     }
+
+    return x;
+  }
+
+  Trajectories to_three_random(Trajectories const& hailstones) {
+    Trajectories result;
+    
+    // Create a random number generator
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    
+    // Shuffle the hailstones vector
+    Trajectories shuffledHailstones = hailstones;
+    std::shuffle(shuffledHailstones.begin(), shuffledHailstones.end(), gen);
+    
+    // Pick the first three stones from the shuffled vector
+    for (int i = 0; i < 3 && i < shuffledHailstones.size(); ++i) {
+      result.push_back(shuffledHailstones[i]);
+    }
+    
+    return result;
+  }
+
+  std::vector<double> to_guess(Trajectories const& hailstones) {
+    // Find some good-enough guess given the provided hailstone trajectories we are trying to collide with
+    return {0,0,0,0,0,0}; // Todo: Pick a good starting guess for a trajectory that intersects all hailstones
+  }
+
+  Trajectory to_stone(Model const& model) {
+    Trajectory result{0,0,0,0,0,0};
+    Trajectories hailstones{};
+    for (auto const& entry : model) {
+      hailstones.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
+    }
+
+    // Try a number of times to find a solution
+    for (int i=0;i<3;++i) {
+      // a) Pick three random hailstones
+      auto three_random = to_three_random(hailstones);
+      // b) Imagine a reference frame of a thrown rock 
+      Trajectory rock{0,0,0,0,0,0};
+      // c) Find a velocity vector for the reference frame so that all hailstones will intersect 
+      //    with the origo of the frame (intersect with the rock from the rocks point of view)
+
+      // Each trajectory is on the form ax + by + cz = d:
+      // with a = vy-vz, b = vz-vx, c = vx-vy, d = x0(vy-vz) + y0(vz-vx) + z0(vx-vy)
+
+      // We are looking to project these trajectories to the reference frame of the rock.
+      // If the rock has the velocity vector rvx,rvy,rvz
+      // And a hailstone has the velocity vector hvx,hvy,hvz
+      // In the reference frame of the rock the hailstone will have the velocity vector hvx-rvx,hvy-rvy,hvz-rvz
+      // and the trajectory will now have 
+      // a´= (hvy-rvy) - (hvz-rvz) = (hvy-hvz) - (rvy - rvz) = a -da with da = rvy - rvz = ra (trajectory parameter a of rock)
+      // b´= (hvz-rvz) - (hvx-rvx) = (hvz-hvx) - (rvz - rvx) = b -db with db = rvz - rvx = rb (trajectory parameter b of rock
+      // c´= (hvx-rvx) - (hvy-rvy) = (hvx-hvy) - (rvx - rvy) = c -dc with dc = rvx - rvy = rc (trajectory parameter c of rock )
+      // d´= x0´*a´+ y0´*b´+ z0´*c´ = x0´*(a - da) + y0´*(b - db) + z0´*(c - dc) = d - (x0´*da + y0´*db + z0´*dc) = d - dd with dd = x0´*da + y0´*db + z0´*dc
+      // Where x0´,y0, z0´are the hailstone starting position as seen from the rocks reference frame.      
+
+      // The hailstone will pass through the origo of the rock reference frame if d´ = 0 or d = dd
+      // x0´= hx0 - rx0, y0´= hy0 - ry0, z0´= hz0 - rz0
+      // d - dd = 0 with d known for the hailstone gives:
+      // d - (x0´*da + y0´*db + z0´*dc) = d - ((hx0 - rx0)da + (hy0 - ry0)db + (hz0 - rz0)dc)
+      // The problem now is that the equation to solve includes the products of rock speeds and rock starting positions...
+      // This equation dos not have a linear solution (it is quadratic).
+      // Specifically: (hx0 - rx0)da + (hy0 - ry0)db + (hz0 - rz0)dc = hx0*da -rx0*da + hy0*db -ry0db + hz0*dc - rz0*dc
+      // The linear terms are hx0*da, hy0*db, hz0*dc while the quadratic terms are -rx0*da, -ry0db, -rz0*dc
+      // 1) I suppose we could solve for the quadratic terms using newton rapson (a numerical method)...
+
+        // lets newtons method ;)
+        // I Propose each function of the system to be f = dd = d
+        // f = hx0*ra -rx0*ra + hy0*rb -ry0rb + hz0*rc - rz0*rc = hx0*ha + hy0*hb + hz0*hc.
+
+        auto x = newtonsMethod(to_guess(hailstones),hailstones);
+
+
+      // 2) Or we could search a range for rx,ry,rx and see if we can find the rvx,rvy,rvx that solves the equation...
+
+
+      // d) Use the rock velocity to backtrack to its starting position from the intersection point
+      // d) assign the rock to result and break out of loop if there is an integer solution
+    }
+    
+    return result;
   }
 
   // Refactored from C++ solution https://github.com/tbeu/AdventOfCode/blob/master/2023/day24/day24.cpp
