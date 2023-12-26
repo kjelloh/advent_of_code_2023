@@ -551,6 +551,7 @@ namespace part2 {
               std::cout << NT << "vx:" << rock[1][0] << " vy:" << rock[1][1] << " vz:" << rock[1][2];
 
               // Lets check that the solution works.
+              std::map<Integer,Line> collisions{}; 
               for (auto const& line : lines) {
                 const auto &p = line[0];
                 const auto &v = line[1];
@@ -565,12 +566,30 @@ namespace part2 {
                   tz = (p[2] - rock[0][2]) / (rock[1][2] - v[2]);
                 }
                 if (tx == ty and ty == tz) {
+                  collisions[tx] = line;
                   std::cout << NT << "at time:" << tx << " rock collides with hailstone at position:" << p[0] + tx * v[0] << " " << p[1] + tx * v[1] << " " << p[2] + tx * v[2];
                 }
                 else {
-                  std::cout << NT << "ERROR: time check failed for hailstone:" << p[0] << " " << p[1] << " " << p[2] << " velocity:" << v[0] << " " << v[1] << " " << v[2];
-                  std::cout << NT << "tx:" << tx << " ty:" << ty << " tz:" << tz << " NOT same time?";
+                  // As it turns out one hailstone in my input had the same vy as the rock (so velocity difference is 0 in y-direction and ty is undetermined)
+                  // ERROR: time check failed for hailstone:281044650604797 228139153674672 288712115516572 velocity:10 75 -7
+                  // 	tx:518687715874 ty:0 tz:518687715874 NOT same time?                  
+                  if (tx > 0) collisions[tx] = line;
+                  else if (ty > 0) collisions[ty] = line;
+                  else if (tz > 0) collisions[tz] = line;
+                  else {
+                    std::cout << NT << "ERROR: time check failed for hailstone:" << p[0] << " " << p[1] << " " << p[2] << " velocity:" << v[0] << " " << v[1] << " " << v[2];
+                    std::cout << NT << "tx:" << tx << " ty:" << ty << " tz:" << tz << " NOT same time?";
+                  }
                 }
+              }
+              // print collisions in time order (map will sort on the key being time from low to high)
+              std::cout << NL << "Collisions in time order";
+              std::pair<Integer,Integer> times{0,0};
+              for (auto const& [time,line] : collisions) {
+                times.second = time;
+                auto dt = times.second - times.first;
+                std::cout << NT << dt << "ns later at time: " << time  << "ns rock collides with hailstone at position:" << line[0][0] + time * line[1][0] << " " << line[0][1] + time * line[1][1] << " " << line[0][2] + time * line[1][2];
+                times.first = times.second;
               }
 
               // return V{pi[0] + t * vi[0], pi[1] + t * vi[1], pi[2] + t * vi[2]}; // 557743507346379
