@@ -430,18 +430,33 @@ namespace part2 {
     }
 
     using Trajectories = std::vector<Trajectory>;
+    struct PlaneEquation {
+      Integer A, B, C, D; // Ax + By + Cz + D = 0
+    };
 
-    std::tuple<Integer, Integer, Integer, Integer> to_plane_equation(Trajectory line1, Trajectory line2) {
-        // Calculate the normal vector of the plane (cross product of the orientation vectors)
-        auto n = cross(line1.orientation, line2.orientation);
+    PlaneEquation to_plane_equation(Trajectory trajectory1, Trajectory trajectory2) {
+      // Calculate the normal vector of the plane (cross product of the orientation vectors)
+      auto n = cross(trajectory1.orientation, trajectory2.orientation);
 
-        // Calculate D (dot product of the normal vector and any point on the plane)
-        auto D = -dot(n, line1.position);
+      // Calculate D (dot product of the normal vector and any point on the plane)
+      auto D = -dot(n, trajectory1.position);
 
-        // Return the coefficients of the plane equation
-        return std::make_tuple(n[0], n[1], n[2], D);
+      // Return the coefficients of the plane equation
+      return {n[0], n[1], n[2], D};
     }
 
+    std::string to_string(PlaneEquation const& eq) {
+      std::string result = std::to_string(eq.A);
+      result += "x + ";
+      result += std::to_string(eq.B);
+      result += "y + ";
+      result += std::to_string(eq.C);
+      result += "z + ";
+      result += std::to_string(eq.D);
+      result += " = 0";
+      return result;
+    }
+    
     Trajectories get_three_random(Trajectories const& trajectories) {
       std::vector<Trajectory> randomTrajectories;  
       // Create a copy of the trajectories vector
@@ -453,6 +468,75 @@ namespace part2 {
       // Get the first three shuffled trajectories
       randomTrajectories.assign(shuffledTrajectories.begin(), shuffledTrajectories.begin() + 3);  
       return randomTrajectories;
+    }
+
+    Trajectory solve(const std::array<PlaneEquation, 3>& eqs) {
+      // Check if x_z and y_z have exact integer solutions
+      Integer denominator = eqs[0].A * eqs[1].B - eqs[1].A * eqs[0].B;
+      Integer numerator_x = eqs[0].D * eqs[1].B - eqs[1].D * eqs[0].B;
+      Integer numerator_y = eqs[0].D * eqs[1].A - eqs[1].D * eqs[0].A;
+
+      if (numerator_x % denominator != 0 || numerator_y % denominator != 0) {
+        throw std::runtime_error("No exact integer solution exists.");
+      }
+
+      // Solve eqs[0] and eqs[1] for x and y in terms of z
+      Integer x_z = numerator_x / denominator;
+      Integer y_z = numerator_y / denominator;
+
+      // Substitute x_z and y_z into eqs[2] to find z
+      Integer z = -(eqs[2].A * x_z + eqs[2].B * y_z + eqs[2].D) / eqs[2].C;
+
+      // Calculate x and y
+      Integer x = x_z * z;
+      Integer y = y_z * z;
+
+      // The direction vector of the line is the cross product of the normal vectors of any two planes
+      Vector v1 = {eqs[0].A, eqs[0].B, eqs[0].C};
+      Vector v2 = {eqs[1].A, eqs[1].B, eqs[1].C};
+      Vector direction = cross(v1, v2);
+
+      // Create a Trajectory object
+      Trajectory trajectory;
+      trajectory.position = {x, y, z};
+      trajectory.orientation = direction;
+
+      return trajectory;
+    }
+
+    void print_collisions(Trajectory const& rock, Trajectories const& hailstones) {
+      std::cout << NL << "print_collisions for rock:" << to_string(rock) << " and " << hailstones.size() << " hailstones.";
+      std::map<Integer,Trajectory> collisions{};
+      for (auto const& hailstone : hailstones) {
+        // Calculate the time of collision
+        // rock.position + t * rock.orientation = hailstone.position + t * hailstone.orientation
+        // t*(rock.orientation - hailstone.orientation) = hailstone.position - rock.position
+        // t = (hailstone.position - rock.position) / (rock.orientation - hailstone.orientation)
+        Integer tx,ty,tz;
+        auto denom_x = (rock.orientation[0] - hailstone.orientation[0]);
+        auto denom_y = (rock.orientation[1] - hailstone.orientation[1]);
+        auto denom_z = (rock.orientation[2] - hailstone.orientation[2]);
+        if (denom_x != 0) {
+          tx = (hailstone.position[0] - rock.position[0]) / denom_x;
+        }
+        if (denom_y != 0) {
+          ty = (hailstone.position[1] - rock.position[1]) / denom_y;
+        }
+        if (denom_z != 0) {
+          tz = (hailstone.position[2] - rock.position[2]) / denom_z;
+        }
+        if (tx == ty and ty==tz) {
+          collisions[tx] = hailstone;
+          std::cout << NT << "at time:" << tx << " rock collides with hailstone at position:" << hailstone.position[0] + tx * hailstone.orientation[0] << " " << hailstone.position[1] + tx * hailstone.orientation[1] << " " << hailstone.position[2] + tx * hailstone.orientation[2];
+        }
+        else {
+          std::cout << NT << "ERROR: time check failed for hailstone:" << hailstone.position[0] << " " << hailstone.position[1] << " " << hailstone.position[2] << " velocity:" << hailstone.orientation[0] << " " << hailstone.orientation[1] << " " << hailstone.orientation[2];
+          std::cout << NT << "tx:" << tx << " ty:" << ty << " tz:" << tz << " NOT same time?";
+          if (tx > 0) collisions[tx] = hailstone;
+          else if (ty > 0) collisions[ty] = hailstone;
+          else if (tz > 0) collisions[tz] = hailstone;
+        }         
+      }
     }
 
     Trajectory to_hit_all_trajectory(Model const& model) {
@@ -502,10 +586,6 @@ namespace part2 {
       // Given one other hailstone a the rock will collide with it if it has any trajectory on any cone around trajectory a.
 
       // Imagine we pick three hailstones a,b,c that pairwise span three non coplanar planes.
-      // This would mean the intersection of these three planes will be the trajectory the stone must travel to intersect all three lines.
-      // proof: 1) Any line of the plane spanned by two hailstone trajectories will intersect both trajectories, given the trajectories are not parallel.
-      //        2) So a line that follows the intersection of all three planes, will by definition be on all three planes and thus potentially intersect all three trajectories.
-      //        3) Given the nature of the puzzle, there must be a solution, so if the rock is on all the three planes, it will intersect all three trajectories.
 
       // We can find three "good" hailstones by random I suppose.
       Trajectories trajectories{};
@@ -513,16 +593,16 @@ namespace part2 {
         trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
       Trajectories three_random_trajectories = get_three_random(trajectories);
+      auto eq1 = to_plane_equation(three_random_trajectories[0], three_random_trajectories[1]);
+      auto eq2 = to_plane_equation(three_random_trajectories[1], three_random_trajectories[2]);
+      auto eq3 = to_plane_equation(three_random_trajectories[2], three_random_trajectories[0]);
       bool is_three_non_coplanar_planes = false;
       while (!is_three_non_coplanar_planes) {
         // Form the three planes spanned by pairs of the three trajectories
-        auto eq1 = to_plane_equation(three_random_trajectories[0], three_random_trajectories[1]);
-        auto eq2 = to_plane_equation(three_random_trajectories[1], three_random_trajectories[2]);
-        auto eq3 = to_plane_equation(three_random_trajectories[2], three_random_trajectories[0]);
         // Obtain the planes normal vectors
-        Vector n1{std::get<0>(eq1), std::get<1>(eq1), std::get<2>(eq1)};
-        Vector n2{std::get<0>(eq2), std::get<1>(eq2), std::get<2>(eq2)};
-        Vector n3{std::get<0>(eq3), std::get<1>(eq3), std::get<2>(eq3)};
+        Vector n1{eq1.A, eq1.B, eq1.C};
+        Vector n2{eq2.A, eq2.B, eq2.C};
+        Vector n3{eq3.A, eq3.B, eq3.C};
         if (is_parallel(n1, n2) || is_parallel(n2, n3) || is_parallel(n3, n1)) {
           std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
           for (auto const& trajectory : three_random_trajectories) {
@@ -530,6 +610,9 @@ namespace part2 {
           }
           // The planes are parallel, so the hailstones are coplanar, so we need to pick three new hailstones
           three_random_trajectories = get_three_random(trajectories);
+          eq1 = to_plane_equation(three_random_trajectories[0], three_random_trajectories[1]);
+          eq2 = to_plane_equation(three_random_trajectories[1], three_random_trajectories[2]);
+          eq3 = to_plane_equation(three_random_trajectories[2], three_random_trajectories[0]);
         }
         else {
           is_three_non_coplanar_planes = true;
@@ -539,6 +622,34 @@ namespace part2 {
       for (auto const& trajectory : three_random_trajectories) {
         std::cout << NT << to_string(trajectory);
       }
+      std::cout << NL << "That pairwise spans the three planes:";
+      for (auto const& eq : {eq1, eq2, eq3}) {
+        std::cout << NT << to_string(eq);
+      }
+      // E.g.,
+      // That pairwise spans the three planes:
+      // 	-4x + -2y + 3z + 12 = 0
+      // 	-7x + -5y + 6z + 89 = 0
+      // 	13x + 8y + -9z + -277 = 0
+
+      // We can now solve this system of three equations for x,y,x (and we expect to get a line, the intersection of the three planes)
+      try {
+        auto rock = solve({eq1, eq2, eq3});
+        std::cout << NL << "Found a trajectory that intersects all three hailstones";
+        std::cout << NT << to_string(rock);
+        print_collisions(rock, trajectories);
+        return rock;
+      }
+      catch (std::exception& e) {
+        std::cout << NL << "ERROR: Exception = " << std::quoted(e.what());
+      }
+
+      // NO!! This is not correct!
+      // I have gone down the rabbit whole of thinking that the intersection of these three planes somehow
+      // is related to the path of the rock. But that is not the case!
+      // The intersection of three non coplanar planes are a point (not a line for the rock to follow)!
+      // And that point is NOT a point where the rock will hit any hailstone :(
+
       return {0,0,0,0,0,0}; // Todo, implement ;)
     }
     
@@ -753,8 +864,12 @@ namespace part2 {
               // return V{pi[0] + t * vi[0], pi[1] + t * vi[1], pi[2] + t * vi[2]}; // 557743507346379
               return rock[0]; // 557743507346379
 
+              // tbeu found rock: (example.txt)
+              // 	x0:24 y0:13 z0:10
+              // 	vx:-3 vy:1 vz:2
+
               // part2
-              // tbeu found rock: 
+              // tbeu found rock:  (puzzle.txt)
               // 	x0:159153037374407 y0:228139153674672 z0:170451316297300
               // 	vx:245 vy:75 vz:221
               // tbeu says solution is:  159153037374407 , 228139153674672 , 170451316297300
