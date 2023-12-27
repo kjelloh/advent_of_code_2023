@@ -371,19 +371,177 @@ namespace part2 {
 
 
   namespace mine {
+    using Vector = std::array<Integer, 3>;
+
+    std::string to_string(Vector const& v) {
+      std::string result = "{";
+      for (int i = 0; i < 3; ++i) {
+        if (i > 0) result += ",";
+        result += std::to_string(v[i]);
+      }
+      result += "}";
+      return result;
+    }
+    
+    Vector operator-(const Vector& lhs, const Vector& rhs) {
+      return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
+    }
+
+    Integer dot(const Vector& a, const Vector& b) {
+        return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+    }
+
+    Vector cross(const Vector& a, const Vector& b) {
+        return Vector{
+            a[1]*b[2] - a[2]*b[1],
+            a[2]*b[0] - a[0]*b[2],
+            a[0]*b[1] - a[1]*b[0]
+        };
+    }    
+
+    Integer determinant(std::array<Vector, 3> matrix) {
+        Vector crossProduct = cross(matrix[1], matrix[2]);
+        return dot(matrix[0], crossProduct);
+    }
+
+    double norm(const Vector& v) {
+        return std::sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+    }
+
+    Integer manhattan_norm(const Vector& v) {
+        return std::abs(v[0]) + std::abs(v[1]) + std::abs(v[2]);
+    }
+
+    bool is_parallel(const Vector& a, const Vector& b) {
+        return cross(a, b) == Vector{0, 0, 0};
+    }
+
     class Trajectory {
     public:
-      Integer x0, y0, z0, dx, dy, dz;
+      Vector position; // x0,y0,z0
+      Vector orientation; // dx,dy,dz
     };
 
-    Trajectory to_stone_trajectory(Model const& model) {
-      return {0,0,0,0,0,0}; // Todo, implement ;)
-
-      // Idea: To find the trajectory of a stone that will hit every hailstone at some time t in the future,
-      //       maybe we can begin by finding a plane that all hailstones trajectory will intersect at some time t in the future.
-      //       Hm... I can imagine hailstone trajectories such that many such planes exist that all hailstones goes through at some point in time.
-      //       But we want the plane where the intersection point on this plane for a line!     
+    std::string to_string(Trajectory const& t) {
+      std::string result = to_string(t.position);
+      result += " + t*";
+      result += to_string(t.orientation);
+      return result;
     }
+
+    using Trajectories = std::vector<Trajectory>;
+
+    std::tuple<Integer, Integer, Integer, Integer> to_plane_equation(Trajectory line1, Trajectory line2) {
+        // Calculate the normal vector of the plane (cross product of the orientation vectors)
+        auto n = cross(line1.orientation, line2.orientation);
+
+        // Calculate D (dot product of the normal vector and any point on the plane)
+        auto D = -dot(n, line1.position);
+
+        // Return the coefficients of the plane equation
+        return std::make_tuple(n[0], n[1], n[2], D);
+    }
+
+    Trajectories get_three_random(Trajectories const& trajectories) {
+      std::vector<Trajectory> randomTrajectories;  
+      // Create a copy of the trajectories vector
+      std::vector<Trajectory> shuffledTrajectories = trajectories;  
+      // Shuffle the trajectories using std::shuffle
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::shuffle(shuffledTrajectories.begin(), shuffledTrajectories.end(), gen);  
+      // Get the first three shuffled trajectories
+      randomTrajectories.assign(shuffledTrajectories.begin(), shuffledTrajectories.begin() + 3);  
+      return randomTrajectories;
+    }
+
+    Trajectory to_hit_all_trajectory(Model const& model) {
+      // Idea: From when I owned a sailing boat I learned the trick to detect if I was on a collision course with another boat.
+      //       If the other boats trajectory would cross mine and, its relative orientation relative me was also not changing, then we would collide.
+      //       Like, If the other boat was located steady at say 15 degrees to the right of my traveling path!
+
+      // We can express this using vector algebra. If the other boats relative traveling direction is directly at me, then we will collide.
+      // For boat a and b traveling by vectors a0 + da and b+ + db. We want b-a and db-da to be parallel.
+      // This would mean that the direction a to b, being the b-a vector and the relative orientation of b relative a, being db-da, both points at a.
+      // Or yet another way, at some time t t*(db-da) will become b-a and ba would have traveled towards a to the point that they are at the same location.
+
+      if (false) {
+        // test / explore that collision detection works
+
+        // 19, 13, 30 @ -2,  1, -2
+        // 18, 19, 22 @ -1, -1, -2
+        // 20, 25, 34 @ -2, -2, -4
+        // 12, 31, 28 @ -1, -2, -1
+        // 20, 19, 15 @  1, -5, -3
+
+        // A rock x0:24 y0:13 z0:10 vx:-3 vy:1 vz:2
+
+        // Collisions in time order
+        // 	1ns later at time: 1ns rock collides with hailstone at position:21 14 12
+        // 	2ns later at time: 3ns rock collides with hailstone at position:15 16 16
+        // 	1ns later at time: 4ns rock collides with hailstone at position:12 17 18
+        // 	1ns later at time: 5ns rock collides with hailstone at position:9 18 20
+        // 	1ns later at time: 6ns rock collides with hailstone at position:6 19 22
+
+        Trajectory rock{24,13,10,-3,1,2};
+        Trajectory hailstone{19,13,30,-2,1,-2};
+        std::cout << NL << "rock : " << to_string(rock) << " hailstone : " << to_string(hailstone);
+
+        auto relative_position = hailstone.position - rock.position;
+        auto relative_orientation = hailstone.orientation - rock.orientation;      
+        std::cout << NL << "relative position : " << to_string(relative_position) << " relative orientation : " << to_string(relative_orientation);
+        if (is_parallel(relative_position, relative_orientation)) {
+          std::cout << NL << "rock and hailstone will collide";
+        }
+        else {
+          std::cout << NL << "rock and hailstone will not collide";
+        }
+      }
+
+      // Ok, so how do we find a rock trajectory such that its relative position with each hailstone is parallel with its relative orientation to this hailstone?      
+      // Given one other hailstone a the rock will collide with it if it has any trajectory on any cone around trajectory a.
+
+      // Imagine we pick three hailstones a,b,c that pairwise span three non coplanar planes.
+      // This would mean the intersection of these three planes will be the trajectory the stone must travel to intersect all three lines.
+      // proof: 1) Any line of the plane spanned by two hailstone trajectories will intersect both trajectories, given the trajectories are not parallel.
+      //        2) So a line that follows the intersection of all three planes, will by definition be on all three planes and thus potentially intersect all three trajectories.
+      //        3) Given the nature of the puzzle, there must be a solution, so if the rock is on all the three planes, it will intersect all three trajectories.
+
+      // We can find three "good" hailstones by random I suppose.
+      Trajectories trajectories{};
+      for (auto const& entry : model) {
+        trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
+      }
+      Trajectories three_random_trajectories = get_three_random(trajectories);
+      bool is_three_non_coplanar_planes = false;
+      while (!is_three_non_coplanar_planes) {
+        // Form the three planes spanned by pairs of the three trajectories
+        auto eq1 = to_plane_equation(three_random_trajectories[0], three_random_trajectories[1]);
+        auto eq2 = to_plane_equation(three_random_trajectories[1], three_random_trajectories[2]);
+        auto eq3 = to_plane_equation(three_random_trajectories[2], three_random_trajectories[0]);
+        // Obtain the planes normal vectors
+        Vector n1{std::get<0>(eq1), std::get<1>(eq1), std::get<2>(eq1)};
+        Vector n2{std::get<0>(eq2), std::get<1>(eq2), std::get<2>(eq2)};
+        Vector n3{std::get<0>(eq3), std::get<1>(eq3), std::get<2>(eq3)};
+        if (is_parallel(n1, n2) || is_parallel(n2, n3) || is_parallel(n3, n1)) {
+          std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
+          for (auto const& trajectory : three_random_trajectories) {
+            std::cout << NT << to_string(trajectory);
+          }
+          // The planes are parallel, so the hailstones are coplanar, so we need to pick three new hailstones
+          three_random_trajectories = get_three_random(trajectories);
+        }
+        else {
+          is_three_non_coplanar_planes = true;
+        }
+      }
+      std::cout << NL << "Found three hailstones that span three non coplanar planes";
+      for (auto const& trajectory : three_random_trajectories) {
+        std::cout << NT << to_string(trajectory);
+      }
+      return {0,0,0,0,0,0}; // Todo, implement ;)
+    }
+    
   }
 
   // Refactored from C++ solution https://github.com/tbeu/AdventOfCode/blob/master/2023/day24/day24.cpp
@@ -624,8 +782,16 @@ namespace part2 {
   Result solve_for(Model &model, auto args) {
       Result result{};
       std::cout << NL << NL << "part2";
-      const auto rock = tbeu::findRock(tbeu::to_lines(model));
-      result = rock[0] + rock[1] + rock[2]; // 557743507346379
+      if (false) {
+        // Developing my own solution from scratch
+        const auto rock = mine::to_hit_all_trajectory(model);
+        result = rock.position[0] + rock.position[1] + rock.position[2];
+      }
+      else {
+        const auto rock = tbeu::findRock(tbeu::to_lines(model));
+        result = rock[0] + rock[1] + rock[2]; // 557743507346379
+      }
+
       return result; // 557743507346379
   }
 }
