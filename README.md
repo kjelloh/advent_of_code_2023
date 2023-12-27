@@ -348,3 +348,20 @@ Say the int x=10000001 (8 digits) and the float a = 10000000.0. Now (x > a) beco
 which is (10000000.0 > 10000000.0) which is *false*! The other way around would work - (10000001 > int(10000000.0))
 becomes (10000001 > 10000000) with is *true* as expected :)
 
+* I learned that C++ is able to feed a single initializer list to two separate member constructors.
+
+So given the types:
+
+    using Vector = std::array<Integer, 3>;
+        class Trajectory {
+        public:
+          Vector position; // x0,y0,z0
+          Vector orientation; // dx,dy,dz
+        };
+
+I can write:
+
+      Trajectory a{24,13,10,-3,1,2};
+
+And the compiler will feed the first three values to position and the following three to orientation :)
+
