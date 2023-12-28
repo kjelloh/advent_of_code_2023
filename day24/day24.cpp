@@ -442,9 +442,9 @@ namespace part2 {
     // Example solution rock x0:24 y0:13 z0:10 vx:-3 vy:1 vz:2
     Trajectory example_rock{24,13,10,-3,1,2};
 
-    // Hailstone: 19, 13, 30 @ -2, 1, -2
-    // Collision time: 5
-    // Collision position: 9, 18, 20
+    // Hailstone: 20, 19, 15 @ 1, -5, -3
+    // Collision time: 1
+    // Collision position: 21, 14, 12      
 
     // Hailstone: 18, 19, 22 @ -1, -1, -2
     // Collision time: 3
@@ -454,19 +454,20 @@ namespace part2 {
     // Collision time: 4
     // Collision position: 12, 17, 18
 
+    // Hailstone: 19, 13, 30 @ -2, 1, -2
+    // Collision time: 5
+    // Collision position: 9, 18, 20
+
     // Hailstone: 12, 31, 28 @ -1, -2, -1
     // Collision time: 6
     // Collision position: 6, 19, 22
 
-    // Hailstone: 20, 19, 15 @ 1, -5, -3
-    // Collision time: 1
-    // Collision position: 21, 14, 12      
     std::map<Trajectory,Integer> example_collisions{
-        {Trajectory{19,13,30,-2,1,-2},5}
-      ,{Trajectory{18,19,22,-1,-1,-2},3}
-      ,{Trajectory{20,25,34,-2,-2,-4},4}
-      ,{Trajectory{12,31,28,-1,-2,-1},6}
-      ,{Trajectory{20,19,15,1,-5,-3},1}
+       {Trajectory{21,14,12,1,-5,-3},1}
+      ,{Trajectory{15,16,16,-1,-1,-2},3}
+      ,{Trajectory{12,17,18,-2,-2,-4},4}
+      ,{Trajectory{9,18,20,-2,1,-2},5}
+      ,{Trajectory{6,19,22,-1,-2,-1},6}
     };
 
     std::string to_string(Trajectory const& t) {
@@ -633,29 +634,29 @@ namespace part2 {
       for (auto const& entry : model) {
         trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
-      Trajectories three_random_trajectories = get_three_random(trajectories);
+      Trajectories hailstone_candidates = get_three_random(trajectories);
       bool is_three_non_coplanar_planes = false;
       while (!is_three_non_coplanar_planes) {
         // Form the three planes spanned by pairs of the three trajectories
         // Obtain the planes normal vectors
-        Vector n0 = cross(three_random_trajectories[0].orientation, three_random_trajectories[1].orientation);
-        Vector n1 = cross(three_random_trajectories[1].orientation, three_random_trajectories[2].orientation);
-        Vector n2 = cross(three_random_trajectories[2].orientation, three_random_trajectories[0].orientation);
+        Vector n0 = cross(hailstone_candidates[0].orientation, hailstone_candidates[1].orientation);
+        Vector n1 = cross(hailstone_candidates[1].orientation, hailstone_candidates[2].orientation);
+        Vector n2 = cross(hailstone_candidates[2].orientation, hailstone_candidates[0].orientation);
         if (is_parallel(n0, n1) || is_parallel(n1, n2) || is_parallel(n2, n0)) {
           std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
-          for (auto const& trajectory : three_random_trajectories) {
+          for (auto const& trajectory : hailstone_candidates) {
             std::cout << NT << to_string(trajectory);
           }
           // At least two plane normals are parallel, so we need to pick three new hailstones
           // Note: We want the three normals to be independent so we get the most "juice" (information) about a good rock path
-          three_random_trajectories = get_three_random(trajectories);
+          hailstone_candidates = get_three_random(trajectories);
         }
         else {
           is_three_non_coplanar_planes = true;
         }
       }
       std::cout << NL << "Found three hailstones that span three non coplanar planes";
-      for (auto const& trajectory : three_random_trajectories) {
+      for (auto const& trajectory : hailstone_candidates) {
         std::cout << NT << to_string(trajectory);
       }
       // We should have three hailstone trajectories sufficiently different to solve for a unique rock path.
@@ -677,12 +678,19 @@ namespace part2 {
       // Hm... Can we use the projection to the xy-plane to get any useful information for this part 2?
 
       // Like, what if we record all x,y positions where each hailstone "shadow" on the xy-plane intersect?
-      three_random_trajectories.push_back(example_rock); // Add the known example rock trajectory to the three random trajectories
+      // hailstone_candidates.push_back(example_rock); // Add the known example rock trajectory to the three random trajectories
+      using ShadowIntersection = std::array<std::optional<double>,3>;
+      using ShadowIntersections = std::vector<ShadowIntersection>;
+      ShadowIntersections shadow_intersections{};
+      ShadowIntersections int_shadow_intersections{};
+      hailstone_candidates = trajectories; // Use all hailstones (test)
+      // hailstone_candidates.push_back(example_rock); // Add the known example rock trajectory to the candidates
       std::array<std::tuple<Integer,Integer,Integer,Integer>,9> t_equations{}; // a*t1 + b*t2 + c*t3 + d = 0
-      for (int i=0;i<three_random_trajectories.size();++i) {
-        for (int j=i+1;j<three_random_trajectories.size();++j) {
-          auto xi = three_random_trajectories[i];
-          auto xj = three_random_trajectories[j];
+      int count_ints{};
+      for (int i=0;i<hailstone_candidates.size();++i) {
+        for (int j=i+1;j<hailstone_candidates.size();++j) {
+          auto xi = hailstone_candidates[i];
+          auto xj = hailstone_candidates[j];
           std::cout << NL << i << "," << j << " xi:" << to_string(xi) << " xj:" << to_string(xj);
           {
             // Now we can reuse the solution from part 1 to find where the "shadows" on the xy-plane intersect.
@@ -700,6 +708,12 @@ namespace part2 {
             auto x = (ci * bj - cj * bi) / (ai * bj - aj * bi);
             auto y = (cj * ai - ci * aj) / (ai * bj - aj * bi);
             std::cout << NT << "XY-Shadow intersection candidate xyz: " << x << T << y << T << " _ ";
+            shadow_intersections.push_back({x,y,std::nullopt});
+            if (x == static_cast<Integer>(x) or y == static_cast<Integer>(y)) {
+              int_shadow_intersections.push_back({x,y,std::nullopt});               
+            }
+            if (x == static_cast<Integer>(x)) ++count_ints;
+            if (y == static_cast<Integer>(y)) ++count_ints;
           }
           {
             // Lets do the same for the shadow onto the yz-plane
@@ -718,6 +732,12 @@ namespace part2 {
             auto y = (ci * bj - cj * bi) / (ai * bj - aj * bi);
             auto z = (cj * ai - ci * aj) / (ai * bj - aj * bi);
             std::cout << NT << "YZ-Shadow intersection candidate xyz: " << " _ " << T << y << T << z;
+            shadow_intersections.push_back({std::nullopt,y,z});
+            if (y == static_cast<Integer>(y)) ++count_ints;
+            if (z == static_cast<Integer>(z)) ++count_ints;
+            if (y == static_cast<Integer>(y) or z == static_cast<Integer>(z)) {
+              int_shadow_intersections.push_back({std::nullopt,y,z});               
+            }
           }
           {
             // Lets do the same for the shadow onto the zx-plane
@@ -736,50 +756,171 @@ namespace part2 {
             auto z = (ci * bj - cj * bi) / (ai * bj - aj * bi);
             auto x = (cj * ai - ci * aj) / (ai * bj - aj * bi);
             std::cout << NT << "ZX-Shadow intersection candidate xyz: " << x << T << " _ " << T << z;
+            shadow_intersections.push_back({x,std::nullopt,z});
+            if (x == static_cast<Integer>(x)) ++count_ints;
+            if (z == static_cast<Integer>(z)) ++count_ints;
+            if (x == static_cast<Integer>(x) or z == static_cast<Integer>(z)) {
+              int_shadow_intersections.push_back({x,std::nullopt,z});               
+            }
           }
-          /*
-          Found three hailstones that span three non coplanar planes
-            {19,13,30} + t*{-2,1,-2}
-            {20,25,34} + t*{-2,-2,-4}
-            {12,31,28} + t*{-1,-2,-1}
-          0,1 xi:{19,13,30} + t*{-2,1,-2} xj:{20,25,34} + t*{-2,-2,-4}
-            XY-Shadow intersection candidate xyz: 11.6667	16.6667	 _ 
-            YZ-Shadow intersection candidate xyz:  _ 	18	20
-            ZX-Shadow intersection candidate xyz: 17	 _ 	28
-          0,2 xi:{19,13,30} + t*{-2,1,-2} xj:{12,31,28} + t*{-1,-2,-1}
-            XY-Shadow intersection candidate xyz: 6.2	19.4	 _ 
-            YZ-Shadow intersection candidate xyz:  _ 	17.4	21.2
-            Curious? Parallel lines i:0 j:2 ?
-          0,3 xi:{19,13,30} + t*{-2,1,-2} xj:{24,13,10} + t*{-3,1,2}
-            XY-Shadow intersection candidate xyz: 9	18	 _ 
-            YZ-Shadow intersection candidate xyz:  _ 	18	20
-            ZX-Shadow intersection candidate xyz: 9	 _ 	20
-          1,2 xi:{20,25,34} + t*{-2,-2,-4} xj:{12,31,28} + t*{-1,-2,-1}
-            XY-Shadow intersection candidate xyz: -2	3	 _ 
-            YZ-Shadow intersection candidate xyz:  _ 	19	22
-            ZX-Shadow intersection candidate xyz: 22	 _ 	38
-          1,3 xi:{20,25,34} + t*{-2,-2,-4} xj:{24,13,10} + t*{-3,1,2}
-            XY-Shadow intersection candidate xyz: 12	17	 _ 
-            Curious? Parallel lines i:1 j:3 ?
-          2,3 xi:{12,31,28} + t*{-1,-2,-1} xj:{24,13,10} + t*{-3,1,2}
-            XY-Shadow intersection candidate xyz: 6	19	 _ 
-            YZ-Shadow intersection candidate xyz:  _ 	19	22
-            ZX-Shadow intersection candidate xyz: 6	 _ 	22
-          */          
-
-          // What can we learn from this information?
-          // We know no hailstone intersects another hailstone trajectory.
-          // But from the x and y where the XY-shadows intersects we know there is some z distance that would make them intersect in 3D.
-          // And for the y and z where the YZ-shadows intersect we know there is some x distance that would make the intersect in 3D.
-          // And the same goes for the ZX-shadow where some y distance would make them intersect in 3D.
-          // With "hailstone" 3 the known rock trajectory it seems we get a shadow at integer positions?
-          // Than makes sense as we know the solution rock will hit each hailstone at integer coordinates at integer times.
-          // We also see that the shadows may be parallel although the actual hailstones we selected should not be parallel.
-          // Hm... I wonder if the shadow intersections can be our area of interest?
-
-          
-        }
+        }        
       }
+      /*
+      Found three hailstones that span three non coplanar planes
+        {19,13,30} + t*{-2,1,-2}
+        {20,25,34} + t*{-2,-2,-4}
+        {12,31,28} + t*{-1,-2,-1}
+      0,1 xi:{19,13,30} + t*{-2,1,-2} xj:{20,25,34} + t*{-2,-2,-4}
+        XY-Shadow intersection candidate xyz: 11.6667	16.6667	 _ 
+        YZ-Shadow intersection candidate xyz:  _ 	18	20
+        ZX-Shadow intersection candidate xyz: 17	 _ 	28
+      0,2 xi:{19,13,30} + t*{-2,1,-2} xj:{12,31,28} + t*{-1,-2,-1}
+        XY-Shadow intersection candidate xyz: 6.2	19.4	 _ 
+        YZ-Shadow intersection candidate xyz:  _ 	17.4	21.2
+        Curious? Parallel lines i:0 j:2 ?
+      0,3 xi:{19,13,30} + t*{-2,1,-2} xj:{24,13,10} + t*{-3,1,2}
+        XY-Shadow intersection candidate xyz: 9	18	 _ 
+        YZ-Shadow intersection candidate xyz:  _ 	18	20
+        ZX-Shadow intersection candidate xyz: 9	 _ 	20
+      1,2 xi:{20,25,34} + t*{-2,-2,-4} xj:{12,31,28} + t*{-1,-2,-1}
+        XY-Shadow intersection candidate xyz: -2	3	 _ 
+        YZ-Shadow intersection candidate xyz:  _ 	19	22
+        ZX-Shadow intersection candidate xyz: 22	 _ 	38
+      1,3 xi:{20,25,34} + t*{-2,-2,-4} xj:{24,13,10} + t*{-3,1,2}
+        XY-Shadow intersection candidate xyz: 12	17	 _ 
+        Curious? Parallel lines i:1 j:3 ?
+      2,3 xi:{12,31,28} + t*{-1,-2,-1} xj:{24,13,10} + t*{-3,1,2}
+        XY-Shadow intersection candidate xyz: 6	19	 _ 
+        YZ-Shadow intersection candidate xyz:  _ 	19	22
+        ZX-Shadow intersection candidate xyz: 6	 _ 	22
+      */          
+
+      // What can we learn from this information?
+      // We know no hailstone intersects another hailstone trajectory.
+      // But from the x and y where the XY-shadows intersects we know there is some z distance that would make them intersect in 3D.
+      // And for the y and z where the YZ-shadows intersect we know there is some x distance that would make the intersect in 3D.
+      // And the same goes for the ZX-shadow where some y distance would make them intersect in 3D.
+      // With "hailstone" 3 the known rock trajectory it seems we get a shadow at integer positions?
+      // Than makes sense as we know the solution rock will hit each hailstone at integer coordinates at integer times.
+      // We also see that the shadows may be parallel although the actual hailstones we selected should not be parallel.
+      // Hm... I wonder if the shadow intersections can be our area of interest?
+      std::sort(shadow_intersections.begin(),shadow_intersections.end(),[](auto const& a,auto const& b){
+        return std::tie(a[0],a[1],a[2]) < std::tie(b[0],b[1],b[2]);}
+      );
+      std::sort(int_shadow_intersections.begin(),int_shadow_intersections.end(),[](auto const& a,auto const& b){
+        return std::tie(a[0],a[1],a[2]) < std::tie(b[0],b[1],b[2]);}
+      );
+      for (auto const& [ox,oy,oz] : shadow_intersections) {
+        std::cout << NT << "shadow_intersection xyz:" << T;
+        if (ox.has_value()) std::cout << ox.value();else std::cout << " _ ";
+        std::cout << T << " ";
+        if (oy.has_value()) std::cout << oy.value();else std::cout << " _ ";
+        std::cout << T << " ";
+        if (oz.has_value()) std::cout << oz.value();else std::cout << " _ ";
+      }
+      for (auto const& [ox,oy,oz] : int_shadow_intersections) {
+        std::cout << NT << "INTEGER shadow_intersection xyz:" << T;
+        if (ox.has_value()) std::cout << ox.value();else std::cout << " _ ";
+        std::cout << T << " ";
+        if (oy.has_value()) std::cout << oy.value();else std::cout << " _ ";
+        std::cout << T << " ";
+        if (oz.has_value()) std::cout << oz.value();else std::cout << " _ ";
+      }
+      std::cout << NL << "shadow_intersections count:" << shadow_intersections.size();
+      std::cout << NT << " from hailstone count:" << trajectories.size();
+      std::cout << NT << " count_ints:" << count_ints;
+      std::cout << NT << " int_shadow_intersections count:" << int_shadow_intersections.size();
+
+      /*
+
+        shadow_intersection xyz:	 _ 	 14	 12
+        shadow_intersection xyz:	 _ 	 14	 12
+                      {Trajectory{21,  14, 12,1,-5,-3},1}
+
+        shadow_intersection xyz:	 _ 	 17.4	 21.2
+
+        shadow_intersection xyz:	 _ 	 18	 20
+        shadow_intersection xyz:	 _ 	 18	 20
+
+        shadow_intersection xyz:	 _ 	 19	 22
+        shadow_intersection xyz:	 _ 	 19	 22
+
+        shadow_intersection xyz:	 _ 	 20.1538	 15.6923
+        shadow_intersection xyz:	 _ 	 89	 57
+
+        shadow_intersection xyz:	-6	 -5	  _ 
+        shadow_intersection xyz:	-2	 3	  _ 
+        shadow_intersection xyz:	6.2	 19.4	  _ 
+                     ,{Trajectory{6,   19,   22,    -1,-2,-1},6}
+
+                     ,{Trajectory{9,   18,   20,-2,1,-2},5}
+
+        shadow_intersection xyz:	11.6667	 16.6667	  _ 
+                     ,{Trajectory{12,      17,       18,-2,-2,-4},4}
+
+        shadow_intersection xyz:	14.3333	 15.3333	  _ 
+        shadow_intersection xyz:	14.75	  _ 	 30.75
+                     ,{Trajectory{15,    16,   16,-1,-1,-2},3}
+
+        shadow_intersection xyz:	16	  _ 	 27
+        shadow_intersection xyz:	16	 39	  _ 
+        shadow_intersection xyz:	16.2	  _ 	 26.4
+
+        shadow_intersection xyz:	17	  _ 	 28
+        shadow_intersection xyz:	17.8	  _ 	 21.6
+
+        shadow_intersection xyz:	19	 24	  _ 
+        shadow_intersection xyz:	19.6667	 20.6667	  _ 
+
+        shadow_intersection xyz:	21.4444	 11.7778	  _ 
+
+        shadow_intersection xyz:	22	  _ 	 38
+        shadow_intersection xyz:	25	  _ 	 36
+        shadow_intersection xyz:	30	  _ 	 46
+
+        INTEGER shadow_intersection xyz:	 _ 	 14	 12
+        INTEGER shadow_intersection xyz:	 _ 	 14	 12
+                              {Trajectory{21,  14, 12,1,-5,-3},1}
+
+        INTEGER shadow_intersection xyz:	 _ 	 18	 20
+        INTEGER shadow_intersection xyz:	 _ 	 18	 20
+                              ,{Trajectory{9,  18, 20,-2,1,-2},5}
+
+
+        INTEGER shadow_intersection xyz:	 _ 	 19	 22
+        INTEGER shadow_intersection xyz:	 _ 	 19	 22
+
+        INTEGER shadow_intersection xyz:	 _ 	 89	 57
+
+        INTEGER shadow_intersection xyz:	-6	 -5	  _ 
+        INTEGER shadow_intersection xyz:	-2	 3	  _ 
+
+                             ,{Trajectory{15, 16,  16,   -1,-1,-2},3}
+
+        INTEGER shadow_intersection xyz:	16	  _ 	 27
+        INTEGER shadow_intersection xyz:	16	 39	  _ 
+
+        INTEGER shadow_intersection xyz:	17	  _ 	 28
+        INTEGER shadow_intersection xyz:	19	 24	  _ 
+        INTEGER shadow_intersection xyz:	22	  _ 	 38
+        INTEGER shadow_intersection xyz:	25	  _ 	 36
+        INTEGER shadow_intersection xyz:	30	  _ 	 46
+      shadow_intersections count:26
+        from hailstone count:5
+        count_ints:32
+        int_shadow_intersections count:16
+
+       {Trajectory{21,14,12,1,-5,-3},1}
+      ,{Trajectory{15,16,16,-1,-1,-2},3}
+      ,{Trajectory{12,17,18,-2,-2,-4},4}
+      ,{Trajectory{9,18,20,-2,1,-2},5}
+      ,{Trajectory{6,19,22,-1,-2,-1},6}
+
+
+      */
+     // Well, sorting on x is of course to no vane as it does not show the order in time of possible collisions :)
+     // Still, the order in time of collisions travels linear through space, p + tdp.
+
       return {0,0,0,0,0,0}; // Todo, implement ;)
     }
     
@@ -1034,11 +1175,9 @@ namespace part2 {
         const auto rock = mine::to_hit_all_trajectory(model,args);
         result = rock.start[0] + rock.start[1] + rock.start[2];
       }
-      else {
-        // Known working solution from tbeu
-        const auto rock = tbeu::findRock(tbeu::to_lines(model));
-        result = rock[0] + rock[1] + rock[2]; // 557743507346379
-      }
+      // Known working solution from tbeu
+      const auto rock = tbeu::findRock(tbeu::to_lines(model));
+      result = rock[0] + rock[1] + rock[2]; // 557743507346379
 
       return result; // 557743507346379
   }
