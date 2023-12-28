@@ -396,10 +396,10 @@ namespace part2 {
       return {lhs[0]*n, lhs[1]*n, lhs[2]*n};
     }
 
-    // scalar division
-    std::array<double,3> operator/(const Vector& lhs, double n) {
-      return {lhs[0]/n, lhs[1]/n, lhs[2]/n};
-    }
+    // // scalar division
+    // std::array<double,3> operator/(const Vector& lhs, double n) {
+    //   return {lhs[0]/n, lhs[1]/n, lhs[2]/n};
+    // }
 
     Integer dot(const Vector& a, const Vector& b) {
         return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
@@ -439,6 +439,36 @@ namespace part2 {
       }
     };
 
+    // Example solution rock x0:24 y0:13 z0:10 vx:-3 vy:1 vz:2
+    Trajectory example_rock{24,13,10,-3,1,2};
+
+    // Hailstone: 19, 13, 30 @ -2, 1, -2
+    // Collision time: 5
+    // Collision position: 9, 18, 20
+
+    // Hailstone: 18, 19, 22 @ -1, -1, -2
+    // Collision time: 3
+    // Collision position: 15, 16, 16
+
+    // Hailstone: 20, 25, 34 @ -2, -2, -4
+    // Collision time: 4
+    // Collision position: 12, 17, 18
+
+    // Hailstone: 12, 31, 28 @ -1, -2, -1
+    // Collision time: 6
+    // Collision position: 6, 19, 22
+
+    // Hailstone: 20, 19, 15 @ 1, -5, -3
+    // Collision time: 1
+    // Collision position: 21, 14, 12      
+    std::map<Trajectory,Integer> example_collisions{
+        {Trajectory{19,13,30,-2,1,-2},5}
+      ,{Trajectory{18,19,22,-1,-1,-2},3}
+      ,{Trajectory{20,25,34,-2,-2,-4},4}
+      ,{Trajectory{12,31,28,-1,-2,-1},6}
+      ,{Trajectory{20,19,15,1,-5,-3},1}
+    };
+
     std::string to_string(Trajectory const& t) {
       std::string result = to_string(t.start);
       result += " + t*";
@@ -446,23 +476,23 @@ namespace part2 {
       return result;
     }
 
-    Trajectory to_projected(Trajectory const& h,Vector const& n) {
-      // project h onto the plane defined by the plane up-vector n (assume not normalized n)
-      // In effect remove the component of the starting position and velocity that is parallel to the normal vector
-      auto norm_n = norm(n); // n is integer vector
-      auto n_norm = n / static_cast<double>(norm_n);
+    // Trajectory to_projected(Trajectory const& h,Vector const& n) {
+    //   // project h onto the plane defined by the plane up-vector n (assume not normalized n)
+    //   // In effect remove the component of the starting position and velocity that is parallel to the normal vector
+    //   auto norm_n = norm(n); // n is integer vector
+    //   auto n_norm = n / static_cast<double>(norm_n);
 
-      Vector h_position = h.start;
-      double pos_scale = h_position[0]*n_norm[0] + h_position[1]*n_norm[1] + h_position[2]*n_norm[2];
-      // Force the projection to integer coordinates
-      Vector proj_position = h_position - Vector{std::round(n_norm[0]*pos_scale),std::round(n_norm[1]*pos_scale),std::round(n_norm[2]*pos_scale)};
-      // Now `proj_position` is the projection of the h starting position onto the plane with normal n
-      Vector h_orientation = h.orientation;
-      double orientation_scale = h_orientation[0]*n_norm[0] + h_orientation[1]*n_norm[1] + h_orientation[2]*n_norm[2];
-      // Force the projection to integer coordinates
-      Vector proj_orientation = h_orientation - Vector{static_cast<Integer>(n_norm[0]*orientation_scale),static_cast<Integer>(n_norm[1]*orientation_scale),static_cast<Integer>(n_norm[2]*orientation_scale)};
-      return {proj_position, proj_orientation};
-    }
+    //   Vector h_position = h.start;
+    //   double pos_scale = h_position[0]*n_norm[0] + h_position[1]*n_norm[1] + h_position[2]*n_norm[2];
+    //   // Force the projection to integer coordinates
+    //   Vector proj_position = h_position - Vector{std::round(n_norm[0]*pos_scale),std::round(n_norm[1]*pos_scale),std::round(n_norm[2]*pos_scale)};
+    //   // Now `proj_position` is the projection of the h starting position onto the plane with normal n
+    //   Vector h_orientation = h.orientation;
+    //   double orientation_scale = h_orientation[0]*n_norm[0] + h_orientation[1]*n_norm[1] + h_orientation[2]*n_norm[2];
+    //   // Force the projection to integer coordinates
+    //   Vector proj_orientation = h_orientation - Vector{static_cast<Integer>(n_norm[0]*orientation_scale),static_cast<Integer>(n_norm[1]*orientation_scale),static_cast<Integer>(n_norm[2]*orientation_scale)};
+    //   return {proj_position, proj_orientation};
+    // }
 
     using Trajectories = std::vector<Trajectory>;
     struct PlaneEquation {
@@ -647,133 +677,109 @@ namespace part2 {
       // Hm... Can we use the projection to the xy-plane to get any useful information for this part 2?
 
       // Like, what if we record all x,y positions where each hailstone "shadow" on the xy-plane intersect?
+      three_random_trajectories.push_back(example_rock); // Add the known example rock trajectory to the three random trajectories
       std::array<std::tuple<Integer,Integer,Integer,Integer>,9> t_equations{}; // a*t1 + b*t2 + c*t3 + d = 0
-      std::vector<Vector> orientation_cross{};
-      for (int i=0;i<3;++i) {
-        for (int j=i+1;j<3;++j) {
-          // get the plane spanned by hailstone i and j.
-          auto hi = three_random_trajectories[i];
-          auto hj = three_random_trajectories[j];
-          orientation_cross.push_back(cross(hi.orientation, hj.orientation));
-          auto nij = cross(hi.orientation, hj.orientation);
-          auto pi = to_projected(hi,nij); // hi as seen on the spanned plane
-          auto pj = to_projected(hj,nij); // hj as seen on the spanned plane
-          // Now, because hi and hj are now projected onto the plane they span - their trajectories will intersect for sure on this plane :)
-          // Iw we call the projected hi and hj for pi and pj.
-          // at ti pi is at position: pi.start + ti * pi.orientation
-          // at tj pj is at position: pj.start + tj * pj.orientation
-          // If we define this as the intersection point we can solve for ti and tj.
-          // pi.start + ti * pi.orientation = pj.start + tj * pj.orientation
-          // pi.start + ti * pi.orientation - (pj.start + tj * pj.orientation) = 0
-          // pi.start + ti * pi.orientation - pj.start - tj * pj.orientation = 0
-          // ti * pi.orientation - tj * pj.orientation + pi.start - pj.start  = 0
-          // ti * (pi.orientation) + tj * (-pj.orientation) + (pi.start - pj.start)  = 0
-
-          // If we do this for i and j (0,1),(0,2),(1,2) we can solve to t0,t1 and t2.
-          // t0 * (p0.orientation) + t1 * (-p1.orientation) + (p0.start - p1.start)  = 0
-          // t0 * (p0.orientation) + t2 * (-p2.orientation) + (p0.start - p2.start)  = 0
-          // t1 * (p1.orientation) + t2 * (-p2.orientation) + (p1.start - p2.start)  = 0
-
-          // Three unknowns and three independent equations.
-          // t0 * (p0.orientation) + t1 * (-p1.orientation) + t2 * 0                 + (p0.start - p1.start)  = 0
-          // t0 * (p0.orientation) + t1 * 0                 + t2 * (-p2.orientation) + (p0.start - p2.start)  = 0
-          // t0 * 0                + t1 * (p1.orientation) + t2 * (-p2.orientation) + (p1.start - p2.start)  = 0
-
-          // Well, we actually have 9 equations as p.start and p.orientation are 3D vectors!
-          // but we only need one for each plane, so we can pick those that have non-zero parameters in the equation system.
-          // Which, if we look at the system, only applies to the right constant term, i.e., the start differences :)
-          // So lets pick one fully determined x-direction equation, one fully determined y-direction equation and one fully determined z-direction equation.
-          // Lets study what we get
-          if (i==0 and j==1) {
-            // t0 * (p0.orientation) + t1 * (-p1.orientation) + t2 * 0                 + (p0.start - p1.start)  = 0
-            t_equations[0] = {pi.orientation[0],-pj.orientation[0],0,pi.start[0] - pj.start[0]}; // x
-            t_equations[1] = {pi.orientation[1],-pj.orientation[1],0,pi.start[1] - pj.start[1]}; // y
-            t_equations[2] = {pi.orientation[2],-pj.orientation[2],0,pi.start[0] - pj.start[2]}; // z
+      for (int i=0;i<three_random_trajectories.size();++i) {
+        for (int j=i+1;j<three_random_trajectories.size();++j) {
+          auto xi = three_random_trajectories[i];
+          auto xj = three_random_trajectories[j];
+          std::cout << NL << i << "," << j << " xi:" << to_string(xi) << " xj:" << to_string(xj);
+          {
+            // Now we can reuse the solution from part 1 to find where the "shadows" on the xy-plane intersect.
+            Hailstone hi{xi.start[0],xi.start[1],xi.start[2],xi.orientation[0],xi.orientation[1],xi.orientation[2]};
+            Hailstone hj{xj.start[0],xj.start[1],xj.start[2],xj.orientation[0],xj.orientation[1],xj.orientation[2]};
+            double ai = hi.a, bi = hi.b, ci = hi.c;
+            double aj = hj.a, bj = hj.b, cj = hj.c;
+            if (ai * bj == bi * aj) {
+              // From part 1: But we have picked i and j carefully and they should NOT be parallel!
+              std::cout << NT << "Curious? Parallel lines i:" << i << " j:" << j << " ?";
+              continue; // skip parallel lines
+            }
+            // Note: To ensure the multiplication does not overflow we ensure the arguments are floats and not int64_t
+            // Fingers crossed we do not need more than 15 significant digits to find the solution...
+            auto x = (ci * bj - cj * bi) / (ai * bj - aj * bi);
+            auto y = (cj * ai - ci * aj) / (ai * bj - aj * bi);
+            std::cout << NT << "XY-Shadow intersection candidate xyz: " << x << T << y << T << " _ ";
           }
-          if (i==0 and j==2) {
-            // t0 * (p0.orientation) + t1 * 0                 + t2 * (-p2.orientation) + (p0.start - p2.start)  = 0
-            t_equations[3] = {pi.orientation[0],0,-pj.orientation[0],pi.start[0] - pj.start[0]}; // x
-            t_equations[4] = {pi.orientation[1],0,-pj.orientation[1],pi.start[1] - pj.start[1]}; // y
-            t_equations[5] = {pi.orientation[2],0,-pj.orientation[2],pi.start[2] - pj.start[2]}; // z
+          {
+            // Lets do the same for the shadow onto the yz-plane
+            // If we permute xyz -> yzx we can reuse the Hailstone class ;)
+            Hailstone hi{xi.start[1],xi.start[2],xi.start[0],xi.orientation[1],xi.orientation[2],xi.orientation[0]};
+            Hailstone hj{xj.start[1],xj.start[2],xj.start[0],xj.orientation[1],xj.orientation[2],xj.orientation[0]};
+            double ai = hi.a, bi = hi.b, ci = hi.c;
+            double aj = hj.a, bj = hj.b, cj = hj.c;
+            if (ai * bj == bi * aj) {
+              // From part 1: But we have picked i and j carefully and they should NOT be parallel!
+              std::cout << NT << "Curious? Parallel lines i:" << i << " j:" << j << " ?";
+              continue; // skip parallel lines
+            }
+            // Note: To ensure the multiplication does not overflow we ensure the arguments are floats and not int64_t
+            // Fingers crossed we do not need more than 15 significant digits to find the solution...
+            auto y = (ci * bj - cj * bi) / (ai * bj - aj * bi);
+            auto z = (cj * ai - ci * aj) / (ai * bj - aj * bi);
+            std::cout << NT << "YZ-Shadow intersection candidate xyz: " << " _ " << T << y << T << z;
           }
-          if (i==1 and j==2) {
-          // t0 * 0                + t1 * (p1.orientation) + t2 * (-p2.orientation) + (p1.start - p2.start)  = 0
-            t_equations[6] = {0,pi.orientation[0],-pj.orientation[0],pi.start[0] - pj.start[0]}; // x
-            t_equations[7] = {0,pi.orientation[1],-pj.orientation[1],pi.start[1] - pj.start[1]}; // x
-            t_equations[8] = {0,pi.orientation[2],-pj.orientation[2],pi.start[2] - pj.start[2]}; // x
+          {
+            // Lets do the same for the shadow onto the zx-plane
+            // If we permute yzx -> zxy we can reuse the Hailstone class ;)
+            Hailstone hi{xi.start[2],xi.start[0],xi.start[1],xi.orientation[2],xi.orientation[0],xi.orientation[1]};
+            Hailstone hj{xj.start[2],xj.start[0],xj.start[1],xj.orientation[2],xj.orientation[0],xj.orientation[1]};
+            double ai = hi.a, bi = hi.b, ci = hi.c;
+            double aj = hj.a, bj = hj.b, cj = hj.c;
+            if (ai * bj == bi * aj) {
+              // From part 1: But we have picked i and j carefully and they should NOT be parallel!
+              std::cout << NT << "Curious? Parallel lines i:" << i << " j:" << j << " ?";
+              continue; // skip parallel lines
+            }
+            // Note: To ensure the multiplication does not overflow we ensure the arguments are floats and not int64_t
+            // Fingers crossed we do not need more than 15 significant digits to find the solution...
+            auto z = (ci * bj - cj * bi) / (ai * bj - aj * bi);
+            auto x = (cj * ai - ci * aj) / (ai * bj - aj * bi);
+            std::cout << NT << "ZX-Shadow intersection candidate xyz: " << x << T << " _ " << T << z;
           }
+          /*
+          Found three hailstones that span three non coplanar planes
+            {19,13,30} + t*{-2,1,-2}
+            {20,25,34} + t*{-2,-2,-4}
+            {12,31,28} + t*{-1,-2,-1}
+          0,1 xi:{19,13,30} + t*{-2,1,-2} xj:{20,25,34} + t*{-2,-2,-4}
+            XY-Shadow intersection candidate xyz: 11.6667	16.6667	 _ 
+            YZ-Shadow intersection candidate xyz:  _ 	18	20
+            ZX-Shadow intersection candidate xyz: 17	 _ 	28
+          0,2 xi:{19,13,30} + t*{-2,1,-2} xj:{12,31,28} + t*{-1,-2,-1}
+            XY-Shadow intersection candidate xyz: 6.2	19.4	 _ 
+            YZ-Shadow intersection candidate xyz:  _ 	17.4	21.2
+            Curious? Parallel lines i:0 j:2 ?
+          0,3 xi:{19,13,30} + t*{-2,1,-2} xj:{24,13,10} + t*{-3,1,2}
+            XY-Shadow intersection candidate xyz: 9	18	 _ 
+            YZ-Shadow intersection candidate xyz:  _ 	18	20
+            ZX-Shadow intersection candidate xyz: 9	 _ 	20
+          1,2 xi:{20,25,34} + t*{-2,-2,-4} xj:{12,31,28} + t*{-1,-2,-1}
+            XY-Shadow intersection candidate xyz: -2	3	 _ 
+            YZ-Shadow intersection candidate xyz:  _ 	19	22
+            ZX-Shadow intersection candidate xyz: 22	 _ 	38
+          1,3 xi:{20,25,34} + t*{-2,-2,-4} xj:{24,13,10} + t*{-3,1,2}
+            XY-Shadow intersection candidate xyz: 12	17	 _ 
+            Curious? Parallel lines i:1 j:3 ?
+          2,3 xi:{12,31,28} + t*{-1,-2,-1} xj:{24,13,10} + t*{-3,1,2}
+            XY-Shadow intersection candidate xyz: 6	19	 _ 
+            YZ-Shadow intersection candidate xyz:  _ 	19	22
+            ZX-Shadow intersection candidate xyz: 6	 _ 	22
+          */          
+
+          // What can we learn from this information?
+          // We know no hailstone intersects another hailstone trajectory.
+          // But from the x and y where the XY-shadows intersects we know there is some z distance that would make them intersect in 3D.
+          // And for the y and z where the YZ-shadows intersect we know there is some x distance that would make the intersect in 3D.
+          // And the same goes for the ZX-shadow where some y distance would make them intersect in 3D.
+          // With "hailstone" 3 the known rock trajectory it seems we get a shadow at integer positions?
+          // Than makes sense as we know the solution rock will hit each hailstone at integer coordinates at integer times.
+          // We also see that the shadows may be parallel although the actual hailstones we selected should not be parallel.
+          // Hm... I wonder if the shadow intersections can be our area of interest?
+
+          
         }
       }
-     std::map<Trajectory,Integer> example_collisions{
-        {Trajectory{20,19,15,1,-5,-3},1},
-        {Trajectory{18,19,22,-1,-1,-2},3},
-        {Trajectory{20,25,34,-2,-2,-4},4},
-        {Trajectory{19,13,30,-2,1,-2},5},
-        {Trajectory{12,31,28,-1,-2,-1},6}
-      };
-      auto t0 = example_collisions[three_random_trajectories[0]];
-      auto t1 = example_collisions[three_random_trajectories[1]];
-      auto t2 = example_collisions[three_random_trajectories[2]];
-      // print the equations and their correctness
-      std::cout << NL << "t_equations"; 
-      for (int i=0;i< t_equations.size();++i) {
-        auto const& [a,b,c,d] = t_equations[i];
-        auto result = a*t0 + b*t1 + c*t2 + d;
-        std::cout << NT << "e" << i <<  ": t0*" << a << " + t1*" << b << " + t2*" << c << " + " << d << " = " << result;
-        if (result != 0) std::cout << " :(";
-        else std::cout << " :)";
-      }
-      /*
-      part2
-      Found three hailstones that span three non coplanar planes
-        {20,19,15} + t*{1,-5,-3}
-        {19,13,30} + t*{-2,1,-2}
-        {18,19,22} + t*{-1,-1,-2}
-      t_equations
-        e0: t0*1 + t1*2 + t2*0 + -7 = 0
-        e1: t0*-5 + t1*-1 + t2*0 + 1 = 0
-        e2: t0*-3 + t1*2 + t2*0 + -23 = 0
-        e3: t0*1 + t1*0 + t2*1 + -1 = 0
-        e4: t0*-5 + t1*0 + t2*1 + -3 = 0
-        e5: t0*-3 + t1*0 + t2*2 + -4 = 0
-        e6: t0*0 + t1*-2 + t2*1 + 5 = 0
-        e7: t0*0 + t1*1 + t2*1 + -4 = 0
-        e8: t0*0 + t1*-2 + t2*2 + 4 = 0
-      */
-      // t0 = 1
-      // t1 = 5
-      // t2 = 3
-      // e0: 1 + 10 + 0 + -7 != 0 :(
-      // Hm... May we suspect rounding errors? 
-
-      // we expect the same solution as:
-      /*
-      part2
-      tbeu found rock: 
-        x0:24 y0:13 z0:10
-        vx:-3 vy:1 vz:2
-        at time:3 rock collides with hailstone at position:15 16 16
-        at time:4 rock collides with hailstone at position:12 17 18
-        at time:6 rock collides with hailstone at position:6 19 22
-        at time:1 rock collides with hailstone at position:21 14 12
-      Collisions in time order
-        1ns later at time: 1ns rock collides with hailstone
-          start: 20 19 15 velocity: 1 -5 -3
-            at:21 14 12
-        2ns later at time: 3ns rock collides with hailstone
-          start: 18 19 22 velocity: -1 -1 -2
-            at:15 16 16
-        1ns later at time: 4ns rock collides with hailstone
-          start: 20 25 34 velocity: -2 -2 -4
-            at:12 17 18
-        1ns later at time: 5ns rock collides with hailstone
-          start: 19 13 30 velocity: -2 1 -2
-            at:9 18 20
-        1ns later at time: 6ns rock collides with hailstone
-          start: 12 31 28 velocity: -1 -2 -1
-            at:6 19 22
-      */
-
       return {0,0,0,0,0,0}; // Todo, implement ;)
     }
     
