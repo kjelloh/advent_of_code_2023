@@ -397,13 +397,7 @@ namespace part2 {
     }
 
     // scalar division
-    Vector operator/(const Vector& lhs, Integer n) {
-      for (auto const& value : lhs) {
-        if (value % n != 0) {
-          std::cout << NT << "NOTE: Rounding error in scalar division for value:" << value << " n:" << n << " value % n:" << value % n;
-        }
-        // assert(value % n == 0);
-      }
+    std::array<double,3> operator/(const Vector& lhs, double n) {
       return {lhs[0]/n, lhs[1]/n, lhs[2]/n};
     }
 
@@ -440,6 +434,9 @@ namespace part2 {
     public:
       Vector start; // x0,y0,z0
       Vector orientation; // dx,dy,dz
+      bool operator<(const Trajectory& other) const {
+        return std::tie(start, orientation) < std::tie(other.start, other.orientation);
+      }
     };
 
     std::string to_string(Trajectory const& t) {
@@ -452,14 +449,18 @@ namespace part2 {
     Trajectory to_projected(Trajectory const& h,Vector const& n) {
       // project h onto the plane defined by the plane up-vector n (assume not normalized n)
       // In effect remove the component of the starting position and velocity that is parallel to the normal vector
-      auto norm_n = norm(n);
-      auto n_norm = n / norm_n;
+      auto norm_n = norm(n); // n is integer vector
+      auto n_norm = n / static_cast<double>(norm_n);
 
       Vector h_position = h.start;
-      Vector proj_position = h_position - n_norm * dot(h_position, n_norm);
+      double pos_scale = h_position[0]*n_norm[0] + h_position[1]*n_norm[1] + h_position[2]*n_norm[2];
+      // Force the projection to integer coordinates
+      Vector proj_position = h_position - Vector{std::round(n_norm[0]*pos_scale),std::round(n_norm[1]*pos_scale),std::round(n_norm[2]*pos_scale)};
       // Now `proj_position` is the projection of the h starting position onto the plane with normal n
       Vector h_orientation = h.orientation;
-      Vector proj_orientation = h_orientation - n_norm * dot(h_orientation, n_norm);
+      double orientation_scale = h_orientation[0]*n_norm[0] + h_orientation[1]*n_norm[1] + h_orientation[2]*n_norm[2];
+      // Force the projection to integer coordinates
+      Vector proj_orientation = h_orientation - Vector{static_cast<Integer>(n_norm[0]*orientation_scale),static_cast<Integer>(n_norm[1]*orientation_scale),static_cast<Integer>(n_norm[2]*orientation_scale)};
       return {proj_position, proj_orientation};
     }
 
@@ -703,14 +704,47 @@ namespace part2 {
           }
         }
       }
-      // print the equations
+     std::map<Trajectory,Integer> example_collisions{
+        {Trajectory{20,19,15,1,-5,-3},1},
+        {Trajectory{18,19,22,-1,-1,-2},3},
+        {Trajectory{20,25,34,-2,-2,-4},4},
+        {Trajectory{19,13,30,-2,1,-2},5},
+        {Trajectory{12,31,28,-1,-2,-1},6}
+      };
+      auto t0 = example_collisions[three_random_trajectories[0]];
+      auto t1 = example_collisions[three_random_trajectories[1]];
+      auto t2 = example_collisions[three_random_trajectories[2]];
+      // print the equations and their correctness
       std::cout << NL << "t_equations"; 
-      for (auto const& eq : t_equations) {
-        auto const& [a,b,c,d] = eq;
-        std::cout << NT << "t0*" << a << " + t1*" << b << " + t2*" << c << " + " << d << " = 0";   
+      for (int i=0;i< t_equations.size();++i) {
+        auto const& [a,b,c,d] = t_equations[i];
+        auto result = a*t0 + b*t1 + c*t2 + d;
+        std::cout << NT << "e" << i <<  ": t0*" << a << " + t1*" << b << " + t2*" << c << " + " << d << " = " << result;
+        if (result != 0) std::cout << " :(";
+        else std::cout << " :)";
       }
-/*
-*/      
+      /*
+      part2
+      Found three hailstones that span three non coplanar planes
+        {20,19,15} + t*{1,-5,-3}
+        {19,13,30} + t*{-2,1,-2}
+        {18,19,22} + t*{-1,-1,-2}
+      t_equations
+        e0: t0*1 + t1*2 + t2*0 + -7 = 0
+        e1: t0*-5 + t1*-1 + t2*0 + 1 = 0
+        e2: t0*-3 + t1*2 + t2*0 + -23 = 0
+        e3: t0*1 + t1*0 + t2*1 + -1 = 0
+        e4: t0*-5 + t1*0 + t2*1 + -3 = 0
+        e5: t0*-3 + t1*0 + t2*2 + -4 = 0
+        e6: t0*0 + t1*-2 + t2*1 + 5 = 0
+        e7: t0*0 + t1*1 + t2*1 + -4 = 0
+        e8: t0*0 + t1*-2 + t2*2 + 4 = 0
+      */
+      // t0 = 1
+      // t1 = 5
+      // t2 = 3
+      // e0: 1 + 10 + 0 + -7 != 0 :(
+      // Hm... May we suspect rounding errors? 
 
       // we expect the same solution as:
       /*
@@ -723,12 +757,22 @@ namespace part2 {
         at time:6 rock collides with hailstone at position:6 19 22
         at time:1 rock collides with hailstone at position:21 14 12
       Collisions in time order
-        1ns later at time: 1ns rock collides with hailstone at position:21 14 12
-        2ns later at time: 3ns rock collides with hailstone at position:15 16 16
-        1ns later at time: 4ns rock collides with hailstone at position:12 17 18
-        1ns later at time: 5ns rock collides with hailstone at position:9 18 20
-        1ns later at time: 6ns rock collides with hailstone at position:6 19 22
-      */      
+        1ns later at time: 1ns rock collides with hailstone
+          start: 20 19 15 velocity: 1 -5 -3
+            at:21 14 12
+        2ns later at time: 3ns rock collides with hailstone
+          start: 18 19 22 velocity: -1 -1 -2
+            at:15 16 16
+        1ns later at time: 4ns rock collides with hailstone
+          start: 20 25 34 velocity: -2 -2 -4
+            at:12 17 18
+        1ns later at time: 5ns rock collides with hailstone
+          start: 19 13 30 velocity: -2 1 -2
+            at:9 18 20
+        1ns later at time: 6ns rock collides with hailstone
+          start: 12 31 28 velocity: -1 -2 -1
+            at:6 19 22
+      */
 
       return {0,0,0,0,0,0}; // Todo, implement ;)
     }
@@ -937,7 +981,9 @@ namespace part2 {
               for (auto const& [time,line] : collisions) {
                 times.second = time;
                 auto dt = times.second - times.first;
-                std::cout << NT << dt << "ns later at time: " << time  << "ns rock collides with hailstone at position:" << line[0][0] + time * line[1][0] << " " << line[0][1] + time * line[1][1] << " " << line[0][2] + time * line[1][2];
+                std::cout << NT << dt << "ns later at time: " << time  << "ns rock collides with hailstone";
+                std::cout << NT << T << "start: " << line[0][0] << " " << line[0][1] << " " << line[0][2] << " velocity: " << line[1][0] << " " << line[1][1] << " " << line[1][2];
+                std::cout << NT << T << "   at:" << line[0][0] + time * line[1][0] << " " << line[0][1] + time * line[1][1] << " " << line[0][2] + time * line[1][2];
                 times.first = times.second;
               }
 
