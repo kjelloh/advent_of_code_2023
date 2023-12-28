@@ -391,6 +391,22 @@ namespace part2 {
       return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
     }
 
+    // scalar multiplication
+    Vector operator*(const Vector& lhs, Integer n) {
+      return {lhs[0]*n, lhs[1]*n, lhs[2]*n};
+    }
+
+    // scalar division
+    Vector operator/(const Vector& lhs, Integer n) {
+      for (auto const& value : lhs) {
+        if (value % n != 0) {
+          std::cout << NT << "NOTE: Rounding error in scalar division for value:" << value << " n:" << n << " value % n:" << value % n;
+        }
+        // assert(value % n == 0);
+      }
+      return {lhs[0]/n, lhs[1]/n, lhs[2]/n};
+    }
+
     Integer dot(const Vector& a, const Vector& b) {
         return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
     }
@@ -422,15 +438,29 @@ namespace part2 {
 
     class Trajectory {
     public:
-      Vector position; // x0,y0,z0
+      Vector start; // x0,y0,z0
       Vector orientation; // dx,dy,dz
     };
 
     std::string to_string(Trajectory const& t) {
-      std::string result = to_string(t.position);
+      std::string result = to_string(t.start);
       result += " + t*";
       result += to_string(t.orientation);
       return result;
+    }
+
+    Trajectory to_projected(Trajectory const& h,Vector const& n) {
+      // project h onto the plane defined by the plane up-vector n (assume not normalized n)
+      // In effect remove the component of the starting position and velocity that is parallel to the normal vector
+      auto norm_n = norm(n);
+      auto n_norm = n / norm_n;
+
+      Vector h_position = h.start;
+      Vector proj_position = h_position - n_norm * dot(h_position, n_norm);
+      // Now `proj_position` is the projection of the h starting position onto the plane with normal n
+      Vector h_orientation = h.orientation;
+      Vector proj_orientation = h_orientation - n_norm * dot(h_orientation, n_norm);
+      return {proj_position, proj_orientation};
     }
 
     using Trajectories = std::vector<Trajectory>;
@@ -443,7 +473,7 @@ namespace part2 {
       auto n = cross(trajectory1.orientation, trajectory2.orientation);
 
       // Calculate D (dot product of the normal vector and any point on the plane)
-      auto D = -dot(n, trajectory1.position);
+      auto D = -dot(n, trajectory1.start);
 
       // Return the coefficients of the plane equation
       return {n[0], n[1], n[2], D};
@@ -479,28 +509,28 @@ namespace part2 {
       std::map<Integer,Trajectory> collisions{};
       for (auto const& hailstone : hailstones) {
         // Calculate the time of collision
-        // rock.position + t * rock.orientation = hailstone.position + t * hailstone.orientation
-        // t*(rock.orientation - hailstone.orientation) = hailstone.position - rock.position
-        // t = (hailstone.position - rock.position) / (rock.orientation - hailstone.orientation)
+        // rock.start + t * rock.orientation = hailstone.start + t * hailstone.orientation
+        // t*(rock.orientation - hailstone.orientation) = hailstone.start - rock.start
+        // t = (hailstone.start - rock.start) / (rock.orientation - hailstone.orientation)
         Integer tx,ty,tz;
         auto denom_x = (rock.orientation[0] - hailstone.orientation[0]);
         auto denom_y = (rock.orientation[1] - hailstone.orientation[1]);
         auto denom_z = (rock.orientation[2] - hailstone.orientation[2]);
         if (denom_x != 0) {
-          tx = (hailstone.position[0] - rock.position[0]) / denom_x;
+          tx = (hailstone.start[0] - rock.start[0]) / denom_x;
         }
         if (denom_y != 0) {
-          ty = (hailstone.position[1] - rock.position[1]) / denom_y;
+          ty = (hailstone.start[1] - rock.start[1]) / denom_y;
         }
         if (denom_z != 0) {
-          tz = (hailstone.position[2] - rock.position[2]) / denom_z;
+          tz = (hailstone.start[2] - rock.start[2]) / denom_z;
         }
         if (tx == ty and ty==tz) {
           collisions[tx] = hailstone;
-          std::cout << NT << "at time:" << tx << " rock collides with hailstone at position:" << hailstone.position[0] + tx * hailstone.orientation[0] << " " << hailstone.position[1] + tx * hailstone.orientation[1] << " " << hailstone.position[2] + tx * hailstone.orientation[2];
+          std::cout << NT << "at time:" << tx << " rock collides with hailstone at position:" << hailstone.start[0] + tx * hailstone.orientation[0] << " " << hailstone.start[1] + tx * hailstone.orientation[1] << " " << hailstone.start[2] + tx * hailstone.orientation[2];
         }
         else {
-          std::cout << NT << "ERROR: time check failed for hailstone:" << hailstone.position[0] << " " << hailstone.position[1] << " " << hailstone.position[2] << " velocity:" << hailstone.orientation[0] << " " << hailstone.orientation[1] << " " << hailstone.orientation[2];
+          std::cout << NT << "ERROR: time check failed for hailstone:" << hailstone.start[0] << " " << hailstone.start[1] << " " << hailstone.start[2] << " velocity:" << hailstone.orientation[0] << " " << hailstone.orientation[1] << " " << hailstone.orientation[2];
           std::cout << NT << "tx:" << tx << " ty:" << ty << " tz:" << tz << " NOT same time?";
           if (tx > 0) collisions[tx] = hailstone;
           else if (ty > 0) collisions[ty] = hailstone;
@@ -512,7 +542,7 @@ namespace part2 {
     // The function f to get to 0 for rock to collide with hailstone
     Vector f(Trajectory const& a,Trajectory const& b) {
       // If b position relative to a is the same direction as how b is moving towards a. Then b will intersect the trajectory of a somewhere.
-      return cross(a.position - b.position,a.orientation - b.orientation);
+      return cross(a.start - b.start,a.orientation - b.orientation);
       // The x-component is (ay0 - by0)*(avz0 - bvz0) - (az0 - bz0)*(avy0 - bvy0) // yz
       // The y-component is (az0 - bz0)*(avx0 - bvx0) - (ax0 - bx0)*(avz0 - bvz0) // zx
       // The z-component is (ax0 - bx0)*(avy0 - bvy0) - (ay0 - by0)*(avx0 - vvx0) // xy
@@ -550,7 +580,7 @@ namespace part2 {
         Trajectory hailstone{19,13,30,-2,1,-2};
         std::cout << NL << "rock : " << to_string(rock) << " hailstone : " << to_string(hailstone);
 
-        auto relative_position = hailstone.position - rock.position;
+        auto relative_position = hailstone.start - rock.start;
         auto relative_orientation = hailstone.orientation - rock.orientation;      
         std::cout << NL << "relative position : " << to_string(relative_position) << " relative orientation : " << to_string(relative_orientation);
         if (is_parallel(relative_position, relative_orientation)) {
@@ -598,50 +628,107 @@ namespace part2 {
         std::cout << NT << to_string(trajectory);
       }
       // We should have three hailstone trajectories sufficiently different to solve for a unique rock path.
-      // trajectories[0].position - rock.position is parallel to the relative orientation.
-      // Relative position between rock and hailstone: trajectories[0].position - rock.position = (hx0,hy0,hz0) - (rx0,ry0,rz0)
-      // relative orientation (velocity) between rock and hailstone: trajectories[0].orientation - rock.orientation = (hvx0,hvy0,hvz0) - (rvx0,rvy0,rvz0)
-      // We want the rock so that these two are parallel: The cross product ((hx0,hy0,hz0) - (rx0,ry0,rz0)) x ((hvx0,hvy0,hvz0) - (rvx0,rvy0,rvz0)) = (0,0,0)
+      // When the relative position (trajectory.start - rock.start) 
+      // is parallel to the relative orientation (hailstone.start - rock.start)
+      // then the rock will see the hailstone fixated "in the sky" while it moves. And if the relative velocity is positive towards the rock,
+      // then they will sooner or later collide (the velocity towards the rock will eat up the distance between them).
 
-      // For rock r trajectory we should aim at:
-      // The x-component is (hy0 - ry0)*(hvz0 - rvz0) - (hz0 - rz0)*(hvy0 - rvy0) = 0
-      // The y-component is (hz0 - rz0)*(hvx0 - rvx0) - (hx0 - rx0)*(hvz0 - rvz0) = 0
-      // The z-component is (hx0 - rx0)*(hvy0 - rvy0) - (hy0 - ry0)*(hvx0 - rvx0) = 0
+      // Relative position between rock r and a hailstone h: h.start - r.start = (hx,hy,hz) - (rx,ry,rz)
+      // relative orientation (velocity) between rock and hailstone: h.orientation - r.orientation = (hvx,hvy,hvz) - (rvx,rvy,rvz)
+      // We want the rock oriented so that these two are parallel: The cross product ((hx,hy,hz) - (rx,ry,rz)) x ((hvx,hvy,hvz) - (rvx,rvy,rvz)) = (0,0,0)
 
-      // Observation! If we imagine the rock path hitting each hailstone. 
-      // We can also imagine "moving" the hailstone trajectory "along" the rock path and get the hailstone to hit each other!
-      // That is, if we find the orientation of the rock path, we could use it to move the hailstone trajectories to hit each other!
+      // Split into x,y,z components:
+      // The x-component is (hy - ry)*(hvz - rvz) - (hz - rz)*(hvy - rvy) = 0
+      // The y-component is (hz - rz)*(hvx - rvx) - (hx - rx)*(hvz - rvz) = 0
+      // The z-component is (hx - rx)*(hvy - rvy) - (hy - ry)*(hvx - rvx) = 0
 
-      // Try a range of rock velocities to see if any of them "adjusts" the hailstone path to collide?
-      auto [_,__,min,max] = args;
-      std::vector<Vector> rock_velocity_candidates{};
-      Trajectory known_example_rock{24,13,10,-3,1,2};
-      for (int vx = min;vx < max ; ++vx) {
-        for (int vy = min;vy < max ; ++vy) {
-          for (int vz = min;vz < max ; ++vz) {
-            for (int i=0;i<3;++i) {
-              auto a = three_random_trajectories[0];
-              auto b = three_random_trajectories[1];
-              b.orientation = b.orientation - Vector{vx,vy,vz};
-              std::rotate(three_random_trajectories.begin(), three_random_trajectories.begin() + 1, three_random_trajectories.end());
-              auto [fx,fy,fz] = f(a,b);
-              if (fx == 0 && fy == 0 && fz == 0) {
-                std::cout << NL << "Found rock velocity candidate : " << vx << " " << vy << " " << vz;
-                rock_velocity_candidates.push_back({vx,vy,vz});
-                // Known: // A rock x0:24 y0:13 z0:10 vx:-3 vy:1 vz:2
-              }
-            }
+      // Now, the rock can still start anywhere and hit this hailstone anywhere.
+      // Hm... Can we use the projection to the xy-plane to get any useful information for this part 2?
+
+      // Like, what if we record all x,y positions where each hailstone "shadow" on the xy-plane intersect?
+      std::array<std::tuple<Integer,Integer,Integer,Integer>,9> t_equations{}; // a*t1 + b*t2 + c*t3 + d = 0
+      std::vector<Vector> orientation_cross{};
+      for (int i=0;i<3;++i) {
+        for (int j=i+1;j<3;++j) {
+          // get the plane spanned by hailstone i and j.
+          auto hi = three_random_trajectories[i];
+          auto hj = three_random_trajectories[j];
+          orientation_cross.push_back(cross(hi.orientation, hj.orientation));
+          auto nij = cross(hi.orientation, hj.orientation);
+          auto pi = to_projected(hi,nij); // hi as seen on the spanned plane
+          auto pj = to_projected(hj,nij); // hj as seen on the spanned plane
+          // Now, because hi and hj are now projected onto the plane they span - their trajectories will intersect for sure on this plane :)
+          // Iw we call the projected hi and hj for pi and pj.
+          // at ti pi is at position: pi.start + ti * pi.orientation
+          // at tj pj is at position: pj.start + tj * pj.orientation
+          // If we define this as the intersection point we can solve for ti and tj.
+          // pi.start + ti * pi.orientation = pj.start + tj * pj.orientation
+          // pi.start + ti * pi.orientation - (pj.start + tj * pj.orientation) = 0
+          // pi.start + ti * pi.orientation - pj.start - tj * pj.orientation = 0
+          // ti * pi.orientation - tj * pj.orientation + pi.start - pj.start  = 0
+          // ti * (pi.orientation) + tj * (-pj.orientation) + (pi.start - pj.start)  = 0
+
+          // If we do this for i and j (0,1),(0,2),(1,2) we can solve to t0,t1 and t2.
+          // t0 * (p0.orientation) + t1 * (-p1.orientation) + (p0.start - p1.start)  = 0
+          // t0 * (p0.orientation) + t2 * (-p2.orientation) + (p0.start - p2.start)  = 0
+          // t1 * (p1.orientation) + t2 * (-p2.orientation) + (p1.start - p2.start)  = 0
+
+          // Three unknowns and three independent equations.
+          // t0 * (p0.orientation) + t1 * (-p1.orientation) + t2 * 0                 + (p0.start - p1.start)  = 0
+          // t0 * (p0.orientation) + t1 * 0                 + t2 * (-p2.orientation) + (p0.start - p2.start)  = 0
+          // t0 * 0                + t1 * (p1.orientation) + t2 * (-p2.orientation) + (p1.start - p2.start)  = 0
+
+          // Well, we actually have 9 equations as p.start and p.orientation are 3D vectors!
+          // but we only need one for each plane, so we can pick those that have non-zero parameters in the equation system.
+          // Which, if we look at the system, only applies to the right constant term, i.e., the start differences :)
+          // So lets pick one fully determined x-direction equation, one fully determined y-direction equation and one fully determined z-direction equation.
+          // Lets study what we get
+          if (i==0 and j==1) {
+            // t0 * (p0.orientation) + t1 * (-p1.orientation) + t2 * 0                 + (p0.start - p1.start)  = 0
+            t_equations[0] = {pi.orientation[0],-pj.orientation[0],0,pi.start[0] - pj.start[0]}; // x
+            t_equations[1] = {pi.orientation[1],-pj.orientation[1],0,pi.start[1] - pj.start[1]}; // y
+            t_equations[2] = {pi.orientation[2],-pj.orientation[2],0,pi.start[0] - pj.start[2]}; // z
+          }
+          if (i==0 and j==2) {
+            // t0 * (p0.orientation) + t1 * 0                 + t2 * (-p2.orientation) + (p0.start - p2.start)  = 0
+            t_equations[3] = {pi.orientation[0],0,-pj.orientation[0],pi.start[0] - pj.start[0]}; // x
+            t_equations[4] = {pi.orientation[1],0,-pj.orientation[1],pi.start[1] - pj.start[1]}; // y
+            t_equations[5] = {pi.orientation[2],0,-pj.orientation[2],pi.start[2] - pj.start[2]}; // z
+          }
+          if (i==1 and j==2) {
+          // t0 * 0                + t1 * (p1.orientation) + t2 * (-p2.orientation) + (p1.start - p2.start)  = 0
+            t_equations[6] = {0,pi.orientation[0],-pj.orientation[0],pi.start[0] - pj.start[0]}; // x
+            t_equations[7] = {0,pi.orientation[1],-pj.orientation[1],pi.start[1] - pj.start[1]}; // x
+            t_equations[8] = {0,pi.orientation[2],-pj.orientation[2],pi.start[2] - pj.start[2]}; // x
           }
         }
       }
+      // print the equations
+      std::cout << NL << "t_equations"; 
+      for (auto const& eq : t_equations) {
+        auto const& [a,b,c,d] = eq;
+        std::cout << NT << "t0*" << a << " + t1*" << b << " + t2*" << c << " + " << d << " = 0";   
+      }
+/*
+*/      
 
-      // NO - This is wrong thinking! (I think?)
-      // At least it dos not work.
-      // My test function f DOES return (0,0,0) when I provide the known example rock against the known example hailstones.
-      // But it still fails to return (0,0,0) for any adjusted hailstone trajectory (offsetting them with the tested rock velocity).
-      // Now, the reason f works for the rock is, I think, that it has the correct relative starting position.
-      // But each hailstone pair does not have the same relative position as the known rock has to each hailstone.
-      // Hm...
+      // we expect the same solution as:
+      /*
+      part2
+      tbeu found rock: 
+        x0:24 y0:13 z0:10
+        vx:-3 vy:1 vz:2
+        at time:3 rock collides with hailstone at position:15 16 16
+        at time:4 rock collides with hailstone at position:12 17 18
+        at time:6 rock collides with hailstone at position:6 19 22
+        at time:1 rock collides with hailstone at position:21 14 12
+      Collisions in time order
+        1ns later at time: 1ns rock collides with hailstone at position:21 14 12
+        2ns later at time: 3ns rock collides with hailstone at position:15 16 16
+        1ns later at time: 4ns rock collides with hailstone at position:12 17 18
+        1ns later at time: 5ns rock collides with hailstone at position:9 18 20
+        1ns later at time: 6ns rock collides with hailstone at position:6 19 22
+      */      
 
       return {0,0,0,0,0,0}; // Todo, implement ;)
     }
@@ -890,10 +977,10 @@ namespace part2 {
   Result solve_for(Model &model, auto args) {
       Result result{};
       std::cout << NL << NL << "part2";
-      if (false) {
+      if (true) {
         // Developing my own solution from scratch
         const auto rock = mine::to_hit_all_trajectory(model,args);
-        result = rock.position[0] + rock.position[1] + rock.position[2];
+        result = rock.start[0] + rock.start[1] + rock.start[2];
       }
       else {
         // Known working solution from tbeu
