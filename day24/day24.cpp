@@ -680,12 +680,12 @@ namespace part2 {
       // Like, what if we record all x,y positions where each hailstone "shadow" on the xy-plane intersect?
       // hailstone_candidates.push_back(example_rock); // Add the known example rock trajectory to the three random trajectories
       using ShadowIntersection = std::array<std::optional<double>,3>;
-      using ShadowIntersections = std::vector<ShadowIntersection>;
+      using ShadowIntersectionTime = std::array<double,3>;
+      using ShadowIntersections = std::vector<std::tuple<ShadowIntersectionTime,ShadowIntersection>>;
       ShadowIntersections shadow_intersections{};
       ShadowIntersections int_shadow_intersections{};
       hailstone_candidates = trajectories; // Use all hailstones (test)
       // hailstone_candidates.push_back(example_rock); // Add the known example rock trajectory to the candidates
-      std::array<std::tuple<Integer,Integer,Integer,Integer>,9> t_equations{}; // a*t1 + b*t2 + c*t3 + d = 0
       int count_ints{};
       for (int i=0;i<hailstone_candidates.size();++i) {
         for (int j=i+1;j<hailstone_candidates.size();++j) {
@@ -708,9 +708,11 @@ namespace part2 {
             auto x = (ci * bj - cj * bi) / (ai * bj - aj * bi);
             auto y = (cj * ai - ci * aj) / (ai * bj - aj * bi);
             std::cout << NT << "XY-Shadow intersection candidate xyz: " << x << T << y << T << " _ ";
-            shadow_intersections.push_back({x,y,std::nullopt});
+            double tx = (x - xi.start[0]) / xi.orientation[0];
+            double ty = (y - xi.start[1]) / xi.orientation[1];
+            shadow_intersections.push_back({{tx,ty,-1},{x,y,std::nullopt}});
             if (x == static_cast<Integer>(x) or y == static_cast<Integer>(y)) {
-              int_shadow_intersections.push_back({x,y,std::nullopt});               
+              int_shadow_intersections.push_back({{tx,ty,-1},{x,y,std::nullopt}});    
             }
             if (x == static_cast<Integer>(x)) ++count_ints;
             if (y == static_cast<Integer>(y)) ++count_ints;
@@ -731,12 +733,14 @@ namespace part2 {
             // Fingers crossed we do not need more than 15 significant digits to find the solution...
             auto y = (ci * bj - cj * bi) / (ai * bj - aj * bi);
             auto z = (cj * ai - ci * aj) / (ai * bj - aj * bi);
+            double ty = (y - xi.start[1]) / xi.orientation[1];
+            double tz = (z - xi.start[2]) / xi.orientation[2];
             std::cout << NT << "YZ-Shadow intersection candidate xyz: " << " _ " << T << y << T << z;
-            shadow_intersections.push_back({std::nullopt,y,z});
+            shadow_intersections.push_back({{-1,ty,tz},{std::nullopt,y,z}});
             if (y == static_cast<Integer>(y)) ++count_ints;
             if (z == static_cast<Integer>(z)) ++count_ints;
             if (y == static_cast<Integer>(y) or z == static_cast<Integer>(z)) {
-              int_shadow_intersections.push_back({std::nullopt,y,z});               
+              int_shadow_intersections.push_back({{-1,ty,tz},{std::nullopt,y,z}});  
             }
           }
           {
@@ -755,12 +759,14 @@ namespace part2 {
             // Fingers crossed we do not need more than 15 significant digits to find the solution...
             auto z = (ci * bj - cj * bi) / (ai * bj - aj * bi);
             auto x = (cj * ai - ci * aj) / (ai * bj - aj * bi);
+            double tz = (z - xi.start[2]) / xi.orientation[2];
+            double tx = (x - xi.start[0]) / xi.orientation[0];
             std::cout << NT << "ZX-Shadow intersection candidate xyz: " << x << T << " _ " << T << z;
-            shadow_intersections.push_back({x,std::nullopt,z});
+            shadow_intersections.push_back({{tx,-1,tz},{x,std::nullopt,z}});
             if (x == static_cast<Integer>(x)) ++count_ints;
             if (z == static_cast<Integer>(z)) ++count_ints;
             if (x == static_cast<Integer>(x) or z == static_cast<Integer>(z)) {
-              int_shadow_intersections.push_back({x,std::nullopt,z});               
+              int_shadow_intersections.push_back({{tx,-1,tz},{x,std::nullopt,z}});               
             }
           }
         }        
@@ -805,25 +811,35 @@ namespace part2 {
       // We also see that the shadows may be parallel although the actual hailstones we selected should not be parallel.
       // Hm... I wonder if the shadow intersections can be our area of interest?
       std::sort(shadow_intersections.begin(),shadow_intersections.end(),[](auto const& a,auto const& b){
-        return std::tie(a[0],a[1],a[2]) < std::tie(b[0],b[1],b[2]);}
-      );
+        auto const& [a_time,a_xyz] = a;
+        auto const& [b_time,b_xyz] = b;
+        return a_time[0] + a_time[1] + a_time[2] < b_time[0] + b_time[1] + b_time[2];
+      });
       std::sort(int_shadow_intersections.begin(),int_shadow_intersections.end(),[](auto const& a,auto const& b){
-        return std::tie(a[0],a[1],a[2]) < std::tie(b[0],b[1],b[2]);}
-      );
-      for (auto const& [ox,oy,oz] : shadow_intersections) {
-        std::cout << NT << "shadow_intersection xyz:" << T;
+        auto const& [a_time,a_xyz] = a;
+        auto const& [b_time,b_xyz] = b;
+        return a_time[0] + a_time[1] + a_time[2] < b_time[0] + b_time[1] + b_time[2];
+      });
+      for (auto const& [times,xyz] : shadow_intersections) {
+        auto const& [tx,ty,tz] = times;
+        auto const& [ox,oy,oz] = xyz;
+        std::cout << NT << "shadow_intersection xyz,";
+        std::cout << " at time: " << tx << " " << ty << " " << tz << " : ";
         if (ox.has_value()) std::cout << ox.value();else std::cout << " _ ";
-        std::cout << T << " ";
+        std::cout << " ";
         if (oy.has_value()) std::cout << oy.value();else std::cout << " _ ";
-        std::cout << T << " ";
+        std::cout << " ";
         if (oz.has_value()) std::cout << oz.value();else std::cout << " _ ";
       }
-      for (auto const& [ox,oy,oz] : int_shadow_intersections) {
-        std::cout << NT << "INTEGER shadow_intersection xyz:" << T;
+      for (auto const& [times,xyz] : int_shadow_intersections) {
+        auto const& [tx,ty,tz] = times;
+        auto const& [ox,oy,oz] = xyz;
+        std::cout << NT << "INTEGER shadow_intersection xyz,";
+        std::cout << " at time: " << tx << " " << ty << " " << tz << " : ";
         if (ox.has_value()) std::cout << ox.value();else std::cout << " _ ";
-        std::cout << T << " ";
+        std::cout << " ";
         if (oy.has_value()) std::cout << oy.value();else std::cout << " _ ";
-        std::cout << T << " ";
+        std::cout << " ";
         if (oz.has_value()) std::cout << oz.value();else std::cout << " _ ";
       }
       std::cout << NL << "shadow_intersections count:" << shadow_intersections.size();
@@ -833,88 +849,63 @@ namespace part2 {
 
       /*
 
-        shadow_intersection xyz:	 _ 	 14	 12
-        shadow_intersection xyz:	 _ 	 14	 12
-                      {Trajectory{21,  14, 12,1,-5,-3},1}
+        shadow_intersection xyz, at time: -1 -29 -29 :  _  89 57
+        shadow_intersection xyz, at time: -12 -1 -12 : 30  _  46
+        shadow_intersection xyz, at time: -4 -4 -1 : 16 39  _ 
+        shadow_intersection xyz, at time: -3 -1 -3 : 25  _  36
+        shadow_intersection xyz, at time: -2.75 -1 -2.75 : 14.75  _  30.75
+        shadow_intersection xyz, at time: -1.66667 -1.66667 -1 : 19.6667 20.6667  _ 
+        shadow_intersection xyz, at time: -1.22222 -1.22222 -1 : 21.4444 11.7778  _ 
+        shadow_intersection xyz, at time: -1 -1 -1 : 22  _  38
 
-        shadow_intersection xyz:	 _ 	 17.4	 21.2
+        shadow_intersection xyz, at time: -1 -0 -0 :  _  19 22
+        shadow_intersection xyz, at time: 0.2 -1 0.2 : 17.8  _  21.6
+        shadow_intersection xyz, at time: 0.5 0.5 -1 : 19 24  _ 
+        shadow_intersection xyz, at time: 1 -1 1 : 17  _  28
+        shadow_intersection xyz, at time: 1.5 -1 1.5 : 16  _  27
+        shadow_intersection xyz, at time: 1.9 -1 1.9 : 16.2  _  26.4
+        shadow_intersection xyz, at time: 2.33333 2.33333 -1 : 14.3333 15.3333  _ 
+                                                  ,{Trajectory{15,     16,     16,-1,-1,-2},3}
+        shadow_intersection xyz, at time: -1 3 3 :  _  19 22
+        shadow_intersection xyz, at time: 3.66667 3.66667 -1 : 11.6667 16.6667  _ 
+        shadow_intersection xyz, at time: -1 4.4 4.4 :  _  17.4 21.2
+        shadow_intersection xyz, at time: -1 5 5 :  _  14 12
+                                       {Trajectory{21, 14,12,1,-5,-3},1}
+        shadow_intersection xyz, at time: -1 5 5 :  _  18 20
+        shadow_intersection xyz, at time: -1 5 5 :  _  18 20
+        shadow_intersection xyz, at time: -1 5.5 5.5 :  _  14 12
+        shadow_intersection xyz, at time: 6.4 6.4 -1 : 6.2 19.4  _ 
+        shadow_intersection xyz, at time: -1 7.15385 7.15385 :  _  20.1538 15.6923
+        shadow_intersection xyz, at time: 11 11 -1 : -2 3  _ 
+        shadow_intersection xyz, at time: 24 24 -1 : -6 -5  _ 
 
-        shadow_intersection xyz:	 _ 	 18	 20
-        shadow_intersection xyz:	 _ 	 18	 20
+        INTEGER shadow_intersection xyz, at time: -1 -29 -29 :  _  89 57
+        INTEGER shadow_intersection xyz, at time: -12 -1 -12 : 30  _  46
+        INTEGER shadow_intersection xyz, at time: -4 -4 -1 : 16 39  _ 
+        INTEGER shadow_intersection xyz, at time: -3 -1 -3 : 25  _  36
+        INTEGER shadow_intersection xyz, at time: -1 -1 -1 : 22  _  38
+        INTEGER shadow_intersection xyz, at time: -1 -0 -0 :  _  19 22
+        INTEGER shadow_intersection xyz, at time: 0.5 0.5 -1 : 19 24  _ 
+        INTEGER shadow_intersection xyz, at time: 1 -1 1 : 17  _  28
+                                               {Trajectory{21, 14,12,1,-5,-3},1}
+        INTEGER shadow_intersection xyz, at time: 1.5 -1 1.5 : 16  _  27
+        INTEGER shadow_intersection xyz, at time: -1 3 3 :  _  19 22
+                                              ,{Trajectory{15, 16,16,-1,-1,-2},3}
+                                              ,{Trajectory{12, 17,18,-2,-2,-4},4}
+        INTEGER shadow_intersection xyz, at time: -1 5 5 :  _  18 20
+        INTEGER shadow_intersection xyz, at time: -1 5 5 :  _  18 20
+                                                ,{Trajectory{9,18,20,-2,1,-2},5}
+        INTEGER shadow_intersection xyz, at time: -1 5 5 :  _  14 12
+        INTEGER shadow_intersection xyz, at time: -1 5.5 5.5 :  _  14 12
+                                                   ,{Trajectory{6, 19,22,-1,-2,-1},6}
+        INTEGER shadow_intersection xyz, at time: 11 11 -1 : -2 3  _ 
+        INTEGER shadow_intersection xyz, at time: 24 24 -1 : -6 -5  _ 
 
-        shadow_intersection xyz:	 _ 	 19	 22
-        shadow_intersection xyz:	 _ 	 19	 22
-
-        shadow_intersection xyz:	 _ 	 20.1538	 15.6923
-        shadow_intersection xyz:	 _ 	 89	 57
-
-        shadow_intersection xyz:	-6	 -5	  _ 
-        shadow_intersection xyz:	-2	 3	  _ 
-        shadow_intersection xyz:	6.2	 19.4	  _ 
-                     ,{Trajectory{6,   19,   22,    -1,-2,-1},6}
-
-                     ,{Trajectory{9,   18,   20,-2,1,-2},5}
-
-        shadow_intersection xyz:	11.6667	 16.6667	  _ 
-                     ,{Trajectory{12,      17,       18,-2,-2,-4},4}
-
-        shadow_intersection xyz:	14.3333	 15.3333	  _ 
-        shadow_intersection xyz:	14.75	  _ 	 30.75
-                     ,{Trajectory{15,    16,   16,-1,-1,-2},3}
-
-        shadow_intersection xyz:	16	  _ 	 27
-        shadow_intersection xyz:	16	 39	  _ 
-        shadow_intersection xyz:	16.2	  _ 	 26.4
-
-        shadow_intersection xyz:	17	  _ 	 28
-        shadow_intersection xyz:	17.8	  _ 	 21.6
-
-        shadow_intersection xyz:	19	 24	  _ 
-        shadow_intersection xyz:	19.6667	 20.6667	  _ 
-
-        shadow_intersection xyz:	21.4444	 11.7778	  _ 
-
-        shadow_intersection xyz:	22	  _ 	 38
-        shadow_intersection xyz:	25	  _ 	 36
-        shadow_intersection xyz:	30	  _ 	 46
-
-        INTEGER shadow_intersection xyz:	 _ 	 14	 12
-        INTEGER shadow_intersection xyz:	 _ 	 14	 12
-                              {Trajectory{21,  14, 12,1,-5,-3},1}
-
-        INTEGER shadow_intersection xyz:	 _ 	 18	 20
-        INTEGER shadow_intersection xyz:	 _ 	 18	 20
-                              ,{Trajectory{9,  18, 20,-2,1,-2},5}
-
-
-        INTEGER shadow_intersection xyz:	 _ 	 19	 22
-        INTEGER shadow_intersection xyz:	 _ 	 19	 22
-
-        INTEGER shadow_intersection xyz:	 _ 	 89	 57
-
-        INTEGER shadow_intersection xyz:	-6	 -5	  _ 
-        INTEGER shadow_intersection xyz:	-2	 3	  _ 
-
-                             ,{Trajectory{15, 16,  16,   -1,-1,-2},3}
-
-        INTEGER shadow_intersection xyz:	16	  _ 	 27
-        INTEGER shadow_intersection xyz:	16	 39	  _ 
-
-        INTEGER shadow_intersection xyz:	17	  _ 	 28
-        INTEGER shadow_intersection xyz:	19	 24	  _ 
-        INTEGER shadow_intersection xyz:	22	  _ 	 38
-        INTEGER shadow_intersection xyz:	25	  _ 	 36
-        INTEGER shadow_intersection xyz:	30	  _ 	 46
-      shadow_intersections count:26
-        from hailstone count:5
-        count_ints:32
-        int_shadow_intersections count:16
-
-       {Trajectory{21,14,12,1,-5,-3},1}
-      ,{Trajectory{15,16,16,-1,-1,-2},3}
-      ,{Trajectory{12,17,18,-2,-2,-4},4}
-      ,{Trajectory{9,18,20,-2,1,-2},5}
-      ,{Trajectory{6,19,22,-1,-2,-1},6}
+                                                  {Trajectory{21,14,12,1,-5,-3},1}
+                                                  ,{Trajectory{15,16,16,-1,-1,-2},3}
+                                                  ,{Trajectory{12,17,18,-2,-2,-4},4}
+                                                  ,{Trajectory{9,18,20,-2,1,-2},5}
+                                                  ,{Trajectory{6,19,22,-1,-2,-1},6}
 
 
       */
