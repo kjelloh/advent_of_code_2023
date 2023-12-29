@@ -588,8 +588,79 @@ namespace part2 {
       // The z-component is (ax0 - bx0)*(avy0 - bvy0) - (ay0 - by0)*(avx0 - vvx0) // xy
     }
 
-    Trajectory scan_for_rock(Trajectories const& hailstones) {
-      if (true) {
+    class XYProjection {
+    public:
+      Integer x0, y0, z0, dx, dy, dz; // Trajectory p + t*dp in 3D space
+      Integer a, b, c; // Trajectory ax + by  = c on the xy-plane
+
+      XYProjection(Trajectory const& tr) : 
+         x0(tr.start[0])
+        ,y0(tr.start[1])
+        ,z0(tr.start[2])
+        ,dx(tr.orientation[0])
+        ,dy(tr.orientation[1])
+        ,dz(tr.orientation[2])
+        ,a(dy)
+        ,b(-dx)
+        ,c(dy * x0 - dx * y0) {}
+    };
+
+    struct IntersectionTime {
+      Integer t_a,t_b;
+    };
+    std::optional<IntersectionTime> to_intersection(XYProjection const& axy, XYProjection const& bxy) {
+      double a1 = axy.a, b1 = axy.b, c1 = axy.c;
+      double a2 = bxy.a, b2 = bxy.b, c2 = bxy.c;
+      if (a1 * b2 == b1 * a2) {
+        std::cout << NL << "Parallel lines";
+        return IntersectionTime{-1,-1}; // Intersects all the way...
+      }
+      // Note: To ensure the multiplication does not overflow we ensure the arguments are floats and not int64_t (See a and b arguments above)
+      auto x = (c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
+      auto y = (c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
+      // Intersection point is in the test area
+      // But, is the intersection point in the future?
+      // Note: We can imagine a point starting beyond the test area, and intersect with the test area for negative time.
+      // Also, we have solved for any time t such that the lines intersect at time t. But we don't know if t is positive or negative... 
+      // The intersection is in the future (positive time) if the point p(t) > p(0) for dp > 0 and or p(t) < p(0) for dp < 0.
+      // That is, if the point p(t) is in the same direction as the velocity vector v, we will move to p(t) in the future.
+      // Here p(0), start p, is represented by sx,sy And intersection point p(t) is represented by x,y.
+      // So, the intersection is in the future if dx = x - sx > 0 and vx > 0 (test area to the right of start) or dx < 0 and vx < 0 (test area to the left of start)
+      // And the same goes for y.
+      if (     (x - axy.x0) * axy.dx >= 0 
+            && (y - axy.y0) * axy.dy >= 0 
+            && (x - bxy.x0) * bxy.dx >= 0 
+            && (y - bxy.y0) * bxy.dy >= 0) {
+        // diff and velocity are all in the same direction -> intersection is in time t > 0
+        auto t_a = (x - axy.x0) / axy.dx; // From x0 + t*dx = x
+        auto t_b = (y - axy.y0) / axy.dy; // From y0 + t*dy = y
+        if (t_a == static_cast<Integer>(t_a) && t_b == static_cast<Integer>(t_b)) {
+          // Integer solution
+          return IntersectionTime{static_cast<Integer>(t_a),static_cast<Integer>(t_b)};
+        }
+      }
+      return std::nullopt;
+    }
+
+    Trajectory scan_for_rock(Trajectories const& hailstones,Integer min,Integer max) {
+      // Assume the rock r collides with hailstone a,b,c at a1,b2,c3 at times t1,t2,t3.
+      // r(t1) == a1
+      // r(t2) == b2
+      // r(t3) == c3
+      // With all vectors on the form p + t*dp
+      // r0 + t1*dr = a0 + t1*da
+      // r0 + t2*dr = b0 + t2*db
+      // r0 + t3*dr = c0 + t3*dc
+      // If we eliminate t*dr in all three equations we get:
+      // r0 = a0 + t1*da - t1*dr = a´(t1)
+      // r0 = b0 + t2*db - t2*dr = b´(t2)
+      // r0 = c0 + t3*dc - t3*dr = c´(t3)
+      //
+      // Now we have three new trajectories a´,b´,c´ that all reach r0 but at different times.
+      // This means their trajectories all intersect each other :)
+      // 
+      // The idea now is that maybe we can scan for r0 by trying a search range of possible dr values.
+      if (false) {
         // Check this assumption using known rock and hailstones for example
         std::cout << NL << "scan_for_rock." << NT << "example_rock : " << to_string(example_rock);
         for (int i=0;i<example_hailstones.size();++i) {
@@ -612,6 +683,42 @@ namespace part2 {
                   std::cout << NT << "a_prim_at_time : " << to_string(a_prim_at_time) << " b_prim_at_time : " << to_string(b_prim_at_time);
                   if (a_prim_at_time == example_rock.start) std::cout << " == rock start OK!";
                   std::cout << NT << "relative_position (dot) relative_orientation = " << dot(relative_position,relative_orientation);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      for (int i=0;i<hailstones.size();++i) {
+        for (int j=i+1;j<hailstones.size();++j) {
+          auto const& a = hailstones[i];
+          auto const& b = hailstones[j];
+          for (auto dx = min; dx<max;++dx) {
+            for (auto dy=min;dy<max;++dy) {
+              // Use the solver from part 1 to check for "shadows" on the xy-plane crossing
+              Vector drxy{dx,dy,0};
+              Trajectory axy_prim{a.start,a.orientation - drxy};
+              Trajectory bxy_prim{b.start,b.orientation - drxy};
+              XYProjection axy{axy_prim};
+              XYProjection bxy{bxy_prim};
+              auto oxy_intersection = to_intersection(axy_prim,bxy_prim);
+              if (oxy_intersection) {
+                std::cout << NT << "oxy_intersection a_prim(" << oxy_intersection->t_a << ") == b_prim(" << oxy_intersection->t_b << ")";
+                for (int dz = min;dz<max;++dz) {
+                  Vector dryz{dx,dy,dz};
+                  Trajectory ayz_prim{a.start,a.orientation - dryz};
+                  std::swap(ayz_prim.start[1],ayz_prim.start[2]);
+                  std::swap(ayz_prim.orientation[1],ayz_prim.orientation[2]);
+                  Trajectory byz_prim{b.start,b.orientation - dryz};
+                  std::swap(byz_prim.start[1],byz_prim.start[2]);
+                  std::swap(byz_prim.orientation[1],byz_prim.orientation[2]); 
+                  XYProjection ayz{ayz_prim};
+                  XYProjection byz{byz_prim};
+                  auto oyz_intersection = to_intersection(ayz_prim,byz_prim);
+                  if (oyz_intersection) {
+                    std::cout << NT << "oyz_intersection a_prim(" << oyz_intersection->t_a << ") == b_prim(" << oyz_intersection->t_b << ")";
+                  }
                 }
               }
             }
@@ -702,7 +809,8 @@ namespace part2 {
         std::cout << NT << to_string(trajectory);
       }
 
-      return scan_for_rock(hailstone_candidates);
+      auto const& [_,__,min,max] = args;
+      return scan_for_rock(hailstone_candidates,min,max);
     }
     
   }
