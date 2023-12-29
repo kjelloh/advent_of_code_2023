@@ -636,6 +636,7 @@ namespace part2 {
         auto t_b = (y - axy.y0) / axy.dy; // From y0 + t*dy = y
         if (t_a == static_cast<Integer>(t_a) && t_b == static_cast<Integer>(t_b)) {
           // Integer solution
+          std::cout << NL << "Integer solution x:" << x << " y:" << y << " t_a:" << t_a << " t_b:" << t_b;
           return IntersectionTime{static_cast<Integer>(t_a),static_cast<Integer>(t_b)};
         }
       }
@@ -708,11 +709,11 @@ namespace part2 {
                 for (int dz = min;dz<max;++dz) {
                   Vector dryz{dx,dy,dz};
                   Trajectory ayz_prim{a.start,a.orientation - dryz};
-                  std::swap(ayz_prim.start[1],ayz_prim.start[2]);
-                  std::swap(ayz_prim.orientation[1],ayz_prim.orientation[2]);
+                  std::rotate(ayz_prim.start.begin(),ayz_prim.start.begin()+1,ayz_prim.start.end());
+                  std::rotate(ayz_prim.orientation.begin(),ayz_prim.orientation.begin()+1,ayz_prim.orientation.end());
                   Trajectory byz_prim{b.start,b.orientation - dryz};
-                  std::swap(byz_prim.start[1],byz_prim.start[2]);
-                  std::swap(byz_prim.orientation[1],byz_prim.orientation[2]); 
+                  std::rotate(byz_prim.start.begin(),byz_prim.start.begin()+1,byz_prim.start.end());
+                  std::rotate(byz_prim.orientation.begin(),byz_prim.orientation.begin()+1,byz_prim.orientation.end());
                   XYProjection ayz{ayz_prim};
                   XYProjection byz{byz_prim};
                   auto oyz_intersection = to_intersection(ayz_prim,byz_prim);
