@@ -365,3 +365,16 @@ I can write:
 
 And the compiler will feed the first three values to position and the following three to orientation :)
 
+* For part 2 I kept forgetting that relative start positions parallel with relative velocity is true only for actual collision (NOT trajectory intersection in general)
+
+I spent quite some time to find a "nice" solution for part 2 with the result that I went down quite a number of rabbit holes...
+
+One rabbit hole was that I fell in love with the insight that two objects collide if they keep their relative position while they travel.
+
+And the "nice" way of checking this os to take the cross product of their relative start positions and their relative velocities. 
+If these are parallel the cross product is the zero vector.
+
+But, if two objects arrive at the same point at different times..., then their relative position may vary over time. Like, one arrive before the other although it started "behind".
+
+Took me some time to dig that bug out!
+
