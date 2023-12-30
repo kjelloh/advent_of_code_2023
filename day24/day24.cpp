@@ -691,41 +691,113 @@ namespace part2 {
         }
       }
 
-      for (int i=0;i<hailstones.size();++i) {
-        for (int j=i+1;j<hailstones.size();++j) {
-          auto const& a = hailstones[i];
-          auto const& b = hailstones[j];
-          for (auto dx = min; dx<max;++dx) {
-            for (auto dy=min;dy<max;++dy) {
-              // Use the solver from part 1 to check for "shadows" on the xy-plane crossing
-              Vector drxy{dx,dy,0};
-              Trajectory axy_prim{a.start,a.orientation - drxy};
-              Trajectory bxy_prim{b.start,b.orientation - drxy};
-              XYProjection axy{axy_prim};
-              XYProjection bxy{bxy_prim};
-              auto oxy_intersection = to_intersection(axy_prim,bxy_prim);
-              if (oxy_intersection) {
-                std::cout << NT << "oxy_intersection a_prim(" << oxy_intersection->t_a << ") == b_prim(" << oxy_intersection->t_b << ")";
-                for (int dz = min;dz<max;++dz) {
-                  Vector dryz{dx,dy,dz};
-                  Trajectory ayz_prim{a.start,a.orientation - dryz};
-                  std::rotate(ayz_prim.start.begin(),ayz_prim.start.begin()+1,ayz_prim.start.end());
-                  std::rotate(ayz_prim.orientation.begin(),ayz_prim.orientation.begin()+1,ayz_prim.orientation.end());
-                  Trajectory byz_prim{b.start,b.orientation - dryz};
-                  std::rotate(byz_prim.start.begin(),byz_prim.start.begin()+1,byz_prim.start.end());
-                  std::rotate(byz_prim.orientation.begin(),byz_prim.orientation.begin()+1,byz_prim.orientation.end());
-                  XYProjection ayz{ayz_prim};
-                  XYProjection byz{byz_prim};
-                  auto oyz_intersection = to_intersection(ayz_prim,byz_prim);
-                  if (oyz_intersection) {
-                    std::cout << NT << "oyz_intersection a_prim(" << oyz_intersection->t_a << ") == b_prim(" << oyz_intersection->t_b << ")";
+      for (auto dx = min; dx<max;++dx) {
+        for (auto dy=min;dy<max;++dy) {
+          for (int dz = min;dz<max;++dz) {
+            Vector dr{dx,dy,dz}; // rock velocity candidate
+            // pair up hailstones
+            std::vector<Vector> r0_candidates{}; // candidates found for current dx,dy,dz
+            for (int i=0;i<hailstones.size();++i) {
+              for (int j=i+1;j<hailstones.size();++j) {
+                Trajectory const& hi_prim = {hailstones[i].start,hailstones[i].orientation - dr};
+                Trajectory const& hj_prim = {hailstones[j].start,hailstones[j].orientation - dr};
+                auto [x0_i,y0_i,z0_i] = hi_prim.start;
+                auto [x0_j,y0_j,z0_j] = hj_prim.start;
+                auto [dx_i,dy_i,dz_i] = hi_prim.orientation;
+                auto [dx_j,dy_j,dz_j] = hj_prim.orientation;
+                // Find the time limits to restrict x,y,z to Integer range
+                // Integer t_min_x_i = (dx_i!=0)?(std::numeric_limits<Integer>::min()/2 - x0_i) / dx_i:0;
+                // Integer t_max_x_i = (dx_i!=0)? (std::numeric_limits<Integer>::max()/2 - x0_i) / dx_i:0;
+                // Integer t_min_y_i = (dy_i!=0)?(std::numeric_limits<Integer>::min()/2 - y0_i) / dy_i:0;
+                // Integer t_max_y_i = (dy_i!=0)?(std::numeric_limits<Integer>::max()/2 - y0_i) / dy_i:0;
+                // Integer t_min_z_i = (dz_i!=0)?(std::numeric_limits<Integer>::min()/2 - z0_i) / dz_i:0;
+                // Integer t_max_z_i = (dz_i!=0)?(std::numeric_limits<Integer>::max()/2 - z0_i) / dz_i:0;
+                // if (dx_i < 0) std::swap(t_min_x_i,t_max_x_i);
+                // if (dy_i < 0) std::swap(t_min_y_i,t_max_y_i);
+                // if (dz_i < 0) std::swap(t_min_z_i,t_max_z_i);
+                // auto t_start_i = std::max({t_min_x_i, t_min_y_i, t_min_z_i}) / (std::abs(min)*std::abs(max));
+                // auto t_end_i = std::min({t_max_x_i, t_max_y_i, t_max_z_i}) / (std::abs(min)*std::abs(max));
+                Integer t_end_i = 10000;
+                // Ref: https://en.wikipedia.org/wiki/Line–line_intersection
+                {
+                  // inspect xy-plane "shadows"
+                  // Ref::subsection "Given two points on each line segment"
+                  // l1 = (x1,y1) + t*(x2-x1)/(y2-y1)
+                  // l2 = (x3,y3) + u*(x4-x3)/(y4-y3)
+                  // Where l1 and l2 are line segments on line 1 and line 2 respectively.
+                  // Where l1 start is (x1,y1) and l1 end is (x2,y2)
+                  // Where l2 start is (x3,y3) and l2 end is (x4,y4)
+                  // t = ((x1-x3)(y3-y4)-(y1-y3)(x3-x4)) / ((x1-x2)(y3-y4)-(y1-y2)(x3-x4))
+                  // u = ((x1-x3)(y1-y2)-(y1-y3)(x1-x2)) / ((x1-x3)(y3-y4)-(y1-y2)(x3-x4))
+                  // Note: t and u are factors 0..1 for where the lines intersect.
+                  // and 0<=t<=1 and 0<=u<=1 means the line segments intersect.
+                  // For our problem, lets define line segments of hailstones from their start position to their crossing with the box +/- max(std::int64_t).
+                  // Hopefully there will be an answer within this range of integer? (fingers crossed)
+                  auto x1 = x0_i;
+                  auto x2 = x0_i + t_end_i * dx_i;
+                  auto y1 = y0_i;
+                  auto y2 = y0_i + t_end_i * dy_i;
+                  auto x3 = x0_j;
+                  auto x4 = x0_j + t_end_i * dx_j;
+                  auto y3 = y0_j;
+                  auto y4 = y0_j + t_end_i * dy_j;
+                  auto t_nom = (x1-x3)*(y3-y4)-(y1-y3)*(x3-x4);
+                  auto t_den = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+                  // auto u_nom = (x1-x3)*(y1-y2)-(y1-y3)*(x1-x2);
+                  // auto u_den = (x1-x3)*(y3-y4)-(y1-y2)*(x3-x4);
+                  if (0 <= t_nom and t_nom <= t_den) {
+                    // The two lines intersect at some point on the line segments
+                    // std::cout << NL << "hailstone[" << i << "] and hailstone[" << j << "] intersect for dx:" << dx << " dy:" << dy << " , unknown dz so far";
+                  }
+                  else {
+                    continue; // No intersection yet
+                  }
+                }
+                {
+                  // inspect xz-plane "shadows"
+                  auto x1 = x0_i;
+                  auto x2 = x0_i + t_end_i * dx_i;
+                  auto y1 = z0_i;
+                  auto y2 = z0_i + t_end_i * dz_i;
+                  auto x3 = x0_j;
+                  auto x4 = x0_j + t_end_i * dx_j;
+                  auto y3 = z0_j;
+                  auto y4 = z0_j + t_end_i * dz_j;
+                  auto t_nom = (x1-x3)*(y3-y4)-(y1-y3)*(x3-x4);
+                  auto t_den = (x1-x2)*(y3-y4)-(y1-y2)*(x3-x4);
+                  // auto u_nom = (x1-x3)*(y1-y2)-(y1-y3)*(x1-x2);
+                  // auto u_den = (x1-x3)*(y3-y4)-(y1-y2)*(x3-x4);
+                  if (0 <= t_nom and t_nom <= t_den) {
+                    // The two xz shadows intersect at some point on the line segments
+                    // So now we have an xyz candidate
+                    // hi_prim(t) = hi_prim.start + t * hi_prim.orientation = r0;
+                    // t = (r0 - hi_prim.start) / hi_prim.orientation
+                    auto tx = (dx_i != 0)?(x0_i - x0_i) / dx_i:0;
+                    auto ty = (dy_i != 0)?(y0_i - y0_i) / dy_i:0;
+                    auto tz = (dz_i != 0)?(z0_i - z0_i) / dz_i:0;
+                    if (tx == ty and ty == tz) {
+                      // xy-shadow and xz-shadow intersect at the same time = true 3D intersection
+                      std::cout << NL << "hailstone[" << i << "] and hailstone[" << j << "] intersect for dx:" << dx << " dy:" << dy << " dz:" << dz;
+                      auto rx0 = x0_i + tx * dx_i;
+                      auto ry0 = y0_i + ty * dy_i;
+                      auto rz0 = z0_i + tz * dz_i;
+                      r0_candidates.push_back({rx0,ry0,rz0});
+                    }
+                  }
+                  else {
+                    continue; // No intersection yet
                   }
                 }
               }
             }
+            if (r0_candidates.size() == 3) {
+              // The set of r0 candidates is one single and the same candidate.
+              std::cout << NL << "Found rock candidate at dx:" << dx << " dy:" << dy << " dz:" << dz << " r0:" << to_string(*r0_candidates.begin());
+            }
           }
         }
       }
+
 
       return {0,0,0,0,0,0}; // Todo, implement
     }
