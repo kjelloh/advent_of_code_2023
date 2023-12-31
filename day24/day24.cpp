@@ -789,7 +789,7 @@ namespace part2 {
                 auto const& [x2,_,z2] = *oxzr;
                 if (x1 == x2) {
                   // no skew detected
-                  std::cout << NL << "Found a candidate r0 : " << to_string(Vector{x1,y1,z2}) << " for dx:" << dx << " dy:" << dy << " dz:" << dz;
+                  //std::cout << NL << "Found a candidate r0 : " << to_string(Vector{x1,y1,z2}) << " for dx:" << dx << " dy:" << dy << " dz:" << dz;
                   r0_candidates_map[Vector{x1,y1,z2}] += 1;
                   continue; // Next dx,dy
                 }
@@ -802,9 +802,9 @@ namespace part2 {
           } // dx
         } // hailstone j
       } // hailstone i
-      auto iter = std::find_if(r0_candidates_map.begin(),r0_candidates_map.end(),[](auto const& entry){return entry.second > 1;});
+      auto iter = std::max_element(r0_candidates_map.begin(),r0_candidates_map.end(),[](auto const& entry1,auto const& entry2){return entry1.second < entry2.second;});
       if (iter != r0_candidates_map.end()) {
-        std::cout << NL << "Using a candidate found twice as the rock : " << to_string(iter->first);
+        std::cout << NL << "Using a candidate found most times as the rock : " << to_string(iter->first);
         return Trajectory{iter->first,{0,0,0}}; // The way the code loops means we list dr... (But we do not need it)
       }
       else {
@@ -813,7 +813,7 @@ namespace part2 {
       return std::nullopt; // failed
     }
 
-    Trajectory to_hit_all_trajectory(Model const& model, auto args) {
+    Trajectory to_hit_all_trajectories(Model const& model, auto args) {
       // Idea: From when I owned a sailing boat I learned the trick to detect if I was on a collision course with another boat.
       //       If the other boats trajectory would cross mine and, its relative orientation relative me was also not changing, then we would collide.
       //       Like, If the other boat was located steady at say 15 degrees to the right of my traveling path!
@@ -1087,7 +1087,7 @@ namespace part2 {
                 }
               }
               // print collisions in time order (map will sort on the key being time from low to high)
-              std::cout << NL << "Collisions in time order";
+              // std::cout << NL << "Collisions in time order";
               std::pair<Integer,Integer> times{0,0};
               for (auto const& [time,line] : collisions) {
                 times.second = time;
@@ -1136,8 +1136,8 @@ namespace part2 {
       std::cout << NL << NL << "part2";
       if (true) {
         // Developing my own solution from scratch
-        const auto rock = mine::to_hit_all_trajectory(model,args);
-        result = rock.start[0] + rock.start[1] + rock.start[2];
+        const auto rock = mine::to_hit_all_trajectories(model,args);
+        result = rock.start[0] + rock.start[1] + rock.start[2]; // 557743507346379
       }
       // Known working solution from tbeu
       const auto rock = tbeu::findRock(tbeu::to_lines(model));
@@ -1163,8 +1163,15 @@ int main(int argc, char *argv[])
       file = argv[2];
     }
     if (file == "puzzle.txt") {
-      min = 200000000000000LL;
-      max = 400000000000000LL;
+      if (part == 1) {
+        min = 200000000000000LL;
+        max = 400000000000000LL;
+      }
+      else {
+        // hand waving range...
+        min = -300;
+        max = 300;
+      }
     }
     if (argc > 4) {
       min = std::stoi(argv[3]);
