@@ -674,6 +674,10 @@ namespace part2 {
       } else {
         Integer nom_x = b_j * c_i - b_i * c_j;
         Integer nom_y = a_i * c_j - a_j * c_i;
+        if (nom_x % det != 0 || nom_y % det != 0) {
+          return std::nullopt;
+          // Not an integer solution
+        }
         Integer x = nom_x / det;
         Integer y = nom_y / det;
 
@@ -720,6 +724,10 @@ namespace part2 {
         // The lines intersect, calculate the intersection point
         Integer nom_x = b_j * c_i - b_i * c_j;
         Integer nom_z = a_i * c_j - a_j * c_i;
+        if (nom_x % det != 0 || nom_z % det != 0) {
+          return std::nullopt;
+          // Not an integer solution
+        }
         Integer x = nom_x / det;
         Integer z = nom_z / det;
 
@@ -760,19 +768,20 @@ namespace part2 {
 
       // try to find a dr that makes all hailstones intersect at r0 (although at different times)
       std::vector<Vector> r0_candidates{}; // candidates found for current dx,dy,dz
+      std::map<Vector,int> r0_candidates_map{}; // candidates found for current dx,dy,dz
       for (int i=0;i<hailstones.size();++i) {
         for (int j=i+1;j<hailstones.size();++j) {
           Trajectory const& hi = hailstones[i];
           Trajectory const& hj = hailstones[j];
           // Scan the velocity space for one that "fits".
-          for (auto dx = dr_puzzle[0]; dx<=dr_puzzle[0];++dx) {
-            for (auto dy=dr_puzzle[1];dy<=dr_puzzle[1];++dy) {
+          for (auto dx = min; dx<=max;++dx) {
+            for (auto dy=min;dy<=max;++dy) {
               Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]}};
               Trajectory hj_prim{hj.start,{hj.orientation[0]-dx,hj.orientation[1]-dy,hj.orientation[2]}};
               auto oxyr = to_xy_intersection({hi_prim,hj_prim});
               if (!oxyr) continue; // skip for no overlap for xy-shadow (no way to find r0)
               auto const& [x1,y1,_] = *oxyr;
-              for (int dz = dr_puzzle[2];dz<=dr_puzzle[2];++dz) {
+              for (int dz = min;dz<=max;++dz) {
               Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]-dz}};
               Trajectory hj_prim{hj.start,{hj.orientation[0]-dx,hj.orientation[1]-dy,hj.orientation[2]-dz}};
                 auto oxzr = to_xz_intersection({hi_prim,hj_prim});
@@ -781,27 +790,25 @@ namespace part2 {
                 if (x1 == x2) {
                   // no skew detected
                   std::cout << NL << "Found a candidate r0 : " << to_string(Vector{x1,y1,z2}) << " for dx:" << dx << " dy:" << dy << " dz:" << dz;
-                  r0_candidates.push_back({x2,y1,z2});
+                  r0_candidates_map[Vector{x1,y1,z2}] += 1;
                   continue; // Next dx,dy
                 }
                 else {
-                  std::cout << NL << "Skipping candidate r0 : " << to_string(Vector{x1,y1,z2}) << " for dx:" << dx << " dy:" << dy << " dz:" << dz << " due to skew";
-                  std::cout << NT << "x1:" << x1 << " x2:" << x2;
+                  // std::cout << NL << "Skipping candidate r0 : " << to_string(Vector{x1,y1,z2}) << " for dx:" << dx << " dy:" << dy << " dz:" << dz << " due to skew";
+                  // std::cout << NT << "x1:" << x1 << " x2:" << x2;
                 }                
               } // dz
             } // dy
           } // dx
         } // hailstone j
       } // hailstone i
-      std::set<Vector> r0_candidates_set{r0_candidates.begin(), r0_candidates.end()};
-      if (r0_candidates_set.size() == 1 and r0_candidates.size()>1) {
-        auto rock = *r0_candidates_set.begin();
-        std::cout << NL << "Found a unique rock : " << to_string(rock);
-        return Trajectory{rock,{0,0,0}}; // The way the code loops means we list dr... (But we do not need it)
+      auto iter = std::find_if(r0_candidates_map.begin(),r0_candidates_map.end(),[](auto const& entry){return entry.second > 1;});
+      if (iter != r0_candidates_map.end()) {
+        std::cout << NL << "Using a candidate found twice as the rock : " << to_string(iter->first);
+        return Trajectory{iter->first,{0,0,0}}; // The way the code loops means we list dr... (But we do not need it)
       }
       else {
-        // We want more than one match to the same candidate?
-        std::cout << NL << "Found " << r0_candidates_set.size() << " different candidates" << "from" << r0_candidates.size() << " total candidates";
+        // all found candidates are different ones...
       }
       return std::nullopt; // failed
     }
@@ -860,32 +867,11 @@ namespace part2 {
       for (auto const& entry : model) {
         trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
-      for (int i=0;i<2;++i) {
-        Trajectories hailstone_candidates = get_three_random(trajectories);
-        bool is_three_non_coplanar_planes = false;
-        while (!is_three_non_coplanar_planes) {
-          // Form the three planes spanned by pairs of the three trajectories
-          // Obtain the planes normal vectors
-          Vector n0 = cross(hailstone_candidates[0].orientation, hailstone_candidates[1].orientation);
-          Vector n1 = cross(hailstone_candidates[1].orientation, hailstone_candidates[2].orientation);
-          Vector n2 = cross(hailstone_candidates[2].orientation, hailstone_candidates[0].orientation);
-          if (is_parallel(n0, n1) || is_parallel(n1, n2) || is_parallel(n2, n0)) {
-            std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
-            for (auto const& trajectory : hailstone_candidates) {
-              std::cout << NT << to_string(trajectory);
-            }
-            // At least two plane normals are parallel, so we need to pick three new hailstones
-            // Note: We want the three normals to be independent so we get the most "juice" (information) about a good rock path
-            hailstone_candidates = get_three_random(trajectories);
-          }
-          else {
-            is_three_non_coplanar_planes = true;
-          }
-        }
-        std::cout << NL << "Found three hailstones that span three non coplanar planes";
-        for (auto const& trajectory : hailstone_candidates) {
-          std::cout << NT << to_string(trajectory);
-        }
+      for (int i=0;i<trajectories.size()-3;++i) {
+        Trajectories hailstone_candidates{};
+        hailstone_candidates.push_back(trajectories[i]);
+        hailstone_candidates.push_back(trajectories[i+1]);
+        hailstone_candidates.push_back(trajectories[i+2]);
 
         auto const& [_,__,min,max] = args;
         auto orock = scan_for_rock(hailstone_candidates,min,max);
@@ -898,7 +884,6 @@ namespace part2 {
             std::cout << NT << to_string(trajectory);
           }
         }
-
       }
       return Trajectory{}; // Failed
     }
