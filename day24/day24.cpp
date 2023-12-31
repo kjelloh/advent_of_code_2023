@@ -645,6 +645,92 @@ namespace part2 {
       return std::nullopt;
     }
 
+    std::optional<Vector> to_xy_intersection(std::tuple<Trajectory,Trajectory> const& pair) {
+      // Check for xy-shadow intersection 
+      auto const& [hi_prim,hj_prim] = pair;
+      Integer a_i = -hi_prim.orientation[1];
+      Integer b_i = hi_prim.orientation[0];
+      Integer c_i = hi_prim.orientation[1] * hi_prim.start[0] - hi_prim.orientation[0] * hi_prim.start[1];
+
+      Integer a_j = -hj_prim.orientation[1];
+      Integer b_j = hj_prim.orientation[0];
+      Integer c_j = hj_prim.orientation[1] * hj_prim.start[0] - hj_prim.orientation[0] * hj_prim.start[1];
+
+      // Calculate the determinant
+      // Integer det = a_i * b_j - a_j * b_i;
+      Integer det = a_j * b_i - a_i * b_j; // for some reason I get the correct result with this order of subtraction...
+
+      if (det == 0) {
+        // The lines are parallel or identical
+        if (a_i * c_j - a_j * c_i == 0 && b_i * c_j - b_j * c_i == 0) {
+          // std::cout << "The lines are identical, i.e., intersects always!.\n";
+          // We cant use this to find r0...
+          return std::nullopt;
+        } else {
+          // std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
+          // We cant use this to find r0...
+          return std::nullopt;
+        }
+      } else {
+        Integer x = (b_j * c_i - b_i * c_j) / det;
+        Integer y = (a_i * c_j - a_j * c_i) / det;
+
+        if (     (x - hi_prim.start[0]) * hi_prim.orientation[0] >= 0 
+              && (y - hi_prim.start[1]) * hi_prim.orientation[1] >= 0
+              && (x - hj_prim.start[0]) * hj_prim.orientation[0] >= 0 
+              && (y - hj_prim.start[1]) * hj_prim.orientation[1] >= 0) {
+          return Vector{static_cast<Integer>(x),static_cast<Integer>(y),0};
+        }
+        else {
+          // std::cout << "The lines intersect in the past at (x:" << x << ", y:" << y << ", z:?).\n";
+        }
+      }                  
+      return std::nullopt;
+    }
+
+    std::optional<Vector> to_xz_intersection(std::tuple<Trajectory,Trajectory> const& pair) {
+      // Check for xz-shadow intersection 
+      auto const& [hi_prim,hj_prim] = pair;
+      Integer a_i = -hi_prim.orientation[2];
+      Integer b_i = hi_prim.orientation[0];
+      Integer c_i = -(a_i * hi_prim.start[0] + b_i * hi_prim.start[2]);
+
+      Integer a_j = -hj_prim.orientation[2];
+      Integer b_j = hj_prim.orientation[0];
+      Integer c_j = -(a_j * hj_prim.start[0] + b_j * hj_prim.start[2]);
+
+      // Calculate the determinant
+      // Integer det = a_i * b_j - a_j * b_i;
+      Integer det = a_j * b_i - a_i * b_j; // for some reason I get the correct result with this order of subtraction...
+
+      if (det == 0) {
+        // The lines are parallel or identical
+        if (a_i * c_j - a_j * c_i == 0 && b_i * c_j - b_j * c_i == 0) {
+          // std::cout << "The lines are identical, i.e., intersects always!.\n";
+          return std::nullopt;
+        } else {
+          // std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
+          return std::nullopt;
+        }
+      } else {
+        // The lines intersect, calculate the intersection point
+        Integer x = (b_j * c_i - b_i * c_j) / det;
+        Integer z = (a_i * c_j - a_j * c_i) / det;
+
+        if (     (x - hi_prim.start[0]) * hi_prim.orientation[0] >= 0 
+              && (z - hi_prim.start[2]) * hi_prim.orientation[2] >= 0
+              && (x - hj_prim.start[0]) * hj_prim.orientation[0] >= 0 
+              && (z - hj_prim.start[2]) * hj_prim.orientation[2] >= 0) {
+          return Vector{static_cast<Integer>(x),0,static_cast<Integer>(z)};
+        }
+        else {
+          // std::cout << "The lines intersect in the past at (x:" << x << ", y:? , z:" << z << ".\n";
+        }
+      }                  
+
+      return std::nullopt;
+    }
+
     std::optional<Trajectory> scan_for_rock(Trajectories const& hailstones,Integer min,Integer max) {
       // Assume the rock r collides with hailstone a,b,c at a1,b2,c3 at times t1,t2,t3.
       // r(t1) == a1
@@ -663,230 +749,55 @@ namespace part2 {
       // This means their trajectories all intersect each other :)
       // 
       // The idea now is that maybe we can scan for r0 by trying a search range of possible dr values.
-      if (false) {
-        // Check this assumption using known rock and hailstones for example
-        std::cout << NL << "scan_for_rock." << NT << "example_rock : " << to_string(example_rock);
-        for (int i=0;i<example_hailstones.size();++i) {
-          for (int j=i+1;j<example_hailstones.size();++j) {
-            std::cout << NT << "example_hailstones[" << i << "] : " << to_string(example_hailstones[i]) << " example_hailstones[" << j << "] : " << to_string(example_hailstones[j]);
-            // std::cout << NT << "f(rock,hi) is " << to_string(f(example_rock,example_hailstones[i]));
-            // std::cout << NT << "f(rock,hj) is " << to_string(f(example_rock,example_hailstones[j]));
-            Trajectory a_prim{example_hailstones[i].start,example_hailstones[i].orientation - example_rock.orientation};
-            Trajectory b_prim{example_hailstones[j].start,example_hailstones[j].orientation - example_rock.orientation};
-            std::cout << NL  << "a_prim : " << to_string(a_prim) << " b_prim : " << to_string(b_prim);
-            auto relative_position = b_prim.start - a_prim.start;
-            auto relative_orientation = b_prim.orientation - a_prim.orientation;
-            // Test that there exist a ta and tb such that a_prim(ta) = b_prim(tb)
-            for (int a_t=0;a_t<10;++a_t) {
-              for (int b_t=0;b_t<10;++b_t) {
-                auto a_prim_at_time = a_prim.start + a_t * a_prim.orientation;
-                auto b_prim_at_time = b_prim.start + b_t * b_prim.orientation;
-                if (a_prim_at_time == b_prim_at_time) {
-                  std::cout << NT << "a_prim_at_time(" << a_t << ") == b_prim_at_time at time(" << b_t << ")";
-                  std::cout << NT << "a_prim_at_time : " << to_string(a_prim_at_time) << " b_prim_at_time : " << to_string(b_prim_at_time);
-                  if (a_prim_at_time == example_rock.start) std::cout << " == rock start OK!";
-                  std::cout << NT << "relative_position (dot) relative_orientation = " << dot(relative_position,relative_orientation);
+      Vector dr_example = example_rock.orientation; // for test
+      Vector dr_puzzle{245,75,221}; // for test
+
+      // try to find a dr that makes all hailstones intersect at r0 (although at different times)
+      std::vector<Vector> r0_candidates{}; // candidates found for current dx,dy,dz
+      for (int i=0;i<hailstones.size();++i) {
+        for (int j=i+1;j<hailstones.size();++j) {
+          Trajectory const& hi = hailstones[i];
+          Trajectory const& hj = hailstones[j];
+          // Scan the velocity space for one that "fits".
+          for (auto dx = dr_puzzle[0]; dx<=dr_puzzle[0];++dx) {
+            for (auto dy=dr_puzzle[1];dy<=dr_puzzle[1];++dy) {
+              Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]}};
+              Trajectory hj_prim{hj.start,{hj.orientation[0]-dx,hj.orientation[1]-dy,hj.orientation[2]}};
+              auto oxyr = to_xy_intersection({hi_prim,hj_prim});
+              if (!oxyr) continue; // skip for no overlap for xy-shadow (no way to find r0)
+              auto const& [x1,y1,_] = *oxyr;
+              for (int dz = dr_puzzle[2];dz<=dr_puzzle[2];++dz) {
+              Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]-dz}};
+              Trajectory hj_prim{hj.start,{hj.orientation[0]-dx,hj.orientation[1]-dy,hj.orientation[2]-dz}};
+                auto oxzr = to_xz_intersection({hi_prim,hj_prim});
+                if (!oxzr) continue; // skip for no overlap for xz-shadow (no way to find r0)
+                auto const& [x2,_,z2] = *oxzr;
+                if (x1 == x2) {
+                  // no skew detected
+                  std::cout << NL << "Found a candidate r0 : " << to_string(Vector{x1,y1,z2}) << " for dx:" << dx << " dy:" << dy << " dz:" << dz;
+                  r0_candidates.push_back({x2,y1,z2});
+                  continue; // Next dx,dy
                 }
-              }
-            }
-          }
-        }
+                else {
+                  std::cout << NL << "Skipping candidate r0 : " << to_string(Vector{x1,y1,z2}) << " for dx:" << dx << " dy:" << dy << " dz:" << dz << " due to skew";
+                  std::cout << NT << "x1:" << x1 << " x2:" << x2;
+                }                
+              } // dz
+            } // dy
+          } // dx
+        } // hailstone j
+      } // hailstone i
+      std::set<Vector> r0_candidates_set{r0_candidates.begin(), r0_candidates.end()};
+      if (r0_candidates_set.size() == 1 and r0_candidates.size()>1) {
+        auto rock = *r0_candidates_set.begin();
+        std::cout << NL << "Found a unique rock : " << to_string(rock);
+        return Trajectory{rock,{0,0,0}}; // The way the code loops means we list dr... (But we do not need it)
       }
-
-      Vector dr_example = example_rock.orientation;
-      Vector dr_puzzle{245,75,221};
-      // Scan the velocity space for one that "fits".
-      for (auto dx = min; dx<=max;++dx) {
-        for (auto dy=min;dy<=max;++dy) {
-          for (int dz = min;dz<=max;++dz) {
-
-      // Test on known example rock vx:-3 vy:1 vz:2
-      // for (auto dx = example_rock.orientation[0]; dx<example_rock.orientation[0]+1;++dx) {
-      //   for (auto dy=example_rock.orientation[1];dy<example_rock.orientation[1]+1;++dy) {
-      //     for (int dz = example_rock.orientation[2];dz<example_rock.orientation[2]+1;++dz) {
-
-      // Test on known puzzle dr vx:245 vy:75 vz:221
-      // for (auto dx = 245; dx<245+1;++dx) {
-      //   for (auto dy=75;dy<75+1;++dy) {
-      //     for (int dz = 221;dz<221+1;++dz) {
-            Vector dr{dx,dy,dz}; // rock velocity candidate
-            if (dr == dr_example) std::cout << NL << "testing example dr:" << to_string(dr);
-            if (dr == dr_puzzle) std::cout << NL << "testing puzzle dr:" << to_string(dr);
-            // std::cout << NL << "testing dr:" << to_string(dr);
-            // pair up hailstones
-            std::vector<Vector> r0_candidates{}; // candidates found for current dx,dy,dz
-            for (int i=0;i<hailstones.size();++i) {
-              for (int j=i+1;j<hailstones.size();++j) {
-                Trajectory const& hi_prim = {hailstones[i].start,hailstones[i].orientation - dr};
-                Trajectory const& hj_prim = {hailstones[j].start,hailstones[j].orientation - dr};
-                // std::cout << NT << "on hi_prim : " << to_string(hi_prim) << " hj_prim : " << to_string(hj_prim);
-                Vector r0_candidate{};
-                auto willMultiplyOverflow = [](Integer a, Integer b) {
-                    if (a > 0) {  // a is positive
-                        if (b > 0) {  // b is positive
-                            if (a > std::numeric_limits<Integer>::max() / b) {
-                                return true;
-                            }
-                        } else {  // b is non-positive
-                            if (b < std::numeric_limits<Integer>::min() / a) {
-                                return true;
-                            }
-                        } 
-                    } else {  // a is non-positive
-                        if (b > 0) {  // b is positive
-                            if (a < std::numeric_limits<Integer>::min() / b) {
-                                return true;
-                            }
-                        } else {  // b is non-positive
-                            if ( (a != 0) && (b < std::numeric_limits<Integer>::max() / a) ) {
-                                return true;
-                            }
-                        } 
-                    }
-                    return false;
-                };
-                {
-                  // Check for xy-shadow intersection 
-                  Integer a_i = -hi_prim.orientation[1];
-                  Integer b_i = hi_prim.orientation[0];
-                  Integer c_i = hi_prim.orientation[1] * hi_prim.start[0] - hi_prim.orientation[0] * hi_prim.start[1];
-
-                  Integer a_j = -hj_prim.orientation[1];
-                  Integer b_j = hj_prim.orientation[0];
-                  Integer c_j = hj_prim.orientation[1] * hj_prim.start[0] - hj_prim.orientation[0] * hj_prim.start[1];
-
-                  // Calculate the determinant
-                  // Integer det = a_i * b_j - a_j * b_i;
-                  Integer det = a_j * b_i - a_i * b_j; // for some reason I get the correct result with this order of subtraction...
-
-                  if (det == 0) {
-                    // The lines are parallel or identical
-                    if (a_i * c_j - a_j * c_i == 0 && b_i * c_j - b_j * c_i == 0) {
-                      // std::cout << "The lines are identical, i.e., intersects always!.\n";
-                      // We cant use this to find r0...
-                      continue;
-                    } else {
-                      // std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
-                      // We cant use this to find r0...
-                      continue;
-                    }
-                  } else {
-                    // The lines intersect, calculate the intersection point
-                    if (willMultiplyOverflow(b_j,c_i)) {
-                      // std::cout << "b_j * c_i will overflow.\n";
-                      continue;
-                    }
-                    if (willMultiplyOverflow(b_i,c_j)) {
-                      // std::cout << "b_i * c_j will overflow.\n";
-                      continue;
-                    }
-                    if (willMultiplyOverflow(a_i,c_j)) {
-                      // std::cout << "a_i * c_j will overflow.\n";
-                      continue;
-                    }
-                    if (willMultiplyOverflow(a_j,c_i)) {
-                      // std::cout << "a_j * c_i will overflow.\n";
-                      continue;
-                    }
-                    Integer x = (b_j * c_i - b_i * c_j) / det;
-                    Integer y = (a_i * c_j - a_j * c_i) / det;
-
-                    if (     (x - hi_prim.start[0]) * hi_prim.orientation[0] >= 0 
-                          && (y - hi_prim.start[1]) * hi_prim.orientation[1] >= 0
-                          && (x - hj_prim.start[0]) * hj_prim.orientation[0] >= 0 
-                          && (y - hj_prim.start[1]) * hj_prim.orientation[1] >= 0) {
-                      // std::cout << "The lines intersect in the future at (x:" << x << ", y:" << y << ", z:?).\n";
-                      r0_candidate = {x,y,0};
-                    }
-                    else {
-                      // std::cout << "The lines intersect in the past at (x:" << x << ", y:" << y << ", z:?).\n";
-                    }
-                  }                  
-                }
-                {
-                  // Check for xz-shadow intersection 
-                  Integer a_i = -hi_prim.orientation[2];
-                  Integer b_i = hi_prim.orientation[0];
-                  Integer c_i = -(a_i * hi_prim.start[0] + b_i * hi_prim.start[2]);
-
-                  Integer a_j = -hj_prim.orientation[2];
-                  Integer b_j = hj_prim.orientation[0];
-                  Integer c_j = -(a_j * hj_prim.start[0] + b_j * hj_prim.start[2]);
-
-                  // Calculate the determinant
-                  // Integer det = a_i * b_j - a_j * b_i;
-                  Integer det = a_j * b_i - a_i * b_j; // for some reason I get the correct result with this order of subtraction...
-
-                  if (det == 0) {
-                    // The lines are parallel or identical
-                    if (a_i * c_j - a_j * c_i == 0 && b_i * c_j - b_j * c_i == 0) {
-                      // std::cout << "The lines are identical, i.e., intersects always!.\n";
-                      continue;
-                    } else {
-                      // std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
-                      continue;
-                    }
-                  } else {
-                    // The lines intersect, calculate the intersection point
-                    if (willMultiplyOverflow(b_j,c_i)) {
-                      // std::cout << "b_j * c_i will overflow.\n";
-                      continue;
-                    }
-                    if (willMultiplyOverflow(b_i,c_j)) {
-                      // std::cout << "b_i * c_j will overflow.\n";
-                      continue;
-                    }
-                    if (willMultiplyOverflow(a_i,c_j)) {
-                      // std::cout << "a_i * c_j will overflow.\n";
-                      continue;
-                    }
-                    if (willMultiplyOverflow(a_j,c_i)) {
-                      // std::cout << "a_j * c_i will overflow.\n";
-                      continue;
-                    }
-                    Integer x = (b_j * c_i - b_i * c_j) / det;
-                    Integer z = (a_i * c_j - a_j * c_i) / det;
-
-                    if (     (x - hi_prim.start[0]) * hi_prim.orientation[0] >= 0 
-                          && (z - hi_prim.start[2]) * hi_prim.orientation[2] >= 0
-                          && (x - hj_prim.start[0]) * hj_prim.orientation[0] >= 0 
-                          && (z - hj_prim.start[2]) * hj_prim.orientation[2] >= 0) {
-                      // std::cout << "The lines intersect in the future at (x:" << x << ", y:? , z:" << z << ".\n";
-                      if (x == r0_candidate[0]) {
-                        // std::cout << "x is the same as previous candidate, so we have a candidate for r0 at (x:" << x << ", y:" << r0_candidate[1] << ", z:" << z << ".\n";
-                        r0_candidate[2] = z;
-                        r0_candidates.push_back(r0_candidate);
-                      }
-                    }
-                    else {
-                      // std::cout << "The lines intersect in the past at (x:" << x << ", y:? , z:" << z << ".\n";
-                    }
-                  }                  
-                }
-              }                
-            }
-            std::set<Vector> r0_candidates_set{r0_candidates.begin(),r0_candidates.end()};
-            for (auto const& r0_candidate : r0_candidates) {
-              // std::cout << NT << "r0_candidate : " << to_string(r0_candidate);
-            }
-            if (r0_candidates_set.size() == 1 and r0_candidates.size()>1) {
-              Vector start = *r0_candidates_set.begin();
-              Trajectory rock{start,dr};
-              std::cout << NL << "Found a unique r0_candidate : " << to_string(rock);
-              return rock;
-            }
-            else {
-              // std::cout << NL << "Found " << r0_candidates_set.size() << " r0_candidates";
-              for (auto const& r0_candidate : r0_candidates_set) {
-                // std::cout << NT << "r0_candidate : " << to_string(r0_candidate);
-              }
-            }
-          }
-        }
+      else {
+        // We want more than one match to the same candidate?
+        std::cout << NL << "Found " << r0_candidates_set.size() << " different candidates" << "from" << r0_candidates.size() << " total candidates";
       }
-
-
-      return std::nullopt;
+      return std::nullopt; // failed
     }
 
     Trajectory to_hit_all_trajectory(Model const& model, auto args) {
