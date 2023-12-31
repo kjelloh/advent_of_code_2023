@@ -693,27 +693,33 @@ namespace part2 {
         }
       }
 
+      Vector dr_example = example_rock.orientation;
+      Vector dr_puzzle{245,75,221};
       // Scan the velocity space for one that "fits".
-      // for (auto dx = min; dx<max;++dx) {
-      //   for (auto dy=min;dy<max;++dy) {
-      //     for (int dz = min;dz<max;++dz) {
-      // For development of robust algorithm , use only the known rock velocity 
+      for (auto dx = min; dx<=max;++dx) {
+        for (auto dy=min;dy<=max;++dy) {
+          for (int dz = min;dz<=max;++dz) {
+
+      // Test on known example rock vx:-3 vy:1 vz:2
       // for (auto dx = example_rock.orientation[0]; dx<example_rock.orientation[0]+1;++dx) {
       //   for (auto dy=example_rock.orientation[1];dy<example_rock.orientation[1]+1;++dy) {
       //     for (int dz = example_rock.orientation[2];dz<example_rock.orientation[2]+1;++dz) {
+
       // Test on known puzzle dr vx:245 vy:75 vz:221
-      for (auto dx = 245; dx<245+1;++dx) {
-        for (auto dy=75;dy<75+1;++dy) {
-          for (int dz = 221;dz<221+1;++dz) {
+      // for (auto dx = 245; dx<245+1;++dx) {
+      //   for (auto dy=75;dy<75+1;++dy) {
+      //     for (int dz = 221;dz<221+1;++dz) {
             Vector dr{dx,dy,dz}; // rock velocity candidate
-            std::cout << NL << "testing dr:" << to_string(dr);
+            if (dr == dr_example) std::cout << NL << "testing example dr:" << to_string(dr);
+            if (dr == dr_puzzle) std::cout << NL << "testing puzzle dr:" << to_string(dr);
+            // std::cout << NL << "testing dr:" << to_string(dr);
             // pair up hailstones
             std::vector<Vector> r0_candidates{}; // candidates found for current dx,dy,dz
             for (int i=0;i<hailstones.size();++i) {
               for (int j=i+1;j<hailstones.size();++j) {
                 Trajectory const& hi_prim = {hailstones[i].start,hailstones[i].orientation - dr};
                 Trajectory const& hj_prim = {hailstones[j].start,hailstones[j].orientation - dr};
-                std::cout << NT << "on hi_prim : " << to_string(hi_prim) << " hj_prim : " << to_string(hj_prim);
+                // std::cout << NT << "on hi_prim : " << to_string(hi_prim) << " hj_prim : " << to_string(hj_prim);
                 Vector r0_candidate{};
                 auto willMultiplyOverflow = [](Integer a, Integer b) {
                     if (a > 0) {  // a is positive
@@ -756,25 +762,31 @@ namespace part2 {
                   if (det == 0) {
                     // The lines are parallel or identical
                     if (a_i * c_j - a_j * c_i == 0 && b_i * c_j - b_j * c_i == 0) {
-                      std::cout << "The lines are identical, i.e., intersects always!.\n";
+                      // std::cout << "The lines are identical, i.e., intersects always!.\n";
                       // We cant use this to find r0...
+                      continue;
                     } else {
-                      std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
+                      // std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
                       // We cant use this to find r0...
+                      continue;
                     }
                   } else {
                     // The lines intersect, calculate the intersection point
                     if (willMultiplyOverflow(b_j,c_i)) {
-                      std::cout << "b_j * c_i will overflow.\n";
+                      // std::cout << "b_j * c_i will overflow.\n";
+                      continue;
                     }
                     if (willMultiplyOverflow(b_i,c_j)) {
-                      std::cout << "b_i * c_j will overflow.\n";
+                      // std::cout << "b_i * c_j will overflow.\n";
+                      continue;
                     }
                     if (willMultiplyOverflow(a_i,c_j)) {
-                      std::cout << "a_i * c_j will overflow.\n";
+                      // std::cout << "a_i * c_j will overflow.\n";
+                      continue;
                     }
                     if (willMultiplyOverflow(a_j,c_i)) {
-                      std::cout << "a_j * c_i will overflow.\n";
+                      // std::cout << "a_j * c_i will overflow.\n";
+                      continue;
                     }
                     Integer x = (b_j * c_i - b_i * c_j) / det;
                     Integer y = (a_i * c_j - a_j * c_i) / det;
@@ -783,11 +795,11 @@ namespace part2 {
                           && (y - hi_prim.start[1]) * hi_prim.orientation[1] >= 0
                           && (x - hj_prim.start[0]) * hj_prim.orientation[0] >= 0 
                           && (y - hj_prim.start[1]) * hj_prim.orientation[1] >= 0) {
-                      std::cout << "The lines intersect in the future at (x:" << x << ", y:" << y << ", z:?).\n";
+                      // std::cout << "The lines intersect in the future at (x:" << x << ", y:" << y << ", z:?).\n";
                       r0_candidate = {x,y,0};
                     }
                     else {
-                      std::cout << "The lines intersect in the past at (x:" << x << ", y:" << y << ", z:?).\n";
+                      // std::cout << "The lines intersect in the past at (x:" << x << ", y:" << y << ", z:?).\n";
                     }
                   }                  
                 }
@@ -808,23 +820,29 @@ namespace part2 {
                   if (det == 0) {
                     // The lines are parallel or identical
                     if (a_i * c_j - a_j * c_i == 0 && b_i * c_j - b_j * c_i == 0) {
-                      std::cout << "The lines are identical, i.e., intersects always!.\n";
+                      // std::cout << "The lines are identical, i.e., intersects always!.\n";
+                      continue;
                     } else {
-                      std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
+                      // std::cout << "The lines are parallel, i,e,, never intersects :(.\n";
+                      continue;
                     }
                   } else {
                     // The lines intersect, calculate the intersection point
                     if (willMultiplyOverflow(b_j,c_i)) {
-                      std::cout << "b_j * c_i will overflow.\n";
+                      // std::cout << "b_j * c_i will overflow.\n";
+                      continue;
                     }
                     if (willMultiplyOverflow(b_i,c_j)) {
-                      std::cout << "b_i * c_j will overflow.\n";
+                      // std::cout << "b_i * c_j will overflow.\n";
+                      continue;
                     }
                     if (willMultiplyOverflow(a_i,c_j)) {
-                      std::cout << "a_i * c_j will overflow.\n";
+                      // std::cout << "a_i * c_j will overflow.\n";
+                      continue;
                     }
                     if (willMultiplyOverflow(a_j,c_i)) {
-                      std::cout << "a_j * c_i will overflow.\n";
+                      // std::cout << "a_j * c_i will overflow.\n";
+                      continue;
                     }
                     Integer x = (b_j * c_i - b_i * c_j) / det;
                     Integer z = (a_i * c_j - a_j * c_i) / det;
@@ -833,15 +851,15 @@ namespace part2 {
                           && (z - hi_prim.start[2]) * hi_prim.orientation[2] >= 0
                           && (x - hj_prim.start[0]) * hj_prim.orientation[0] >= 0 
                           && (z - hj_prim.start[2]) * hj_prim.orientation[2] >= 0) {
-                      std::cout << "The lines intersect in the future at (x:" << x << ", y:? , z:" << z << ".\n";
+                      // std::cout << "The lines intersect in the future at (x:" << x << ", y:? , z:" << z << ".\n";
                       if (x == r0_candidate[0]) {
-                        std::cout << "x is the same as previous candidate, so we have a candidate for r0 at (x:" << x << ", y:" << r0_candidate[1] << ", z:" << z << ".\n";
+                        // std::cout << "x is the same as previous candidate, so we have a candidate for r0 at (x:" << x << ", y:" << r0_candidate[1] << ", z:" << z << ".\n";
                         r0_candidate[2] = z;
                         r0_candidates.push_back(r0_candidate);
                       }
                     }
                     else {
-                      std::cout << "The lines intersect in the past at (x:" << x << ", y:? , z:" << z << ".\n";
+                      // std::cout << "The lines intersect in the past at (x:" << x << ", y:? , z:" << z << ".\n";
                     }
                   }                  
                 }
@@ -849,17 +867,18 @@ namespace part2 {
             }
             std::set<Vector> r0_candidates_set{r0_candidates.begin(),r0_candidates.end()};
             for (auto const& r0_candidate : r0_candidates) {
-              std::cout << NT << "r0_candidate : " << to_string(r0_candidate);
+              // std::cout << NT << "r0_candidate : " << to_string(r0_candidate);
             }
             if (r0_candidates_set.size() == 1 and r0_candidates.size()>1) {
-              std::cout << NL << "Found a unique r0_candidate : " << to_string(*r0_candidates_set.begin());
-              Trajectory rock{(*r0_candidates_set.begin())[0],(*r0_candidates_set.begin())[1],(*r0_candidates_set.begin())[2],dx,dy,dz};
+              Vector start = *r0_candidates_set.begin();
+              Trajectory rock{start,dr};
+              std::cout << NL << "Found a unique r0_candidate : " << to_string(rock);
               return rock;
             }
             else {
-              std::cout << NL << "Found " << r0_candidates_set.size() << " r0_candidates";
+              // std::cout << NL << "Found " << r0_candidates_set.size() << " r0_candidates";
               for (auto const& r0_candidate : r0_candidates_set) {
-                std::cout << NT << "r0_candidate : " << to_string(r0_candidate);
+                // std::cout << NT << "r0_candidate : " << to_string(r0_candidate);
               }
             }
           }
@@ -924,7 +943,7 @@ namespace part2 {
       for (auto const& entry : model) {
         trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
-      while (true) {
+      for (int i=0;i<2;++i) {
         Trajectories hailstone_candidates = get_three_random(trajectories);
         bool is_three_non_coplanar_planes = false;
         while (!is_three_non_coplanar_planes) {
@@ -961,10 +980,10 @@ namespace part2 {
           for (auto const& trajectory : hailstone_candidates) {
             std::cout << NT << to_string(trajectory);
           }
-          std::cout << NT << "Trying again...";
         }
 
       }
+      return Trajectory{}; // Failed
     }
     
   }
