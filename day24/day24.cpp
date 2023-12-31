@@ -672,47 +672,10 @@ namespace part2 {
           return std::nullopt;
         }
       } else {
-        Integer x,y;
-        // x = (b_j * c_i - b_i * c_j) / det = b_j*c_i/det - b_i*c_j/det;
-        // y = (a_i * c_j - a_j * c_i) / det = a_i*c_j/det - a_j*c_i/det;
-        // Mitigate int64_t overflow and ensure integer solution
-        if (b_j&det==0) {
-          x = (b_j/det)*c_i;
-        }
-        else if (c_i%det==0) {
-          x = b_j*(c_i/det);
-        }
-        else {
-          return std::nullopt; // Integer x solution in int64_t not guaranteed
-        }
-        if (b_i%det==0) {
-          x -= (b_i/det)*c_j;
-        }
-        else if (c_j%det==0) {
-          x -= b_i*(c_j/det);
-        }
-        else {
-          return std::nullopt; // Integer x solution not possible
-        }
-
-        if (a_i%det==0) {
-          y = (a_i/det)*c_j;
-        }
-        else if (c_j%det==0) {
-          y = a_i*(c_j/det);
-        }
-        else {
-          return std::nullopt; // Integer solution not possible
-        }
-        if (a_j%det==0) {
-          y -= (a_j/det)*c_i;
-        }
-        else if (c_i%det==0) {
-          y -= a_j*(c_i/det);
-        }
-        else {
-          return std::nullopt; // Integer solution not possible
-        }
+        Integer nom_x = b_j * c_i - b_i * c_j;
+        Integer nom_y = a_i * c_j - a_j * c_i;
+        Integer x = nom_x / det;
+        Integer y = nom_y / det;
 
         if (     (x - hi_prim.start[0]) * hi_prim.orientation[0] >= 0 
               && (y - hi_prim.start[1]) * hi_prim.orientation[1] >= 0
@@ -755,46 +718,10 @@ namespace part2 {
         }
       } else {
         // The lines intersect, calculate the intersection point
-        // Integer x = (b_j * c_i - b_i * c_j) / det;
-        // Integer z = (a_i * c_j - a_j * c_i) / det;
-        Integer x,z;
-        if (b_j&det==0) {
-          x = (b_j/det)*c_i;
-        }
-        else if (c_i%det==0) {
-          x = b_j*(c_i/det);
-        }
-        else {
-          return std::nullopt; // Integer x solution in int64_t not guaranteed
-        }
-        if (b_i%det==0) {
-          x -= (b_i/det)*c_j;
-        }
-        else if (c_j%det==0) {
-          x -= b_i*(c_j/det);
-        }
-        else {
-          return std::nullopt; // Integer x solution not possible
-        }
-
-        if (a_i%det==0) {
-          z = (a_i/det)*c_j;
-        }
-        else if (c_j%det==0) {
-          z = a_i*(c_j/det);
-        }
-        else {
-          return std::nullopt; // Integer solution not possible
-        }
-        if (a_j%det==0) {
-          z -= (a_j/det)*c_i;
-        }
-        else if (c_i%det==0) {
-          z -= a_j*(c_i/det);
-        }
-        else {
-          return std::nullopt; // Integer solution not possible
-        }
+        Integer nom_x = b_j * c_i - b_i * c_j;
+        Integer nom_z = a_i * c_j - a_j * c_i;
+        Integer x = nom_x / det;
+        Integer z = nom_z / det;
 
         if (     (x - hi_prim.start[0]) * hi_prim.orientation[0] >= 0 
               && (z - hi_prim.start[2]) * hi_prim.orientation[2] >= 0
