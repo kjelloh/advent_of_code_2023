@@ -645,7 +645,7 @@ namespace part2 {
       return std::nullopt;
     }
 
-    Trajectory scan_for_rock(Trajectories const& hailstones,Integer min,Integer max) {
+    std::optional<Trajectory> scan_for_rock(Trajectories const& hailstones,Integer min,Integer max) {
       // Assume the rock r collides with hailstone a,b,c at a1,b2,c3 at times t1,t2,t3.
       // r(t1) == a1
       // r(t2) == b2
@@ -715,6 +715,30 @@ namespace part2 {
                 Trajectory const& hj_prim = {hailstones[j].start,hailstones[j].orientation - dr};
                 std::cout << NT << "on hi_prim : " << to_string(hi_prim) << " hj_prim : " << to_string(hj_prim);
                 Vector r0_candidate{};
+                auto willMultiplyOverflow = [](Integer a, Integer b) {
+                    if (a > 0) {  // a is positive
+                        if (b > 0) {  // b is positive
+                            if (a > std::numeric_limits<Integer>::max() / b) {
+                                return true;
+                            }
+                        } else {  // b is non-positive
+                            if (b < std::numeric_limits<Integer>::min() / a) {
+                                return true;
+                            }
+                        } 
+                    } else {  // a is non-positive
+                        if (b > 0) {  // b is positive
+                            if (a < std::numeric_limits<Integer>::min() / b) {
+                                return true;
+                            }
+                        } else {  // b is non-positive
+                            if ( (a != 0) && (b < std::numeric_limits<Integer>::max() / a) ) {
+                                return true;
+                            }
+                        } 
+                    }
+                    return false;
+                };
                 {
                   // Check for xy-shadow intersection 
                   Integer a_i = -hi_prim.orientation[1];
@@ -740,6 +764,18 @@ namespace part2 {
                     }
                   } else {
                     // The lines intersect, calculate the intersection point
+                    if (willMultiplyOverflow(b_j,c_i)) {
+                      std::cout << "b_j * c_i will overflow.\n";
+                    }
+                    if (willMultiplyOverflow(b_i,c_j)) {
+                      std::cout << "b_i * c_j will overflow.\n";
+                    }
+                    if (willMultiplyOverflow(a_i,c_j)) {
+                      std::cout << "a_i * c_j will overflow.\n";
+                    }
+                    if (willMultiplyOverflow(a_j,c_i)) {
+                      std::cout << "a_j * c_i will overflow.\n";
+                    }
                     Integer x = (b_j * c_i - b_i * c_j) / det;
                     Integer y = (a_i * c_j - a_j * c_i) / det;
 
@@ -778,6 +814,18 @@ namespace part2 {
                     }
                   } else {
                     // The lines intersect, calculate the intersection point
+                    if (willMultiplyOverflow(b_j,c_i)) {
+                      std::cout << "b_j * c_i will overflow.\n";
+                    }
+                    if (willMultiplyOverflow(b_i,c_j)) {
+                      std::cout << "b_i * c_j will overflow.\n";
+                    }
+                    if (willMultiplyOverflow(a_i,c_j)) {
+                      std::cout << "a_i * c_j will overflow.\n";
+                    }
+                    if (willMultiplyOverflow(a_j,c_i)) {
+                      std::cout << "a_j * c_i will overflow.\n";
+                    }
                     Integer x = (b_j * c_i - b_i * c_j) / det;
                     Integer z = (a_i * c_j - a_j * c_i) / det;
 
@@ -805,7 +853,8 @@ namespace part2 {
             }
             if (r0_candidates_set.size() == 1 and r0_candidates.size()>1) {
               std::cout << NL << "Found a unique r0_candidate : " << to_string(*r0_candidates_set.begin());
-              return {(*r0_candidates_set.begin())[0],(*r0_candidates_set.begin())[1],(*r0_candidates_set.begin())[2],dx,dy,dz};
+              Trajectory rock{(*r0_candidates_set.begin())[0],(*r0_candidates_set.begin())[1],(*r0_candidates_set.begin())[2],dx,dy,dz};
+              return rock;
             }
             else {
               std::cout << NL << "Found " << r0_candidates_set.size() << " r0_candidates";
@@ -818,7 +867,7 @@ namespace part2 {
       }
 
 
-      return {0,0,0,0,0,0}; // Todo, implement
+      return std::nullopt;
     }
 
     Trajectory to_hit_all_trajectory(Model const& model, auto args) {
@@ -875,34 +924,47 @@ namespace part2 {
       for (auto const& entry : model) {
         trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
-      Trajectories hailstone_candidates = get_three_random(trajectories);
-      bool is_three_non_coplanar_planes = false;
-      while (!is_three_non_coplanar_planes) {
-        // Form the three planes spanned by pairs of the three trajectories
-        // Obtain the planes normal vectors
-        Vector n0 = cross(hailstone_candidates[0].orientation, hailstone_candidates[1].orientation);
-        Vector n1 = cross(hailstone_candidates[1].orientation, hailstone_candidates[2].orientation);
-        Vector n2 = cross(hailstone_candidates[2].orientation, hailstone_candidates[0].orientation);
-        if (is_parallel(n0, n1) || is_parallel(n1, n2) || is_parallel(n2, n0)) {
-          std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
+      while (true) {
+        Trajectories hailstone_candidates = get_three_random(trajectories);
+        bool is_three_non_coplanar_planes = false;
+        while (!is_three_non_coplanar_planes) {
+          // Form the three planes spanned by pairs of the three trajectories
+          // Obtain the planes normal vectors
+          Vector n0 = cross(hailstone_candidates[0].orientation, hailstone_candidates[1].orientation);
+          Vector n1 = cross(hailstone_candidates[1].orientation, hailstone_candidates[2].orientation);
+          Vector n2 = cross(hailstone_candidates[2].orientation, hailstone_candidates[0].orientation);
+          if (is_parallel(n0, n1) || is_parallel(n1, n2) || is_parallel(n2, n0)) {
+            std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
+            for (auto const& trajectory : hailstone_candidates) {
+              std::cout << NT << to_string(trajectory);
+            }
+            // At least two plane normals are parallel, so we need to pick three new hailstones
+            // Note: We want the three normals to be independent so we get the most "juice" (information) about a good rock path
+            hailstone_candidates = get_three_random(trajectories);
+          }
+          else {
+            is_three_non_coplanar_planes = true;
+          }
+        }
+        std::cout << NL << "Found three hailstones that span three non coplanar planes";
+        for (auto const& trajectory : hailstone_candidates) {
+          std::cout << NT << to_string(trajectory);
+        }
+
+        auto const& [_,__,min,max] = args;
+        auto orock = scan_for_rock(hailstone_candidates,min,max);
+        if (orock.has_value()) {
+          return orock.value();
+        }
+        else {
+          std::cout << NL << "No rock trajectory found for hailstones:";
           for (auto const& trajectory : hailstone_candidates) {
             std::cout << NT << to_string(trajectory);
           }
-          // At least two plane normals are parallel, so we need to pick three new hailstones
-          // Note: We want the three normals to be independent so we get the most "juice" (information) about a good rock path
-          hailstone_candidates = get_three_random(trajectories);
+          std::cout << NT << "Trying again...";
         }
-        else {
-          is_three_non_coplanar_planes = true;
-        }
-      }
-      std::cout << NL << "Found three hailstones that span three non coplanar planes";
-      for (auto const& trajectory : hailstone_candidates) {
-        std::cout << NT << to_string(trajectory);
-      }
 
-      auto const& [_,__,min,max] = args;
-      return scan_for_rock(hailstone_candidates,min,max);
+      }
     }
     
   }
@@ -1088,7 +1150,7 @@ namespace part2 {
                 }
                 if (tx == ty and ty == tz) {
                   collisions[tx] = line;
-                  std::cout << NT << "at time:" << tx << " rock collides with hailstone at position:" << p[0] + tx * v[0] << " " << p[1] + tx * v[1] << " " << p[2] + tx * v[2];
+                  // std::cout << NT << "at time:" << tx << " rock collides with hailstone at position:" << p[0] + tx * v[0] << " " << p[1] + tx * v[1] << " " << p[2] + tx * v[2];
                 }
                 else {
                   // As it turns out one hailstone in my input had the same vy as the rock (so velocity difference is 0 in y-direction and ty is undetermined)
@@ -1109,9 +1171,9 @@ namespace part2 {
               for (auto const& [time,line] : collisions) {
                 times.second = time;
                 auto dt = times.second - times.first;
-                std::cout << NT << dt << "ns later at time: " << time  << "ns rock collides with hailstone";
-                std::cout << NT << T << "start: " << line[0][0] << " " << line[0][1] << " " << line[0][2] << " velocity: " << line[1][0] << " " << line[1][1] << " " << line[1][2];
-                std::cout << NT << T << "   at:" << line[0][0] + time * line[1][0] << " " << line[0][1] + time * line[1][1] << " " << line[0][2] + time * line[1][2];
+                // std::cout << NT << dt << "ns later at time: " << time  << "ns rock collides with hailstone";
+                // std::cout << NT << T << "start: " << line[0][0] << " " << line[0][1] << " " << line[0][2] << " velocity: " << line[1][0] << " " << line[1][1] << " " << line[1][2];
+                // std::cout << NT << T << "   at:" << line[0][0] + time * line[1][0] << " " << line[0][1] + time * line[1][1] << " " << line[0][2] + time * line[1][2];
                 times.first = times.second;
               }
 
