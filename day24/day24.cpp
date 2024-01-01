@@ -678,7 +678,7 @@ namespace part2 {
           std::cout << NL << "The lines are parallel, no intersection exists.";
           return std::nullopt;
         } else if (numerator_ti % denominator_ti != 0 || numerator_tj % denominator_tj != 0) {
-          std::cout << NL << "No integer solutions exist.";
+          // std::cout << NL << "No integer solutions exist.";
           return std::nullopt;
         } else {
           Integer ti = numerator_ti / denominator_ti;
@@ -789,7 +789,7 @@ namespace part2 {
           std::cout << NL << "The lines are parallel, no intersection exists.";
           return std::nullopt;
         } else if (numerator_ti % denominator_ti != 0 || numerator_tj % denominator_tj != 0) {
-          std::cout << NL << "No integer solutions exist.";
+          // std::cout << NL << "No integer solutions exist.";
           return std::nullopt;
         } else {
           Integer ti = numerator_ti / denominator_ti;
@@ -895,18 +895,24 @@ namespace part2 {
           Trajectory const& hj = hailstones[j];
           // Scan the velocity space for one that "fits".
           // Test for known example solution
-          auto dx_min = dr_example[0];
-          auto dx_max = dr_example[0];
-          auto dy_min = dr_example[1];
-          auto dy_max = dr_example[1];
-          auto dz_min = dr_example[2];
-          auto dz_max = dr_example[2];
+          // auto dx_min = dr_example[0];
+          // auto dx_max = dr_example[0];
+          // auto dy_min = dr_example[1];
+          // auto dy_max = dr_example[1];
+          // auto dz_min = dr_example[2];
+          // auto dz_max = dr_example[2];
           // auto dx_min = dr_puzzle[0];
           // auto dx_max = dr_puzzle[0];
           // auto dy_min = dr_puzzle[1];
           // auto dy_max = dr_puzzle[1];
           // auto dz_min = dr_puzzle[2];
           // auto dz_max = dr_puzzle[2];
+          auto dx_min = min;
+          auto dx_max = max;
+          auto dy_min = min;
+          auto dy_max = max;
+          auto dz_min = min;
+          auto dz_max = max;
           for (auto dx = dx_min; dx<=dx_max;++dx) {
             for (auto dy=dy_min;dy<=dy_max;++dy) {
               Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]}};
@@ -927,12 +933,17 @@ namespace part2 {
           } // dx
         } // hailstone j
       } // hailstone i
+      std::cout << NL << "Found " << r0_candidates_map.size() << " candidates for r0";
+      for (auto const& entry : r0_candidates_map) {
+        std::cout << NT << "Candidate r0:" << to_string(entry.first) << " found " << entry.second << " times";
+      }
       auto iter = std::max_element(r0_candidates_map.begin(),r0_candidates_map.end(),[](auto const& entry1,auto const& entry2){return entry1.second < entry2.second;});
-      if (iter != r0_candidates_map.end()) {
-        std::cout << NL << "Using a candidate found most times as the rock : " << to_string(iter->first);
+      if (iter != r0_candidates_map.end() and iter->second == 3) {
+        std::cout << NL << "Found rock that hit all three tried hailstones. Rock = " << to_string(iter->first);
         return Trajectory{iter->first,{0,0,0}}; // The way the code loops means we list dr... (But we do not need it)
       }
       else {
+        std::cout << NL << "Failed to find rock that hit all three tried hailstones.";
         // all found candidates are different ones...
       }
       return std::nullopt; // failed
@@ -992,27 +1003,53 @@ namespace part2 {
       for (auto const& entry : model) {
         trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
-      for (int i=0;i<trajectories.size()-3;++i) {
-        Trajectories hailstone_candidates{};
-        hailstone_candidates.push_back(trajectories[i]);
-        hailstone_candidates.push_back(trajectories[i+1]);
-        hailstone_candidates.push_back(trajectories[i+2]);
+
+
+
+      int count{};
+      while (++count<3) {
+
+        Trajectories three_random_trajectories = get_three_random(trajectories);
+        bool is_three_non_coplanar_planes = false;
+        while (!is_three_non_coplanar_planes) {
+          // Form the three planes spanned by pairs of the three trajectories
+          auto eq1 = to_plane_equation(three_random_trajectories[0], three_random_trajectories[1]);
+          auto eq2 = to_plane_equation(three_random_trajectories[1], three_random_trajectories[2]);
+          auto eq3 = to_plane_equation(three_random_trajectories[2], three_random_trajectories[0]);
+          // Obtain the planes normal vectors
+          Vector n1{eq1.A, eq1.B, eq1.C};
+          Vector n2{eq2.A, eq2.B, eq2.C};
+          Vector n3{eq3.A, eq3.B, eq3.C};
+          if (is_parallel(n1, n2) || is_parallel(n2, n3) || is_parallel(n3, n1)) {
+            std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
+            for (auto const& trajectory : three_random_trajectories) {
+              std::cout << NT << to_string(trajectory);
+            }
+            // The planes are parallel, so the hailstones are coplanar, so we need to pick three new hailstones
+            three_random_trajectories = get_three_random(trajectories);
+          }
+          else {
+            is_three_non_coplanar_planes = true;
+          }
+        }
+        auto hailstone_candidates = three_random_trajectories;
+
+        std::cout << NL << "Trying hailstones:";
+        for (auto const& trajectory : hailstone_candidates) {
+          std::cout << NT << to_string(trajectory);
+        }
 
         auto const& [_,__,min,max] = args;
         auto orock = scan_for_rock(hailstone_candidates,min,max);
-        if (orock.has_value()) {
-          return orock.value();
+        if (orock) {
+          return *orock;
         }
         else {
-          std::cout << NL << "No rock trajectory found for hailstones:";
-          for (auto const& trajectory : hailstone_candidates) {
-            std::cout << NT << to_string(trajectory);
-          }
+          std::cout << NT << "No rock trajectory found for these hailstones:";
         }
       }
       return Trajectory{}; // Failed
-    }
-    
+    }    
   }
 
   // Refactored from C++ solution https://github.com/tbeu/AdventOfCode/blob/master/2023/day24/day24.cpp
@@ -1286,6 +1323,12 @@ int main(int argc, char *argv[])
     part = std::stoi(argv[1]);
     if (argc > 2) {
       file = argv[2];
+    }
+    if (file == "example.txt") {
+      if (part == 2) {
+        min = -3;
+        max = 3;
+      }
     }
     if (file == "puzzle.txt") {
       if (part == 1) {
