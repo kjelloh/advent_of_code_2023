@@ -646,8 +646,64 @@ namespace part2 {
     }
 
     std::optional<Vector> to_xy_intersection(std::tuple<Trajectory,Trajectory> const& pair) {
-      // Check for xy-shadow intersection 
       auto const& [hi_prim,hj_prim] = pair;
+      {
+        // Check for intersection by finding intersection time
+        // Does this avoid int64_t overflow that occurs when applying line standard form (ax+by+c=0) intersection expressions?
+        auto const& [start_i,orientation_i] = hi_prim;
+        auto const& [start_j,orientation_j] = hj_prim;
+        auto const [x0_i,y0_i,z0_i] = start_i;
+        auto const [x0_j,y0_j,z0_j] = start_j;
+        auto const [dx_i,dy_i,dz_i] = orientation_i;
+        auto const [dx_j,dy_j,dz_j] = orientation_j;
+        // Look for ti and tj such that trajectory i at time ti is the same position as trajectory j at time tj.
+        // start_i + ti*orientation_i = start_j + tj*orientation_j
+        // On xy-plane
+        // x0_i + ti*dx_i = x0_j + tj*dx_j 
+        // y0_i + ti*dy_i = y0_j + tj*dy_j
+        // x0_i + ti*dx_i - x0_j - tj*dx_j = 0
+        // y0_i + ti*dy_i - y0_j - tj*dy_j = 0
+        // ti = (x0_j + tj*dx_j - x0_i) / dx_i
+        // tj = tj = (y0_i + ti*dy_i - y0_j) / dy_j
+        // Note: Requires dx and dz to be non-zero
+        if (dx_i == 0 || dx_j == 0 || dy_i == 0 || dy_j == 0) return std::nullopt;
+        // We can now get two expressions for ti and tj for the x and y equations.
+        Integer numerator_ti = dx_j * (y0_i - y0_j) - dy_j * (x0_i - x0_j);
+        Integer numerator_tj = dx_i * (y0_j - y0_i) - dy_i * (x0_j - x0_i);
+        Integer denominator_ti = dx_i * dy_j - dy_i * dx_j;
+        Integer denominator_tj = -denominator_ti;
+
+        if (denominator_ti == 0) {
+          std::cout << NL << "The lines are parallel, no intersection exists.";
+          return std::nullopt;
+        } else if (numerator_ti % denominator_ti != 0 || numerator_tj % denominator_tj != 0) {
+          std::cout << NL << "No integer solutions exist.";
+          return std::nullopt;
+        } else {
+          Integer ti = numerator_ti / denominator_ti;
+          Integer tj = numerator_tj / denominator_tj;
+          std::cout << "The lines intersect at times ti = " << ti << ", tj = " << tj;
+          // Check that we have the correct calculations applied.
+          auto xi = x0_j + tj * dx_j;
+          auto xj = x0_i + ti * dx_i;
+          auto yi = y0_j + tj * dy_j;
+          auto yj = y0_i + ti * dy_i;
+          std::cout << " at " << "(xi:" << xi << ",yi:" << yi << ") and (xj:" << xj << ",yj:" << yj << ")";
+          if (xi != xj || yi != yj) {
+            std::cout << NT << "**ERROR**, The times do not make the lines intersect at the same point!";
+            return std::nullopt;
+          }
+          if (std::abs(xi) == std::abs(example_rock.start[0]) or std::abs(yi) == std::abs(example_rock.start[1])) {
+            std::cout << NT << "**MATCH XY** x or y abs value matches known example rock start position abs values: " << to_string(example_rock);
+          }
+          if (ti < 0 || tj < 0) {
+              std::cout << NT << "The lines intersect in the past :(";
+              return std::nullopt;
+          }
+          return Vector{xi,yi,0};
+        }        
+      }
+      // Check for xy-shadow intersection using line form ax+by+c=0
       Integer a_i = -hi_prim.orientation[1];
       Integer b_i = hi_prim.orientation[0];
       Integer c_i = hi_prim.orientation[1] * hi_prim.start[0] - hi_prim.orientation[0] * hi_prim.start[1];
@@ -699,6 +755,65 @@ namespace part2 {
     std::optional<Vector> to_xz_intersection(std::tuple<Trajectory,Trajectory> const& pair) {
       // Check for xz-shadow intersection 
       auto const& [hi_prim,hj_prim] = pair;
+
+      {
+        // Check for intersection by finding intersection time
+        // Does this avoid int64_t overflow that occurs when applying line standard form (ax+by+c=0) intersection expressions?
+        auto const& [start_i, orientation_i] = hi_prim;
+        auto const& [start_j, orientation_j] = hj_prim;
+        auto const [x0_i, y0_i, z0_i] = start_i;
+        auto const [x0_j, y0_j, z0_j] = start_j;
+        auto const [dx_i, dy_i, dz_i] = orientation_i;
+        auto const [dx_j, dy_j, dz_j] = orientation_j;
+        // Look for ti and tj such that trajectory i at time ti is the same position as trajectory j at time tj.
+        // start_i + ti*orientation_i = start_j + tj*orientation_j
+        // On xz-plane
+        // x0_i + ti*dx_i = x0_j + tj*dx_j 
+        // z0_i + ti*dz_i = z0_j + tj*dz_j
+        // x0_i + ti*dx_i - x0_j - tj*dx_j = 0
+        // z0_i + ti*dz_i - z0_j - tj*dz_j = 0
+
+        // ti = (x0_j + tj*dx_j - x0_i) / dx_i
+        // tj = tj = (z0_i + ti*dz_i - z0_j) / dz_j
+        // Note: Requires dx and dz to be non-zero
+        if (dx_i == 0 || dx_j == 0 || dz_i == 0 || dz_j == 0) return std::nullopt;
+
+        Integer numerator_ti = dx_j * (z0_i - z0_j) - dz_j * (x0_i - x0_j);
+        Integer numerator_tj = dx_i * (z0_j - z0_i) - dz_i * (x0_j - x0_i);
+        Integer denominator_ti = dx_i * dz_j - dz_i * dx_j;
+        Integer denominator_tj = -denominator_ti;
+
+        // Note: Requires denominator to be != 0
+        if (denominator_ti == 0) {
+          std::cout << NL << "The lines are parallel, no intersection exists.";
+          return std::nullopt;
+        } else if (numerator_ti % denominator_ti != 0 || numerator_tj % denominator_tj != 0) {
+          std::cout << NL << "No integer solutions exist.";
+          return std::nullopt;
+        } else {
+          Integer ti = numerator_ti / denominator_ti;
+          Integer tj = numerator_tj / denominator_tj;
+          std::cout << NL << "The lines intersect. The integer values are ti = " << ti << ", tj = " << tj;
+          Integer xi = x0_i + ti * dx_i;
+          Integer xj = x0_j + tj * dx_j;
+          Integer zi = z0_i + ti * dz_i;
+          Integer zj = z0_j + tj * dz_j;
+          std::cout << " at " << "(xi:" << xi << ",zi:" << zi << ") and (xj:" << xj << ",zj:" << zj << ")";
+          if (xi != xj || zi != zj) {
+            std::cout << NT << "**ERROR**, The times do not make the lines intersect at the same point!";
+            return std::nullopt;
+          }
+          if (std::abs(xi) == std::abs(example_rock.start[0]) or std::abs(zi) == std::abs(example_rock.start[2])) {
+            std::cout << NT << "**MATCH XZ** x or z abs value matches known example rock start position abs values: " << to_string(example_rock.start);
+          }
+          if (ti < 0 || tj < 0) {
+            std::cout << NT << "The lines intersect in the past :(";
+            return std::nullopt;
+          }          
+          return Vector{xi, 0, zi};
+        }        
+      }
+
       Integer a_i = -hi_prim.orientation[2];
       Integer b_i = hi_prim.orientation[0];
       Integer c_i = -(a_i * hi_prim.start[0] + b_i * hi_prim.start[2]);
@@ -774,6 +889,13 @@ namespace part2 {
           Trajectory const& hi = hailstones[i];
           Trajectory const& hj = hailstones[j];
           // Scan the velocity space for one that "fits".
+          // Test for known example solution
+          auto dx_min = example_rock.orientation[0];
+          auto dx_max = example_rock.orientation[0];
+          auto dy_min = example_rock.orientation[1];
+          auto dy_max = example_rock.orientation[1];
+          auto dz_min = example_rock.orientation[2];
+          auto dz_max = example_rock.orientation[2];
           for (auto dx = min; dx<=max;++dx) {
             for (auto dy=min;dy<=max;++dy) {
               Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]}};
