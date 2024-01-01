@@ -378,3 +378,45 @@ But, if two objects arrive at the same point at different times..., then their r
 
 Took me some time to dig that bug out!
 
+* I learned the hard way that this days Puzzle had ben set up so that solving for intersection using lines on the fow ax+by+c=0 will overflow in an int64_t!
+
+It was not until I compiled my C++ code with the "-fsanitize=undefined" flag that I discovered that the expressions for intersection would fail due to products as well as differences would occasionally overflow in int64_t value space!
+
+I spent some time trying to rewrite the expression to "divide before multiplying" in some valid way (not violating integer results) but I did not succeed.
+There may still be a gcd-way to do this, but I gave up after having tried checking for a%b==0 to find safe fraction terms and did not find any.
+
+So, after having slept on the matter I realized solving for time of intersections may lead to expressions that will not overflow?
+
+An assumption that turned out correct!
+
+* I learned NOT to trust CoPilot to solve equations for me *sigh*
+
+I set up the equations for the times when two objects i and j on their trajectories would collide (same point, different times).
+I had tried to solve them myself but got tired and made silly mistakes confusing x and y and i and j (my handwriting is not the best)...
+
+So I asked CoPilot to solve my equations for collision times ti and tj and it gave me:
+
+        Integer numerator_ti = dx_i * z0_j + dx_i * x0_j - dx_i * z0_i - dz_i * x0_i;
+        Integer numerator_tj = dz_j * x0_i + dz_j * z0_j - dz_j * x0_j - dx_j * z0_i;
+        Integer denominator = dz_i * dx_j - dx_i * dz_j;
+
+Well, looked legit so I tried them. AS it turned out it did not even work on the known example rock!
+
+So I provided my code to CoPilot and asked it to spot the problem. It now found a bug in its own code (!) and suggested the correction:
+
+        Integer numerator_ti = dx_j * (y0_i - y0_j) - dy_j * (x0_i - x0_j);
+        Integer numerator_tj = dx_i * (y0_j - y0_i) - dy_i * (x0_j - x0_i);
+        Integer denominator = dy_i * dx_j - dx_i * dy_j;
+
+Again, dreading to solve the equations myself I tried this fix. Still to no avail!
+
+So, I finally sat down and forced myself to solve my equations. And I got:
+
+        Integer numerator_ti = dx_j * (z0_i - z0_j) - dz_j * (x0_i - x0_j);
+        Integer numerator_tj = dx_i * (z0_j - z0_i) - dz_i * (x0_j - x0_i);
+        Integer denominator_ti = dx_i * dz_j - dz_i * dx_j;
+        Integer denominator_tj = -denominator_ti;
+
+You see the bug? Yeas, CoPilot had missed the sign on the denominator!
+
+So close, bit no cigar for CoPilot / ChatGPT!
