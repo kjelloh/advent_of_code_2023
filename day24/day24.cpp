@@ -533,7 +533,7 @@ namespace part2 {
       return result;
     }
     
-    Trajectories get_three_random(Trajectories const& trajectories) {
+    Trajectories get_n_random(Trajectories const& trajectories,int n=3) {
       std::vector<Trajectory> randomTrajectories;  
       // Create a copy of the trajectories vector
       std::vector<Trajectory> shuffledTrajectories = trajectories;  
@@ -542,7 +542,7 @@ namespace part2 {
       std::mt19937 gen(rd());
       std::shuffle(shuffledTrajectories.begin(), shuffledTrajectories.end(), gen);  
       // Get the first three shuffled trajectories
-      randomTrajectories.assign(shuffledTrajectories.begin(), shuffledTrajectories.begin() + 3);  
+      randomTrajectories.assign(shuffledTrajectories.begin(), shuffledTrajectories.begin() + std::min(n, static_cast<int>(shuffledTrajectories.size())));
       return randomTrajectories;
     }
 
@@ -865,6 +865,14 @@ namespace part2 {
       // return std::nullopt;
     }
 
+    Integer factorial(Integer n) {
+      Integer result = 1;
+      for (Integer i = 1; i <= n; ++i) {
+        result *= i;
+      }
+      return result;
+    }
+
     std::optional<Trajectory> scan_for_rock(Trajectories const& hailstones,Integer min,Integer max) {
       // Assume the rock r collides with hailstone a,b,c at a1,b2,c3 at times t1,t2,t3.
       // r(t1) == a1
@@ -934,30 +942,39 @@ namespace part2 {
         } // hailstone j
       } // hailstone i
       std::cout << NL << "Found " << r0_candidates_map.size() << " candidates for r0";
+      auto required_intersect_count = factorial(hailstones.size()-1);
+      std::cout << NL << "Requires all " << hailstones.size() << " hailstones to intersect at r0, finding " << factorial(hailstones.size()-1) << " hits for rock candidate";
       for (auto const& entry : r0_candidates_map) {
         std::cout << NT << "Candidate r0:" << to_string(entry.first) << " found " << entry.second << " times";
       }
       auto iter = std::max_element(r0_candidates_map.begin(),r0_candidates_map.end(),[](auto const& entry1,auto const& entry2){return entry1.second < entry2.second;});
-      if (iter != r0_candidates_map.end() and iter->second == 3) {
-        std::cout << NL << "Found rock that hit all three tried hailstones. Rock = " << to_string(iter->first);
+      if (iter != r0_candidates_map.end() and iter->second == required_intersect_count) {
+        std::cout << NL << "Found rock that hit all tried hailstones. Rock = " << to_string(iter->first);
         return Trajectory{iter->first,{0,0,0}}; // The way the code loops means we list dr... (But we do not need it)
       }
       else {
-        std::cout << NL << "Failed to find rock that hit all three tried hailstones.";
+        std::cout << NL << "Failed to find rock that hit all tried hailstones.";
         // all found candidates are different ones...
       }
       return std::nullopt; // failed
     }
 
-    Trajectory to_hit_all_trajectories(Model const& model, auto args) {
-      // Idea: From when I owned a sailing boat I learned the trick to detect if I was on a collision course with another boat.
-      //       If the other boats trajectory would cross mine and, its relative orientation relative me was also not changing, then we would collide.
-      //       Like, If the other boat was located steady at say 15 degrees to the right of my traveling path!
+    Trajectory to_hit_all_trajectories(Model const &model, auto args) {
+      // Idea: From when I owned a sailing boat I learned the trick to detect if
+      // I was on a collision course with another boat.
+      //       If the other boats trajectory would cross mine and, its relative
+      //       orientation relative me was also not changing, then we would
+      //       collide. Like, If the other boat was located steady at say 15
+      //       degrees to the right of my traveling path!
 
-      // We can express this using vector algebra. If the other boats relative traveling direction is directly at me, then we will collide.
-      // For boat a and b traveling by vectors a0 + da and b+ + db. We want b-a and db-da to be parallel.
-      // This would mean that the direction a to b, being the b-a vector and the relative orientation of b relative a, being db-da, both points at a.
-      // Or yet another way, at some time t t*(db-da) will become b-a and ba would have traveled towards a to the point that they are at the same location.
+      // We can express this using vector algebra. If the other boats relative
+      // traveling direction is directly at me, then we will collide. For boat a
+      // and b traveling by vectors a0 + da and b+ + db. We want b-a and db-da
+      // to be parallel. This would mean that the direction a to b, being the
+      // b-a vector and the relative orientation of b relative a, being db-da,
+      // both points at a. Or yet another way, at some time t t*(db-da) will
+      // become b-a and ba would have traveled towards a to the point that they
+      // are at the same location.
 
       if (false) {
         // test / explore that collision detection works
@@ -971,86 +988,64 @@ namespace part2 {
         // A rock x0:24 y0:13 z0:10 vx:-3 vy:1 vz:2
 
         // Collisions in time order
-        // 	1ns later at time: 1ns rock collides with hailstone at position:21 14 12
-        // 	2ns later at time: 3ns rock collides with hailstone at position:15 16 16
-        // 	1ns later at time: 4ns rock collides with hailstone at position:12 17 18
-        // 	1ns later at time: 5ns rock collides with hailstone at position:9 18 20
-        // 	1ns later at time: 6ns rock collides with hailstone at position:6 19 22
+        // 	1ns later at time: 1ns rock collides with hailstone at
+        // position:21 14 12 	2ns later at time: 3ns rock collides with hailstone
+        // at position:15 16 16 	1ns later at time: 4ns rock collides with
+        // hailstone at position:12 17 18 	1ns later at time: 5ns rock collides
+        // with hailstone at position:9 18 20 	1ns later at time: 6ns rock
+        // collides with hailstone at position:6 19 22
 
-        Trajectory rock{24,13,10,-3,1,2};
-        Trajectory hailstone{19,13,30,-2,1,-2};
-        std::cout << NL << "rock : " << to_string(rock) << " hailstone : " << to_string(hailstone);
+        Trajectory rock{24, 13, 10, -3, 1, 2};
+        Trajectory hailstone{19, 13, 30, -2, 1, -2};
+        std::cout << NL << "rock : " << to_string(rock)
+                  << " hailstone : " << to_string(hailstone);
 
         auto relative_position = hailstone.start - rock.start;
-        auto relative_orientation = hailstone.orientation - rock.orientation;      
-        std::cout << NL << "relative position : " << to_string(relative_position) << " relative orientation : " << to_string(relative_orientation);
+        auto relative_orientation = hailstone.orientation - rock.orientation;
+        std::cout << NL
+                  << "relative position : " << to_string(relative_position)
+                  << " relative orientation : "
+                  << to_string(relative_orientation);
         if (is_parallel(relative_position, relative_orientation)) {
           std::cout << NL << "rock and hailstone will collide";
-          std::cout << NT << "f is " << to_string(f(hailstone,rock));
-        }
-        else {
+          std::cout << NT << "f is " << to_string(f(hailstone, rock));
+        } else {
           std::cout << NL << "rock and hailstone will not collide";
         }
       }
 
-      // Ok, so how do we find a rock trajectory such that its relative position with each hailstone is parallel with its relative orientation to this hailstone?      
-      // Given one other hailstone a the rock will collide with it if it has any trajectory on any cone around trajectory a.
+      // Ok, so how do we find a rock trajectory such that its relative position
+      // with each hailstone is parallel with its relative orientation to this
+      // hailstone? Given one other hailstone a the rock will collide with it if
+      // it has any trajectory on any cone around trajectory a.
 
-      // Imagine we pick three hailstones a,b,c that pairwise span three non coplanar planes.
-
-      // We can find three "good" hailstones by random I suppose.
+      // Create trajectory instances
       Trajectories trajectories{};
-      for (auto const& entry : model) {
-        trajectories.push_back({entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
+      for (auto const &entry : model) {
+        trajectories.push_back(
+            {entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
 
-
-
       int count{};
-      while (++count<3) {
+      while (count++<3) {
+        Trajectories hailstone_candidates = get_n_random(trajectories, 2+count); // try 3,4,5.
 
-        Trajectories three_random_trajectories = get_three_random(trajectories);
-        bool is_three_non_coplanar_planes = false;
-        while (!is_three_non_coplanar_planes) {
-          // Form the three planes spanned by pairs of the three trajectories
-          auto eq1 = to_plane_equation(three_random_trajectories[0], three_random_trajectories[1]);
-          auto eq2 = to_plane_equation(three_random_trajectories[1], three_random_trajectories[2]);
-          auto eq3 = to_plane_equation(three_random_trajectories[2], three_random_trajectories[0]);
-          // Obtain the planes normal vectors
-          Vector n1{eq1.A, eq1.B, eq1.C};
-          Vector n2{eq2.A, eq2.B, eq2.C};
-          Vector n3{eq3.A, eq3.B, eq3.C};
-          if (is_parallel(n1, n2) || is_parallel(n2, n3) || is_parallel(n3, n1)) {
-            std::cout << NL << "Found three hailstones that DOES NOT span three non coplanar planes";
-            for (auto const& trajectory : three_random_trajectories) {
-              std::cout << NT << to_string(trajectory);
-            }
-            // The planes are parallel, so the hailstones are coplanar, so we need to pick three new hailstones
-            three_random_trajectories = get_three_random(trajectories);
-          }
-          else {
-            is_three_non_coplanar_planes = true;
-          }
-        }
-        auto hailstone_candidates = three_random_trajectories;
-
-        std::cout << NL << "Trying hailstones:";
-        for (auto const& trajectory : hailstone_candidates) {
+        auto const &[_, __, min, max] = args;
+        auto orock = scan_for_rock(hailstone_candidates, min, max);
+        std::cout << NL << "Tried hailstones:";
+        for (auto const &trajectory : hailstone_candidates) {
           std::cout << NT << to_string(trajectory);
         }
-
-        auto const& [_,__,min,max] = args;
-        auto orock = scan_for_rock(hailstone_candidates,min,max);
         if (orock) {
+          std::cout << NT << "Found rock trajectory that hits all of " << 2+count << " hailstones: " << to_string(*orock);
           return *orock;
-        }
-        else {
+        } else {
           std::cout << NT << "No rock trajectory found for these hailstones:";
         }
       }
       return Trajectory{}; // Failed
-    }    
-  }
+    }
+  } // namespace mine
 
   // Refactored from C++ solution https://github.com/tbeu/AdventOfCode/blob/master/2023/day24/day24.cpp
   // many thanks!
@@ -1307,19 +1302,18 @@ namespace part2 {
 
       return result; // 557743507346379
   }
-}
+} // namespace part2
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   Solution solution{};
   std::cout << NL << "argc : " << argc;
   for (int i = 0; i < argc; ++i) {
     std::cout << NL << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
   // day24 part file min max
-  std::tuple<int,std::string,Integer,Integer> args{1,"example.txt",7,17};
-  auto& [part,file,min,max] = args;
-  if (argc > 1 ) {
+  std::tuple<int, std::string, Integer, Integer> args{1, "example.txt", 7, 17};
+  auto &[part, file, min, max] = args;
+  if (argc > 1) {
     part = std::stoi(argv[1]);
     if (argc > 2) {
       file = argv[2];
@@ -1334,8 +1328,7 @@ int main(int argc, char *argv[])
       if (part == 1) {
         min = 200000000000000LL;
         max = 400000000000000LL;
-      }
-      else {
+      } else {
         // hand waving range...
         min = -300;
         max = 300;
@@ -1346,29 +1339,34 @@ int main(int argc, char *argv[])
       max = std::stoi(argv[4]);
     }
   }
-  std::cout << NL << "Part : " << part << " file : " << file << " min : " << min << " max : " << max;;
-  std::ifstream in{ file };
+  std::cout << NL << "Part : " << part << " file : " << file << " min : " << min
+            << " max : " << max;
+  ;
+  std::ifstream in{file};
   auto model = parse(in);
 
   switch (part) {
   case 1: {
-    auto answer = part1::solve_for(model,args);
-    solution[part].push_back({ file,answer });
+    auto answer = part1::solve_for(model, args);
+    solution[part].push_back({file, answer});
   } break;
   case 2: {
-    auto answer = part2::solve_for(model,args);
-    solution[part].push_back({ file,answer });
+    auto answer = part2::solve_for(model, args);
+    solution[part].push_back({file, answer});
   } break;
   default:
     std::cout << NL << "No part " << part << " only part 1 and 2";
   }
 
   std::cout << NL << NL << "------------ REPORT----------------";
-  for (auto const& [part, answers] : solution) {
+  for (auto const &[part, answers] : solution) {
     std::cout << NL << "Part " << part << " answers";
-    for (auto const& [heading, answer] : answers) {
-      if (answer != 0) std::cout << NT << "answer[" << heading << "] " << answer;
-      else std::cout << NT << "answer[" << heading << "] " << " NO OPERATION ";
+    for (auto const &[heading, answer] : answers) {
+      if (answer != 0)
+        std::cout << NT << "answer[" << heading << "] " << answer;
+      else
+        std::cout << NT << "answer[" << heading << "] "
+                  << " NO OPERATION ";
     }
   }
   std::cout << NL << NL;
