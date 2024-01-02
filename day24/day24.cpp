@@ -222,6 +222,7 @@ public:
     virtual Candidates parse(std::string_view input) = 0;
 };
 
+// A little fun with a parser class
 template <char C>
 class SplitOn : public Parser  {
 public:
@@ -256,14 +257,14 @@ Model parse(auto& in) {
   while (std::getline(in,line)) {
     result.push_back({});
     auto split_line = SplitOn<'@'>{}.parse(line)[0]; // assume success
-    std::cout << NT << "head : " << std::quoted(split_line.first) << " tail : " << std::quoted(split_line.second);
+    // std::cout << NT << "head : " << std::quoted(split_line.first) << " tail : " << std::quoted(split_line.second);
     int ix{};
     for (auto split = SplitOn<','>{}.parse(split_line.first); !split.empty(); split = SplitOn<','>{}.parse(split[0].second)) {
-      std::cout << NT << NT << "head : " << std::quoted(split[0].first) << " tail : " << std::quoted(split[0].second);
+      // std::cout << NT << NT << "head : " << std::quoted(split[0].first) << " tail : " << std::quoted(split[0].second);
       result.back()[ix++] = std::stoll(std::string(split[0].first));
     }
     for (auto split = SplitOn<','>{}.parse(split_line.second); !split.empty(); split = SplitOn<','>{}.parse(split[0].second)) {
-      std::cout << NT << NT << "head : " << std::quoted(split[0].first) << " tail : " << std::quoted(split[0].second);
+      // std::cout << NT << NT << "head : " << std::quoted(split[0].first) << " tail : " << std::quoted(split[0].second);
       result.back()[ix++] = std::stoll(std::string(split[0].first));
     }
   }
@@ -384,53 +385,6 @@ namespace part2 {
       result += "}";
       return result;
     }
-    
-    Vector operator-(const Vector& lhs, const Vector& rhs) {
-      return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
-    }
-
-    Vector operator+(const Vector& lhs, const Vector& rhs) {
-      return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
-    }
-
-    // scalar multiplication
-    Vector operator*(Integer n,const Vector& lhs) {
-      return {lhs[0]*n, lhs[1]*n, lhs[2]*n};
-    }
-
-    // // scalar division
-    // std::array<double,3> operator/(const Vector& lhs, double n) {
-    //   return {lhs[0]/n, lhs[1]/n, lhs[2]/n};
-    // }
-
-    Integer dot(const Vector& a, const Vector& b) {
-        return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
-    }
-
-    Vector cross(const Vector& a, const Vector& b) {
-        return Vector{
-            a[1]*b[2] - a[2]*b[1],
-            a[2]*b[0] - a[0]*b[2],
-            a[0]*b[1] - a[1]*b[0]
-        };
-    }    
-
-    Integer determinant(std::array<Vector, 3> matrix) {
-        Vector crossProduct = cross(matrix[1], matrix[2]);
-        return dot(matrix[0], crossProduct);
-    }
-
-    double norm(const Vector& v) {
-        return std::sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-    }
-
-    Integer manhattan_norm(const Vector& v) {
-        return std::abs(v[0]) + std::abs(v[1]) + std::abs(v[2]);
-    }
-
-    bool is_parallel(const Vector& a, const Vector& b) {
-        return cross(a, b) == Vector{0, 0, 0};
-    }
 
     class Trajectory {
     public:
@@ -441,28 +395,144 @@ namespace part2 {
       }
     };
 
+    namespace deprecated {
+      Vector operator-(const Vector& lhs, const Vector& rhs) {
+        return {lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]};
+      }
+
+      Vector operator+(const Vector& lhs, const Vector& rhs) {
+        return {lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]};
+      }
+
+      // scalar multiplication
+      Vector operator*(Integer n,const Vector& lhs) {
+        return {lhs[0]*n, lhs[1]*n, lhs[2]*n};
+      }
+
+      Integer dot(const Vector& a, const Vector& b) {
+          return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+      }
+
+      Vector cross(const Vector& a, const Vector& b) {
+          return Vector{
+              a[1]*b[2] - a[2]*b[1],
+              a[2]*b[0] - a[0]*b[2],
+              a[0]*b[1] - a[1]*b[0]
+          };
+      }    
+
+      Integer determinant(std::array<Vector, 3> matrix) {
+          Vector crossProduct = cross(matrix[1], matrix[2]);
+          return dot(matrix[0], crossProduct);
+      }
+
+      double norm(const Vector& v) {
+          return std::sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+      }
+
+      Integer manhattan_norm(const Vector& v) {
+          return std::abs(v[0]) + std::abs(v[1]) + std::abs(v[2]);
+      }
+
+      bool is_parallel(const Vector& a, const Vector& b) {
+          return cross(a, b) == Vector{0, 0, 0};
+      }
+
+      struct PlaneEquation {
+        Integer A, B, C, D; // Ax + By + Cz + D = 0
+      };
+
+      PlaneEquation to_plane_equation(Trajectory trajectory1, Trajectory trajectory2) {
+        // Calculate the normal vector of the plane (cross product of the orientation vectors)
+        auto n = cross(trajectory1.orientation, trajectory2.orientation);
+
+        // Calculate D (dot product of the normal vector and any point on the plane)
+        auto D = -dot(n, trajectory1.start);
+
+        // Return the coefficients of the plane equation
+        return {n[0], n[1], n[2], D};
+      }
+
+      std::string to_string(PlaneEquation const& eq) {
+        std::string result = std::to_string(eq.A);
+        result += "x + ";
+        result += std::to_string(eq.B);
+        result += "y + ";
+        result += std::to_string(eq.C);
+        result += "z + ";
+        result += std::to_string(eq.D);
+        result += " = 0";
+        return result;
+      }
+
+      // The function f to get to 0 for rock to collide with hailstone (same position at same time)
+      Vector f(Trajectory const& a,Trajectory const& b) {
+        // If b position relative to a is the same direction as how b is moving towards a. Then b will intersect the trajectory of a somewhere.
+        return cross(a.start - b.start,a.orientation - b.orientation);
+        // The x-component is (ay0 - by0)*(avz0 - bvz0) - (az0 - bz0)*(avy0 - bvy0) // yz
+        // The y-component is (az0 - bz0)*(avx0 - bvx0) - (ax0 - bx0)*(avz0 - bvz0) // zx
+        // The z-component is (ax0 - bx0)*(avy0 - bvy0) - (ay0 - by0)*(avx0 - vvx0) // xy
+      }
+
+      class XYProjection {
+      public:
+        Integer x0, y0, z0, dx, dy, dz; // Trajectory p + t*dp in 3D space
+        Integer a, b, c; // Trajectory ax + by  = c on the xy-plane
+
+        XYProjection(Trajectory const& tr) : 
+          x0(tr.start[0])
+          ,y0(tr.start[1])
+          ,z0(tr.start[2])
+          ,dx(tr.orientation[0])
+          ,dy(tr.orientation[1])
+          ,dz(tr.orientation[2])
+          ,a(dy)
+          ,b(-dx)
+          ,c(dy * x0 - dx * y0) {}
+      };
+
+      struct IntersectionTime {
+        Integer t_a,t_b;
+      };
+      std::optional<IntersectionTime> to_intersection(XYProjection const& axy, XYProjection const& bxy) {
+        double a1 = axy.a, b1 = axy.b, c1 = axy.c;
+        double a2 = bxy.a, b2 = bxy.b, c2 = bxy.c;
+        if (a1 * b2 == b1 * a2) {
+          std::cout << NL << "Parallel lines";
+          return IntersectionTime{-1,-1}; // Intersects all the way...
+        }
+        // Note: To ensure the multiplication does not overflow we ensure the arguments are floats and not int64_t (See a and b arguments above)
+        auto x = (c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
+        auto y = (c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
+        // Intersection point is in the test area
+        // But, is the intersection point in the future?
+        // Note: We can imagine a point starting beyond the test area, and intersect with the test area for negative time.
+        // Also, we have solved for any time t such that the lines intersect at time t. But we don't know if t is positive or negative... 
+        // The intersection is in the future (positive time) if the point p(t) > p(0) for dp > 0 and or p(t) < p(0) for dp < 0.
+        // That is, if the point p(t) is in the same direction as the velocity vector v, we will move to p(t) in the future.
+        // Here p(0), start p, is represented by sx,sy And intersection point p(t) is represented by x,y.
+        // So, the intersection is in the future if dx = x - sx > 0 and vx > 0 (test area to the right of start) or dx < 0 and vx < 0 (test area to the left of start)
+        // And the same goes for y.
+        if (     (x - axy.x0) * axy.dx >= 0 
+              && (y - axy.y0) * axy.dy >= 0 
+              && (x - bxy.x0) * bxy.dx >= 0 
+              && (y - bxy.y0) * bxy.dy >= 0) {
+          // diff and velocity are all in the same direction -> intersection is in time t > 0
+          auto t_a = (x - axy.x0) / axy.dx; // From x0 + t*dx = x
+          auto t_b = (y - axy.y0) / axy.dy; // From y0 + t*dy = y
+          if (t_a == static_cast<Integer>(t_a) && t_b == static_cast<Integer>(t_b)) {
+            // Integer solution
+            std::cout << NL << "Integer solution x:" << x << " y:" << y << " t_a:" << t_a << " t_b:" << t_b;
+            return IntersectionTime{static_cast<Integer>(t_a),static_cast<Integer>(t_b)};
+          }
+        }
+        return std::nullopt;
+      }
+
+    } // namespace deprecated
+    
     // Example solution rock x0:24 y0:13 z0:10 vx:-3 vy:1 vz:2
     Trajectory example_rock{24,13,10,-3,1,2};
-
-    // Hailstone: 20, 19, 15 @ 1, -5, -3
-    // Collision time: 1
-    // Collision position: 21, 14, 12      
-
-    // Hailstone: 18, 19, 22 @ -1, -1, -2
-    // Collision time: 3
-    // Collision position: 15, 16, 16
-
-    // Hailstone: 20, 25, 34 @ -2, -2, -4
-    // Collision time: 4
-    // Collision position: 12, 17, 18
-
-    // Hailstone: 19, 13, 30 @ -2, 1, -2
-    // Collision time: 5
-    // Collision position: 9, 18, 20
-
-    // Hailstone: 12, 31, 28 @ -1, -2, -1
-    // Collision time: 6
-    // Collision position: 6, 19, 22
 
     std::vector<Trajectory> example_hailstones{
        Trajectory{20,19,15,1,-5,-3}
@@ -487,51 +557,7 @@ namespace part2 {
       return result;
     }
 
-    // Trajectory to_projected(Trajectory const& h,Vector const& n) {
-    //   // project h onto the plane defined by the plane up-vector n (assume not normalized n)
-    //   // In effect remove the component of the starting position and velocity that is parallel to the normal vector
-    //   auto norm_n = norm(n); // n is integer vector
-    //   auto n_norm = n / static_cast<double>(norm_n);
-
-    //   Vector h_position = h.start;
-    //   double pos_scale = h_position[0]*n_norm[0] + h_position[1]*n_norm[1] + h_position[2]*n_norm[2];
-    //   // Force the projection to integer coordinates
-    //   Vector proj_position = h_position - Vector{std::round(n_norm[0]*pos_scale),std::round(n_norm[1]*pos_scale),std::round(n_norm[2]*pos_scale)};
-    //   // Now `proj_position` is the projection of the h starting position onto the plane with normal n
-    //   Vector h_orientation = h.orientation;
-    //   double orientation_scale = h_orientation[0]*n_norm[0] + h_orientation[1]*n_norm[1] + h_orientation[2]*n_norm[2];
-    //   // Force the projection to integer coordinates
-    //   Vector proj_orientation = h_orientation - Vector{static_cast<Integer>(n_norm[0]*orientation_scale),static_cast<Integer>(n_norm[1]*orientation_scale),static_cast<Integer>(n_norm[2]*orientation_scale)};
-    //   return {proj_position, proj_orientation};
-    // }
-
     using Trajectories = std::vector<Trajectory>;
-    struct PlaneEquation {
-      Integer A, B, C, D; // Ax + By + Cz + D = 0
-    };
-
-    PlaneEquation to_plane_equation(Trajectory trajectory1, Trajectory trajectory2) {
-      // Calculate the normal vector of the plane (cross product of the orientation vectors)
-      auto n = cross(trajectory1.orientation, trajectory2.orientation);
-
-      // Calculate D (dot product of the normal vector and any point on the plane)
-      auto D = -dot(n, trajectory1.start);
-
-      // Return the coefficients of the plane equation
-      return {n[0], n[1], n[2], D};
-    }
-
-    std::string to_string(PlaneEquation const& eq) {
-      std::string result = std::to_string(eq.A);
-      result += "x + ";
-      result += std::to_string(eq.B);
-      result += "y + ";
-      result += std::to_string(eq.C);
-      result += "z + ";
-      result += std::to_string(eq.D);
-      result += " = 0";
-      return result;
-    }
     
     Trajectories get_n_random(Trajectories const& trajectories,int n=3) {
       std::vector<Trajectory> randomTrajectories;  
@@ -581,69 +607,6 @@ namespace part2 {
       }
     }
 
-    // The function f to get to 0 for rock to collide with hailstone (same position at same time)
-    Vector f(Trajectory const& a,Trajectory const& b) {
-      // If b position relative to a is the same direction as how b is moving towards a. Then b will intersect the trajectory of a somewhere.
-      return cross(a.start - b.start,a.orientation - b.orientation);
-      // The x-component is (ay0 - by0)*(avz0 - bvz0) - (az0 - bz0)*(avy0 - bvy0) // yz
-      // The y-component is (az0 - bz0)*(avx0 - bvx0) - (ax0 - bx0)*(avz0 - bvz0) // zx
-      // The z-component is (ax0 - bx0)*(avy0 - bvy0) - (ay0 - by0)*(avx0 - vvx0) // xy
-    }
-
-    class XYProjection {
-    public:
-      Integer x0, y0, z0, dx, dy, dz; // Trajectory p + t*dp in 3D space
-      Integer a, b, c; // Trajectory ax + by  = c on the xy-plane
-
-      XYProjection(Trajectory const& tr) : 
-         x0(tr.start[0])
-        ,y0(tr.start[1])
-        ,z0(tr.start[2])
-        ,dx(tr.orientation[0])
-        ,dy(tr.orientation[1])
-        ,dz(tr.orientation[2])
-        ,a(dy)
-        ,b(-dx)
-        ,c(dy * x0 - dx * y0) {}
-    };
-
-    struct IntersectionTime {
-      Integer t_a,t_b;
-    };
-    std::optional<IntersectionTime> to_intersection(XYProjection const& axy, XYProjection const& bxy) {
-      double a1 = axy.a, b1 = axy.b, c1 = axy.c;
-      double a2 = bxy.a, b2 = bxy.b, c2 = bxy.c;
-      if (a1 * b2 == b1 * a2) {
-        std::cout << NL << "Parallel lines";
-        return IntersectionTime{-1,-1}; // Intersects all the way...
-      }
-      // Note: To ensure the multiplication does not overflow we ensure the arguments are floats and not int64_t (See a and b arguments above)
-      auto x = (c1 * b2 - c2 * b1) / (a1 * b2 - a2 * b1);
-      auto y = (c2 * a1 - c1 * a2) / (a1 * b2 - a2 * b1);
-      // Intersection point is in the test area
-      // But, is the intersection point in the future?
-      // Note: We can imagine a point starting beyond the test area, and intersect with the test area for negative time.
-      // Also, we have solved for any time t such that the lines intersect at time t. But we don't know if t is positive or negative... 
-      // The intersection is in the future (positive time) if the point p(t) > p(0) for dp > 0 and or p(t) < p(0) for dp < 0.
-      // That is, if the point p(t) is in the same direction as the velocity vector v, we will move to p(t) in the future.
-      // Here p(0), start p, is represented by sx,sy And intersection point p(t) is represented by x,y.
-      // So, the intersection is in the future if dx = x - sx > 0 and vx > 0 (test area to the right of start) or dx < 0 and vx < 0 (test area to the left of start)
-      // And the same goes for y.
-      if (     (x - axy.x0) * axy.dx >= 0 
-            && (y - axy.y0) * axy.dy >= 0 
-            && (x - bxy.x0) * bxy.dx >= 0 
-            && (y - bxy.y0) * bxy.dy >= 0) {
-        // diff and velocity are all in the same direction -> intersection is in time t > 0
-        auto t_a = (x - axy.x0) / axy.dx; // From x0 + t*dx = x
-        auto t_b = (y - axy.y0) / axy.dy; // From y0 + t*dy = y
-        if (t_a == static_cast<Integer>(t_a) && t_b == static_cast<Integer>(t_b)) {
-          // Integer solution
-          std::cout << NL << "Integer solution x:" << x << " y:" << y << " t_a:" << t_a << " t_b:" << t_b;
-          return IntersectionTime{static_cast<Integer>(t_a),static_cast<Integer>(t_b)};
-        }
-      }
-      return std::nullopt;
-    }
 
     enum class IntersectionType {
        Parallel
@@ -716,6 +679,11 @@ namespace part2 {
           return { IntersectionType::Intersection,xi,yi,0,ti,tj };
         }        
       }
+
+      // NOTE: Finding intersection using line standard form (ax+by+c=0) expressions, results in int64_t overflow when calculating the determinant for puzzle input!
+      //       Took me some time to understand that solving for intersection times avoids this problem.
+      // The code below tried this but did not work!
+
       // // Check for xy-shadow intersection using line form ax+by+c=0
       // Integer a_i = -hi_prim.orientation[1];
       // Integer b_i = hi_prim.orientation[0];
@@ -857,6 +825,10 @@ namespace part2 {
         }        
       }
 
+      // NOTE: Finding intersection using line standard form (ax+by+c=0) expressions, results in int64_t overflow when calculating the determinant for puzzle input!
+      //       Took me some time to understand that solving for intersection times avoids this problem.
+      // The code below tried this but did not work!
+
       // Integer a_i = -hi_prim.orientation[2];
       // Integer b_i = hi_prim.orientation[0];
       // Integer c_i = -(a_i * hi_prim.start[0] + b_i * hi_prim.start[2]);
@@ -903,34 +875,9 @@ namespace part2 {
       // return std::nullopt;
     }
 
-    Integer factorial(Integer n) {
-      Integer result = 1;
-      for (Integer i = 1; i <= n; ++i) {
-        result *= i;
-      }
-      return result;
-    }
-
     std::optional<Trajectory> scan_for_rock(Trajectories const& hailstones,Integer min,Integer max) {
-      // Assume the rock r collides with hailstone a,b,c at a1,b2,c3 at times t1,t2,t3.
-      // r(t1) == a1
-      // r(t2) == b2
-      // r(t3) == c3
-      // With all vectors on the form p + t*dp
-      // r0 + t1*dr = a0 + t1*da
-      // r0 + t2*dr = b0 + t2*db
-      // r0 + t3*dr = c0 + t3*dc
-      // If we eliminate t*dr in all three equations we get:
-      // r0 = a0 + t1*da - t1*dr = a´(t1)
-      // r0 = b0 + t2*db - t2*dr = b´(t2)
-      // r0 = c0 + t3*dc - t3*dr = c´(t3)
-      //
-      // Now we have three new trajectories a´,b´,c´ that all reach r0 but at different times.
-      // This means their trajectories all intersect each other :)
-      // 
-      // The idea now is that maybe we can scan for r0 by trying a search range of possible dr values.
       Vector dr_example = example_rock.orientation; // for test
-      Vector dr_puzzle{245,75,221}; // for test
+      Vector dr_puzzle{245,75,221}; // for test (thanks tbeu!)
 
       // try to find a dr that makes all hailstones intersect at r0 (although at different times)
       std::vector<Vector> r0_candidates{}; // candidates found for current dx,dy,dz
@@ -941,6 +888,7 @@ namespace part2 {
           Trajectory const& hi = hailstones[i];
           Trajectory const& hj = hailstones[j];
           // Scan the velocity space for one that "fits".
+
           // Test for known example solution
           // auto dx_min = dr_example[0];
           // auto dx_max = dr_example[0];
@@ -948,12 +896,16 @@ namespace part2 {
           // auto dy_max = dr_example[1];
           // auto dz_min = dr_example[2];
           // auto dz_max = dr_example[2];
+
+          // Test for puzzle solution (thanks tbeu)
           // auto dx_min = dr_puzzle[0];
           // auto dx_max = dr_puzzle[0];
           // auto dy_min = dr_puzzle[1];
           // auto dy_max = dr_puzzle[1];
           // auto dz_min = dr_puzzle[2];
           // auto dz_max = dr_puzzle[2];
+
+          // Use actual range to scan
           auto dx_min = min;
           auto dx_max = max;
           auto dy_min = min;
@@ -980,6 +932,13 @@ namespace part2 {
                   auto r0_candidate = Vector{x,y,z};
                   std::cout << NT << "Found candidate r0:" << to_string(r0_candidate);
                   r0_candidates_map[r0_candidate] += 1;
+                  // As soon we have found three candidates to the same position we should have found the rock dx,dy,dz?
+                  // Proof: 1) We store a candidate only if it is a fully determined x,y,z intersection.
+                  //        2) Even if two lines compared are parallel in xy or xz, as long as they are not the same line, we still can determine its x,y,z.
+                  //        3) If two hailstones actually are "the same" we could, in theory accept them as a candidate if its velocity is the tried dx,dy,dz?
+                  //           Bit we have no such logic so we are currently not using two equal hailstones as input to find the rock speed.
+                  //           Hm, it also states in the puzzle description that none of the hailstones collides?
+                  //        4) So, when we have found the same intersection candidate three times, this makes three, non same, trajectories intersect there.
                   if (r0_candidates_map[r0_candidate] == 3) {
                     std::cout << NT << "==> PICKED candidate r0:" << to_string(r0_candidate) << " with intersection count = " << r0_candidates_map[r0_candidate];
                     return Trajectory{r0_candidate,{dx,dy,dz}};
@@ -994,90 +953,53 @@ namespace part2 {
               } // dz
             } // dy
           } // dx
-          // As soon we have found three candidates to the same position we should have found the rock dx,dy,dz?
-          // Proof: 1) We store a candidate only if it is a fully determined x,y,z intersection.
-          //        2) 1 means the two trajectories compared have a unique intersection point in 3D.
-          //        3) Even if two lines compared are parallel in xy or xz, as long as they are not the same line, we still can determine its x,y,z.
-          //        4) If two hailstones actually are "the same" we could, in theory accept them as a candidate if its velocity is the tried dx,dy,dz?
-          //           Bit we have no such logic so we are currently not using two equal hailstones as input to find the rock speed.
-          //           Hm, it also states in the puzzle description that none of the hailstones collides?
-          //        5) So, when we have found the same candidate r0 three times, this makes three, non same, hailstones intersect there.
         } // hailstone j
       } // hailstone i
       return std::nullopt; // failed
     }
 
     Trajectory to_hit_all_trajectories(Model const &model, auto args) {
-      // Idea: From when I owned a sailing boat I learned the trick to detect if
-      // I was on a collision course with another boat.
-      //       If the other boats trajectory would cross mine and, its relative
-      //       orientation relative me was also not changing, then we would
-      //       collide. Like, If the other boat was located steady at say 15
-      //       degrees to the right of my traveling path!
+      // Approach - Can we find a search space that is smaller than the x,y,z space of the hailstones?
+      // Then we can possibly scan it in reasonable time?
 
-      // We can express this using vector algebra. If the other boats relative
-      // traveling direction is directly at me, then we will collide. For boat a
-      // and b traveling by vectors a0 + da and b+ + db. We want b-a and db-da
-      // to be parallel. This would mean that the direction a to b, being the
-      // b-a vector and the relative orientation of b relative a, being db-da,
-      // both points at a. Or yet another way, at some time t t*(db-da) will
-      // become b-a and ba would have traveled towards a to the point that they
-      // are at the same location.
+      // Assume the rock r collides with hailstone a,b,c at a1,b2,c3 at times t1,t2,t3.
+      // r(t1) == a1
+      // r(t2) == b2
+      // r(t3) == c3
+      // With all vectors on the form p + t*dp
+      // r0 + t1*dr = a0 + t1*da
+      // r0 + t2*dr = b0 + t2*db
+      // r0 + t3*dr = c0 + t3*dc
+      // If we eliminate t*dr in all three equations we get:
+      // r0 = a0 + t1*da - t1*dr = a´(t1)
+      // r0 = b0 + t2*db - t2*dr = b´(t2)
+      // r0 = c0 + t3*dc - t3*dr = c´(t3)
+      //
+      // Now we have three new trajectories a´,b´,c´ that all reach r0 but at different times.
+      // This means their trajectories all intersect each other :)
 
-      if (false) {
-        // test / explore that collision detection works
+      // Idea: Scan for dr that makes a´, b´and c´ intersect and the intersection point will be r0.
+      // One pair hi´,hj´of (a´,b´), (a´,c´) or (b´,c´) is not enough though as there are may ways to rotate hi´ and hj´ so the intersect somewhere.
+      // But with three or more such different pairs we should be able to find a dr so that three or more pairs intersect at the same position?
 
-        // 19, 13, 30 @ -2,  1, -2
-        // 18, 19, 22 @ -1, -1, -2
-        // 20, 25, 34 @ -2, -2, -4
-        // 12, 31, 28 @ -1, -2, -1
-        // 20, 19, 15 @  1, -5, -3
+      // NOTE: Finding intersection using line standard form (ax+by+c=0) expressions, results in int64_t overflow when calculating the determinant for puzzle input!
+      //       Took me some time to understand that solving for intersection times avoids this problem.
 
-        // A rock x0:24 y0:13 z0:10 vx:-3 vy:1 vz:2
-
-        // Collisions in time order
-        // 	1ns later at time: 1ns rock collides with hailstone at
-        // position:21 14 12 	2ns later at time: 3ns rock collides with hailstone
-        // at position:15 16 16 	1ns later at time: 4ns rock collides with
-        // hailstone at position:12 17 18 	1ns later at time: 5ns rock collides
-        // with hailstone at position:9 18 20 	1ns later at time: 6ns rock
-        // collides with hailstone at position:6 19 22
-
-        Trajectory rock{24, 13, 10, -3, 1, 2};
-        Trajectory hailstone{19, 13, 30, -2, 1, -2};
-        std::cout << NL << "rock : " << to_string(rock)
-                  << " hailstone : " << to_string(hailstone);
-
-        auto relative_position = hailstone.start - rock.start;
-        auto relative_orientation = hailstone.orientation - rock.orientation;
-        std::cout << NL
-                  << "relative position : " << to_string(relative_position)
-                  << " relative orientation : "
-                  << to_string(relative_orientation);
-        if (is_parallel(relative_position, relative_orientation)) {
-          std::cout << NL << "rock and hailstone will collide";
-          std::cout << NT << "f is " << to_string(f(hailstone, rock));
-        } else {
-          std::cout << NL << "rock and hailstone will not collide";
-        }
-      }
-
-      // Ok, so how do we find a rock trajectory such that its relative position
-      // with each hailstone is parallel with its relative orientation to this
-      // hailstone? Given one other hailstone a the rock will collide with it if
-      // it has any trajectory on any cone around trajectory a.
-
-      // Create trajectory instances
+      // Create trajectory instances from our parsed model
       Trajectories trajectories{};
       for (auto const &entry : model) {
         trajectories.push_back(
             {entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
 
+      // Increase the number of hailstone candidates used to determine a unique r0 until we succeed.
+      // The example sometimes need four. The puzzle seems to always succeed with three...
       for (int i=3;i<=trajectories.size();++i) {
+        // Note: picking a random subset of trajectories turned out do not be needed. But I kept it anyhow ;)
+        // In this way we can see that the example input sometimes require four (4) hailstones to find an r0!
         auto hailstone_candidates = get_n_random(trajectories, i);
-        std::cout << NL << "Trying to find rock trajectory that uniquely hits at least " << i << " of " << hailstone_candidates.size() << " candidate hailstones";
-        auto const &[_, __, min, max] = args;
+        std::cout << NL << "Trying to find rock trajectory that uniquely hits at least three of " << hailstone_candidates.size() << " candidate hailstones";
+        auto const &[_, __, min, max] = args; // alow caller to specify search range (optional, will be set by argument parser to suitable value if not provided)
         auto orock = scan_for_rock(hailstone_candidates, min, max);
         std::cout << NT << "Tried hailstones:";
         for (auto const &trajectory : hailstone_candidates) {
@@ -1130,13 +1052,12 @@ namespace part2 {
     // Returns the two times t and s.
     // The time t when object on Line a intersects with line b, 
     // and time s when object on line b intersects with line a.
-    template <typename INTERSECT_TYPE>
-    static std::optional<std::array<INTERSECT_TYPE, 2>> intersect(const Line &a, const Line &b) {
+    static std::optional<std::array<Integer, 2>> intersect(const Line &a, const Line &b) {
       const auto &p1 = a[0];
       const auto &v1 = a[1];
       const auto &p2 = b[0];
       const auto &v2 = b[1];
-      INTERSECT_TYPE s, t;
+      Integer s, t;
       const auto den1 = v2[0] * v1[1]; // v2x*v1y
       const auto den2 = v2[1] * v1[0]; // v2y*v1x
       if (den1 == den2) {
@@ -1145,25 +1066,23 @@ namespace part2 {
       } 
       else {
         const auto nom1 = ((p2[1] - p1[1]) * v1[0] + (p1[0] - p2[0]) * v1[1]);
-        if constexpr (std::is_integral_v<INTERSECT_TYPE>) {
+        if constexpr (std::is_integral_v<Integer>) {
           if (0 != nom1 % (den1 - den2)) {
             // not an integer solution
             return std::nullopt;
           }
         }
-        s = nom1 / static_cast<INTERSECT_TYPE>(den1 - den2);
+        s = nom1 / static_cast<Integer>(den1 - den2);
         const auto nom2 = (p2[0] - p1[0]) + s * v2[0];
-        t = nom2 / static_cast<INTERSECT_TYPE>(v1[0]);
+        t = nom2 / static_cast<Integer>(v1[0]);
       }
-      return std::array<INTERSECT_TYPE, 2>{t, s};
+      return std::array<Integer, 2>{t, s};
     }
 
     // Check objects on line a and b intersect each others trajectory at some positive time.
     // Note: They do not have to collide, just intersect each trajectories as an integral time value.
-    template <typename INTERSECT_TYPE>
     static bool checkIntersect(const Line &a,const Line &b,int64_t start,int64_t end, bool ignoreZ) {
-
-      const auto ts = intersect<INTERSECT_TYPE>(a, b);
+      const auto ts = intersect(a, b);
       const auto &p1 = a[0];
       const auto &v1 = a[1];
       const auto &p2 = b[0];
@@ -1180,34 +1099,16 @@ namespace part2 {
       }
       const auto [t, s] = ts.value();
       bool isInter = s >= 0 && t >= 0; // In the future
-      if constexpr (std::is_integral_v<INTERSECT_TYPE>) {
-        if (isInter && !ignoreZ) {
-          const auto r1 = p1[2] + t * v1[2];
-          const auto r2 = p2[2] + s * v2[2];
-          isInter = isInter && r1 == r2; // r1 is at the same position at time t as r2 is at time s.
-        }
-      } else {
-        // Floating point comparison
-        // Find an overlap in the test area.
-        for (uint8_t i = 0; i < 3; ++i) {
-          if (!isInter) {
-            break;
-          }
-          if (ignoreZ && 2 == i) {
-            break;
-          }
-          const auto r1 = p1[i] + t * v1[i];
-          const auto r2 = p2[i] + s * v2[i];
-          isInter = isInter && r1 >= start && r2 >= start;
-          isInter = isInter && r1 <= end && r2 <= end;
-        }
+      if (isInter && !ignoreZ) {
+        const auto r1 = p1[2] + t * v1[2];
+        const auto r2 = p2[2] + s * v2[2];
+        isInter = isInter && r1 == r2; // r1 is at the same position at time t as r2 is at time s.
       }
       return isInter; // True if the lines intersect each others trajectories at some positive time
     }
 
     // V is a velocity vector
     // returns true if all hailstones with a velocity reduced by vDiff will intersect
-    template <typename INTERSECT_TYPE>
     static bool checkIntersect(const Lines &lines, const V &vDiff, bool ignoreZ = true)
     {
       for (size_t i = 0; i < lines.size(); ++i)
@@ -1218,7 +1119,7 @@ namespace part2 {
           const auto &vi = lines[i][1] - vDiff;
           const auto &pj = lines[j][0];
           const auto &vj = lines[j][1] - vDiff;
-          if (!checkIntersect<INTERSECT_TYPE>({pi, vi}, {pj, vj}, INT64_MIN, INT64_MAX, ignoreZ))
+          if (!checkIntersect({pi, vi}, {pj, vj}, INT64_MIN, INT64_MAX, ignoreZ))
           {
             return false; // one pair of lines do not intersect when reoriented by vDiff.
           }
@@ -1233,14 +1134,14 @@ namespace part2 {
         // vx velocity
         for (int64_t v2 = -vRange; v2 <= vRange; ++v2) {
           // vy velocity
-          if (const auto v = V{v1, v2, 0};!checkIntersect<int64_t>(lines, v, true)) {
+          if (const auto v = V{v1, v2, 0};!checkIntersect(lines, v, true)) {
             // Don't even overlap in 2D (x,y plane)
             continue;
           }
           for (int64_t v3 = -vRange; v3 <= vRange; ++v3) {
             // vz velocity
             // Check if all lines reduced with velocity v (vx,vy,vz) (rock reference frame) intersects each other
-            if (const auto v = V{v1, v2, v3};checkIntersect<int64_t>(lines, v, false)) {
+            if (const auto v = V{v1, v2, v3};checkIntersect(lines, v, false)) {
               // All lines intersect each other in the rocks reference frame (when their velocity is reduced by v))
               // get the actual intersection point (from any two lines) as seen in global reference frame
               const auto pi = lines[0][0];
@@ -1248,7 +1149,7 @@ namespace part2 {
               const auto pj = lines[1][0];
               const auto vj = lines[1][1] - v; // vj is the hailstone j velocity as seen within rocks reference frame
               const auto [t, s] =
-                  intersect<int64_t>({pi, vi}, {pj, vj}).value();
+                  intersect({pi, vi}, {pj, vj}).value();
               // t and s are times such that pi + t * vi = pj + s * vj
               // The velocity v is the rocks velocity, and the hailstone velocity is vi and vj in rocks reference frame.
               // Hm... Dear tbeu, I do not get why the rock starting position is pi + t+vi?
@@ -1303,7 +1204,6 @@ namespace part2 {
                 times.first = times.second;
               }
 
-              // return V{pi[0] + t * vi[0], pi[1] + t * vi[1], pi[2] + t * vi[2]}; // 557743507346379
               return rock[0]; // 557743507346379
 
               // tbeu found rock: (example.txt)
@@ -1314,20 +1214,6 @@ namespace part2 {
               // tbeu found rock:  (puzzle.txt)
               // 	x0:159153037374407 y0:228139153674672 z0:170451316297300
               // 	vx:245 vy:75 vz:221
-              // tbeu says solution is:  159153037374407 , 228139153674672 , 170451316297300
-
-              // ------------ REPORT----------------
-              // Part 2 answers
-              // 	answer[puzzle.txt] 557743507346379
-
-              // Lets check the solution for the first hailstone.
-              // 308205470708820, 82023714100543, 475164418926765 @ 42, 274, -194
-              // x: 159153037374407 + t*245 = 308205470708820 + t*42 ?
-              // y: 228139153674672 + t*75 = 82023714100543 + t*274 ?
-              // z: 170451316297300 + t*221 = 475164418926765 + t*-194 ?
-              // 245t - 42t = 308205470708820 - 159153037374407;
-              // 75t - 274t = 82023714100543 - 228139153674672;
-              // 221t + 194t = 475164418926765 - 170451316297300;
             }
           }
         }
@@ -1339,14 +1225,17 @@ namespace part2 {
   Result solve_for(Model &model, auto args) {
       Result result{};
       std::cout << NL << NL << "part2";
-      if (true) {
-        // Developing my own solution from scratch
+      print_model(model);
+      if (false) {
+        // Known working solution from tbeu, THANKS (Very valuable for me to develop my own solution!
+        const auto rock = tbeu::findRock(tbeu::to_lines(model));
+        result = rock[0] + rock[1] + rock[2]; // 557743507346379        
+      }
+      else {
+        // Developed my own solution from scratch (what a journey!)
         const auto rock = mine::to_hit_all_trajectories(model,args);
         result = rock.start[0] + rock.start[1] + rock.start[2]; // 557743507346379
       }
-      // Known working solution from tbeu
-      const auto rock = tbeu::findRock(tbeu::to_lines(model));
-      result = rock[0] + rock[1] + rock[2]; // 557743507346379
 
       return result; // 557743507346379
   }
@@ -1358,7 +1247,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < argc; ++i) {
     std::cout << NL << "argv[" << i << "] : " << std::quoted(argv[i]);
   }
-  // day24 part file min max
+  // usage: ./day24 part file min max
   std::tuple<int, std::string, Integer, Integer> args{1, "example.txt", 7, 17};
   auto &[part, file, min, max] = args;
   if (argc > 1) {

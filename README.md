@@ -420,3 +420,20 @@ So, I finally sat down and forced myself to solve my equations. And I got:
 You see the bug? Yeas, CoPilot had missed the sign on the denominator!
 
 So close, bit no cigar for CoPilot / ChatGPT!
+
+* I got bitten by C++ allowing an initializer list that is too short
+
+I had written the code:
+
+          return { IntersectionType::Intersection,xi,yi,ti,tj };
+
+Which compiled just fine. But the thing I returned actually had 6 members!
+
+I had refactored the code to return x,y,z coordinates so I could use the same type for both xy-plane and xz-plane function.
+
+So the code required was:
+
+          return { IntersectionType::Intersection,xi,yi,0,ti,tj };
+
+Again, C++ has, for my slightly dyslectic programming style, a strong tendency to punish me for incorrect syntax but allow me to write incorrect type applications.
+
