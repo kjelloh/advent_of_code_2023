@@ -687,7 +687,7 @@ namespace part2 {
         Integer denominator_tj = -denominator_ti;
 
         if (denominator_ti == 0) {
-          std::cout << NL << "XY The lines are parallel, Intersects always.";
+          //std::cout <<NL << "XY The lines are parallel, Intersects always.";
           return {IntersectionType::Parallel,0,0,0,0,0 };
         } else if (numerator_ti % denominator_ti != 0 || numerator_tj % denominator_tj != 0) {
           // std::cout << NL << "No integer solutions exist.";
@@ -695,22 +695,22 @@ namespace part2 {
         } else {
           Integer ti = numerator_ti / denominator_ti;
           Integer tj = numerator_tj / denominator_tj;
-          std::cout << NL << "The XY lines intersect at times ti = " << ti << ", tj = " << tj;
+          //std::cout <<NL << "The XY lines intersect at times ti = " << ti << ", tj = " << tj;
           // Check that we have the correct calculations applied.
           auto xi = x0_j + tj * dx_j;
           auto xj = x0_i + ti * dx_i;
           auto yi = y0_j + tj * dy_j;
           auto yj = y0_i + ti * dy_i;
-          std::cout << " at " << "(xi:" << xi << ",yi:" << yi << ") and (xj:" << xj << ",yj:" << yj << ")";
+          //std::cout <<" at " << "(xi:" << xi << ",yi:" << yi << ") and (xj:" << xj << ",yj:" << yj << ")";
           if (xi != xj || yi != yj) {
-            std::cout << NT << "**ERROR**, The times do not make the lines intersect at the same point!";
+            std::cout << NT << "**DEBUG**, The times do not make the lines intersect at the same point!";
             return { IntersectionType::NoIntersection,0,0,0,0,0 };
           }
-          if (std::abs(xi) == std::abs(example_rock.start[0]) or std::abs(yi) == std::abs(example_rock.start[1])) {
-            std::cout << NT << "**MATCH XY** x or y abs value matches known example rock start position abs values: " << to_string(example_rock);
+          if (xi == example_rock.start[0] or yi == example_rock.start[1]) {
+            std::cout << NT << "**RECOGNIZED EXAMPLE ROCK XY** x:" << xi << " or y:" << yi << " matches known example rock: " << to_string(example_rock.start);
           }
           if (ti < 0 || tj < 0) {
-              std::cout << NT << "The lines intersect in the past :(";
+              //std::cout <<NT << "The lines intersect in the past :(";
             return { IntersectionType::NoIntersection,0,0,0,0,0 };
           }
           return { IntersectionType::Intersection,xi,yi,0,ti,tj };
@@ -767,7 +767,7 @@ namespace part2 {
 
     // Return Intersection z if there is one for already found xy intersection xi at times xy_ti and xy_tj
     Intersection to_xz_intersection(std::tuple<Trajectory,Trajectory> const& pair,Intersection const& xy_intersection) {
-      std::cout << NL << "0 to_xz_intersection";
+      // std::cout << NL << "0 to_xz_intersection";
       // Check for xz-shadow intersection 
       auto const& [hi_prim,hj_prim] = pair;
       {
@@ -791,7 +791,7 @@ namespace part2 {
         // tj = tj = (z0_i + ti*dz_i - z0_j) / dz_j
         // Note: Requires dx and dz to be non-zero
         if (dx_i == 0 || dx_j == 0 || dz_i == 0 || dz_j == 0) {
-          std::cout << NT << "1 to_xz_intersection";
+          // std::cout << NT << "1 to_xz_intersection";
           return { IntersectionType::NoIntersection,0,0,0,0,0 };
         }
   
@@ -802,44 +802,44 @@ namespace part2 {
 
         // Note: Requires denominator to be != 0
         if (denominator_ti == 0) {
-          std::cout << NL << "The XZ lines are parallel, XZ shadow intersect always.";
+          //std::cout <<NL << "The XZ lines are parallel, XZ shadow intersect always.";
           if (xy_intersection.type==IntersectionType::Intersection) {
             auto result = xy_intersection;
             result.z = z0_i + xy_intersection.t_i * dz_i; // pick the z that comes from know xy-intersection times
-            std::cout << NT << "2 to_xz_intersection";
+            //std::cout <<NT << "2 to_xz_intersection";
             return result;
           }
           return xy_intersection; // pass through
         } else if (numerator_ti % denominator_ti != 0 || numerator_tj % denominator_tj != 0) {
           // std::cout << NL << "No integer solutions exist.";
-          std::cout << NT << "3 to_xz_intersection";
+          //std::cout <<NT << "3 to_xz_intersection";
           return { IntersectionType::NoIntersection,0,0,0,0,0 };
         } else {
           Integer ti = numerator_ti / denominator_ti;
           Integer tj = numerator_tj / denominator_tj;
-          std::cout << NL << "The XZ lines intersect at times ti = " << ti << ", tj = " << tj << " xy_intersection.t_i:" << xy_intersection.t_i << " xy_intersection.t_j:" << xy_intersection.t_j;
+          //std::cout <<NL << "The XZ lines intersect at times ti = " << ti << ", tj = " << tj << " xy_intersection.t_i:" << xy_intersection.t_i << " xy_intersection.t_j:" << xy_intersection.t_j;
           if (xy_intersection.type==IntersectionType::Intersection and (ti != xy_intersection.t_i || tj != xy_intersection.t_j)) {
             // We seek the same intersection times ti and tj for intersection on both xy-plane and xz-plane
-            std::cout << NL << "4 to_xz_intersection";
+            //std::cout <<NL << "4 to_xz_intersection";
             return { IntersectionType::NoIntersection,0,0,0,0,0 };
           }
-          std::cout << NL << "The XZ lines intersect at times ti = " << ti << ", tj = " << tj;
+          //std::cout <<NL << "The XZ lines intersect at times ti = " << ti << ", tj = " << tj;
           Integer xi = x0_i + ti * dx_i;
           Integer xj = x0_j + tj * dx_j;
           Integer zi = z0_i + ti * dz_i;
           Integer zj = z0_j + tj * dz_j;
-          std::cout << " at " << "(xi:" << xi << ",zi:" << zi << ") and (xj:" << xj << ",zj:" << zj << ")";
+          //std::cout <<" at " << "(xi:" << xi << ",zi:" << zi << ") and (xj:" << xj << ",zj:" << zj << ")";
           if (xi != xj || zi != zj) {
             std::cout << NT << "**DEBUG**, The times do not make the lines intersect at the same point!";
-            std::cout << NT << "5 to_xz_intersection";
+            //std::cout <<NT << "5 to_xz_intersection";
             return { IntersectionType::NoIntersection,0,0,0,0,0 };
           }
-          if (std::abs(xi) == std::abs(example_rock.start[0]) or std::abs(zi) == std::abs(example_rock.start[2])) {
-            std::cout << NT << "**MATCH XZ** x or z abs value matches known example rock start position abs values: " << to_string(example_rock.start);
+          if (xi == example_rock.start[0] or zi == example_rock.start[2]) {
+            std::cout << NT << "**RECOGNIZED EXAMPLE ROCK XZ** x:" << xi << " or z:" << zi << " matches known example rock: " << to_string(example_rock.start);
           }
           if (ti < 0 || tj < 0) {
-            std::cout << NT << "The lines intersect in the past :(";
-            std::cout << NT << "6 to_xz_intersection";
+            //std::cout <<NT << "The lines intersect in the past :(";
+            //std::cout <<NT << "6 to_xz_intersection";
             return { IntersectionType::NoIntersection,0,0,0,0,0 };
           }
           auto result = xy_intersection;
@@ -852,7 +852,7 @@ namespace part2 {
           result.type = IntersectionType::Intersection;
           result.x = xi;
           result.z = zi;
-          std::cout << NT << "7 to_xz_intersection";
+          //std::cout <<NT << "7 to_xz_intersection";
           return result; // If xy-intersection was "always" we now have x and z and intersection times (in theory the same as)
         }        
       }
@@ -972,21 +972,22 @@ namespace part2 {
                 Intersection xz_intersection = to_xz_intersection({hi_prim,hj_prim},xy_intersection);
                 auto const& [type,x,y,z,ti,tj] = xz_intersection;
                 if (type==IntersectionType::NoIntersection) {
-                  std::cout << NT << "No intersection for x:" << x << " y:" << y << " z:" << z << " at times ti:" << ti << " tj:" << tj;
+                  //std::cout <<NT << "No intersection for x:" << x << " y:" << y << " z:" << z << " at times ti:" << ti << " tj:" << tj;
                   continue; // skip for no overlap for xz-shadow (no way to find r0)
                 }
                 if (type==IntersectionType::Intersection) {
-                  std::cout << NT << "Found intersection at x:" << x << " y:" << y << " z:" << z << " at times ti:" << ti << " tj:" << tj;
+                  //std::cout <<NT << "Found intersection at x:" << x << " y:" << y << " z:" << z << " at times ti:" << ti << " tj:" << tj;
                   auto r0_candidate = Vector{x,y,z};
+                  std::cout << NT << "Found candidate r0:" << to_string(r0_candidate);
                   r0_candidates_map[r0_candidate] += 1;
                   if (r0_candidates_map[r0_candidate] == 3) {
-                    std::cout << NT << "Found candidate r0:" << to_string(r0_candidate);
+                    std::cout << NT << "==> PICKED candidate r0:" << to_string(r0_candidate) << " with intersection count = " << r0_candidates_map[r0_candidate];
                     return Trajectory{r0_candidate,{dx,dy,dz}};
                   }
                 }
                 else {
-                  // Parallel in xy or xz = an intersection with undetermined x,y,z
-                  std::cout << NT << "*UNDETERMINED* intersection at x:" << x << " y:" << y << " z:" << z << " at times ti:" << ti << " tj:" << tj;
+                  // Parallel in xy AND xz = an intersection with undetermined x,y,z
+                  std::cout << NT << "*PARALLEL TRAJECTORY CANDIDATE PAIR* : " << to_string(hi_prim) << " and " << to_string(hj_prim) << " (are parallel in xy and xz)";
                   undetermined_intersection += 1;
                 }
                 continue; // Next dx,dy
@@ -1073,21 +1074,21 @@ namespace part2 {
             {entry[0], entry[1], entry[2], entry[3], entry[4], entry[5]});
       }
 
-      int count{};
-      while (count++<3) {
-        Trajectories hailstone_candidates = get_n_random(trajectories, 2+count); // try 3,4,5.
-
+      for (int i=3;i<=trajectories.size();++i) {
+        auto hailstone_candidates = get_n_random(trajectories, i);
+        std::cout << NL << "Trying to find rock trajectory that uniquely hits at least " << i << " of " << hailstone_candidates.size() << " candidate hailstones";
         auto const &[_, __, min, max] = args;
         auto orock = scan_for_rock(hailstone_candidates, min, max);
-        std::cout << NL << "Tried hailstones:";
+        std::cout << NT << "Tried hailstones:";
         for (auto const &trajectory : hailstone_candidates) {
           std::cout << NT << to_string(trajectory);
         }
         if (orock) {
-          std::cout << NT << "Found rock trajectory that hits all of " << 2+count << " hailstones: " << to_string(*orock);
+          std::cout << NT << "Found rock trajectory that uniquely hits at least three of " << hailstone_candidates.size() << " candidate hailstones: " << to_string(*orock);
           return *orock;
         } else {
           std::cout << NT << "No rock trajectory found for these hailstones:";
+          hailstone_candidates.push_back(trajectories[i]); // try with one more
         }
       }
       return Trajectory{}; // Failed
