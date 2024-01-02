@@ -965,7 +965,7 @@ namespace part2 {
               Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]}};
               Trajectory hj_prim{hj.start,{hj.orientation[0]-dx,hj.orientation[1]-dy,hj.orientation[2]}};
               auto xy_intersection = to_xy_intersection({hi_prim,hj_prim});
-              if (xy_intersection.type ==IntersectionType::NoIntersection) continue; // skip if no intersection
+              if (xy_intersection.type ==IntersectionType::NoIntersection) continue; // skip if no xy-intersection
               for (int dz = dz_min;dz<=dz_max;++dz) {
                 Trajectory hi_prim{hi.start,{hi.orientation[0]-dx,hi.orientation[1]-dy,hi.orientation[2]-dz}};
                 Trajectory hj_prim{hj.start,{hj.orientation[0]-dx,hj.orientation[1]-dy,hj.orientation[2]-dz}};
@@ -977,7 +977,12 @@ namespace part2 {
                 }
                 if (type==IntersectionType::Intersection) {
                   std::cout << NT << "Found intersection at x:" << x << " y:" << y << " z:" << z << " at times ti:" << ti << " tj:" << tj;
-                  r0_candidates_map[Vector{x,y,z}] += 1;
+                  auto r0_candidate = Vector{x,y,z};
+                  r0_candidates_map[r0_candidate] += 1;
+                  if (r0_candidates_map[r0_candidate] == 3) {
+                    std::cout << NT << "Found candidate r0:" << to_string(r0_candidate);
+                    return Trajectory{r0_candidate,{dx,dy,dz}};
+                  }
                 }
                 else {
                   // Parallel in xy or xz = an intersection with undetermined x,y,z
@@ -988,23 +993,16 @@ namespace part2 {
               } // dz
             } // dy
           } // dx
+          // As soon we have found three candidates to the same position we should have found the rock dx,dy,dz?
+          // Proof: 1) We store a candidate only if it is a fully determined x,y,z intersection.
+          //        2) 1 means the two trajectories compared have a unique intersection point in 3D.
+          //        3) Even if two lines compared are parallel in xy or xz, as long as they are not the same line, we still can determine its x,y,z.
+          //        4) If two hailstones actually are "the same" we could, in theory accept them as a candidate if its velocity is the tried dx,dy,dz?
+          //           Bit we have no such logic so we are currently not using two equal hailstones as input to find the rock speed.
+          //           Hm, it also states in the puzzle description that none of the hailstones collides?
+          //        5) So, when we have found the same candidate r0 three times, this makes three, non same, hailstones intersect there.
         } // hailstone j
       } // hailstone i
-      std::cout << NL << "Found " << r0_candidates_map.size() << " candidates for r0" << " and " << undetermined_intersection << " undetermined intersections";
-      auto required_intersect_count = factorial(hailstones.size()-1);
-      std::cout << NL << "Requires all " << hailstones.size() << " hailstones to intersect at r0, finding " << factorial(hailstones.size()-1) << " hits for rock candidate";
-      for (auto const& entry : r0_candidates_map) {
-        std::cout << NT << "Candidate r0:" << to_string(entry.first) << " found " << entry.second << " times";
-      }
-      auto iter = std::max_element(r0_candidates_map.begin(),r0_candidates_map.end(),[](auto const& entry1,auto const& entry2){return entry1.second < entry2.second;});
-      if (iter != r0_candidates_map.end() and iter->second == required_intersect_count) {
-        std::cout << NL << "Found rock that hit all tried hailstones. Rock = " << to_string(iter->first);
-        return Trajectory{iter->first,{0,0,0}}; // The way the code loops means we list dr... (But we do not need it)
-      }
-      else {
-        std::cout << NL << "Failed to find rock that hit all tried hailstones.";
-        // all found candidates are different ones...
-      }
       return std::nullopt; // failed
     }
 
