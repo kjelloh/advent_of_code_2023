@@ -25,6 +25,7 @@
 #include <regex>
 #include <chrono>
 #include <cassert>
+#include <functional>
 
 
 char const* example = R"(#.#####################
@@ -416,47 +417,56 @@ namespace part1 {
 
     Result to_max_steps(Vector const& start, Vector const& end, Model& grid) {
       Result result{};
-      std::cout << NL << "to_max_steps";
+      std::cout << NL << "to_max_steps start : {" << start.r << "," << start.c << "} end : {" << end.r << "," << end.c << "}";
+      std::cout << NT << "at start : " << grid[start.r][start.c] << " at end : " << grid[end.r][end.c];
       auto const R = grid.size();
       auto const C = grid[0].size();
-      std::deque<State> q;
-      q.push_back({start.r, start.c, {-1,0},0});
 
-      while (!q.empty()) {
-        State current = q.back();
-        q.pop_back();
-        std::cout << NT << "current : " << current.r << "," << current.c << " distance : " << current.distance;
+      std::vector<std::vector<Result>> max_distance(R, std::vector<Result>(C, INT_MIN));
+      max_distance[start.r][start.c] = 0;
 
-        auto const& [r,c,from,distance] = current;
-        grid[r][c] = 'O'; 
+      std::function<void(Direction prev_dir,int, int, int,int,Result)> dfs = [&](Direction prev_dir,int r, int c, int prev_r,int prev_c,Result distance) {
+        std::cout << NT << "dfs({" << prev_dir.dr << "," << prev_dir.dc << "}," << r << "," << c << "," << prev_r << "," << prev_c << "," << distance << ")";
+        // If this is not a valid cell, or if a longer path to this cell has been found, return
+        if (r < 0 || r >= R || c < 0 || c >= C || grid[r][c] == '#' || distance < max_distance[r][c]) {
+          // outside grid or blocked or already visited with a longer path
+          std::cout << " -> skipped";
+          return;
+        }
+        // This is our new max
+        max_distance[r][c] = distance;
 
-        if (current.r == end.r && current.c == end.c) {
-          result = std::max(result, current.distance); // Update current max
-          continue; // try another from queue
+        if (distance > 20) {
+          std::cout << NL << "Gave up";
+          return;
         }
 
-        // I need a mechanism that don't allow backtracking from a popped state
-        for (auto &dir : to_directions(grid[current.r][current.c])) {
-          std::cout << NT << "dir : " << dir.dr << "," << dir.dc << " from : " << from.dr << "," << from.dc;
-          int new_r = current.r + dir.dr;
-          int new_c = current.c + dir.dc;
-          if (     new_r >= 0 
-                && new_r < R 
-                && new_c >= 0 
-                && new_c < C 
-                && !(dir.dr == from.dr and dir.dc == from.dc)
-                && grid[new_r][new_c] != '#') {
-            // On grid and not a forrest tile and not seen before
-            auto new_distance = current.distance + 1;
-            q.push_back({new_r, new_c, {-dir.dr,-dir.dc},distance+1});
-            std::cout << NT << "new : " << new_r << "," << new_c << " distance : " << new_distance;
-            if (new_distance > 15) {
-              std::cout << NT << "gave up";
-              return result; // Debug!
-            }
-          }
+        // If this cell is the end position, stop the recursion
+        if (r == end.r && c == end.c) {
+          std::cout << " -> END";
+          return; // Bottom is reached ;)
+        }        
+
+        grid[r][c] = 'O'; // Render visited tiles
+
+        // Explore all possible directions
+        for (auto &dir : to_directions(grid[r][c])) {
+          auto new_r = r + dir.dr;
+          auto new_c = c + dir.dc;
+          std::cout << NT << "new_r : " << new_r << " new_c : " << new_c;
+          
+          // If the next step would be in the opposite direction of the previous step, skip it
+          if (dir.dr == -prev_dir.dr && dir.dc == -prev_dir.dc) {
+            std::cout << " --> blocked going back";
+            continue; // don't go back
+          }          
+          dfs(dir,new_r, new_c,r,c, distance + 1);
         }
-      }
+      };
+
+      dfs({1,0},start.r, start.c,-1,1,0);
+
+      result =  max_distance[end.r][end.c];
       std::cout << NT << "==> result : " << result;
       return result;
     } // to_max_steps
@@ -531,8 +541,8 @@ namespace part1 {
             std::istringstream in{R"(#.#####
 #.#####
 #.>...#
-#.###.#
-#v#...#
+#.###v#
+#v#.>.#
 #...#.#
 #####.#)"}; // 9 vs 11 
             auto grid = parse(in);
