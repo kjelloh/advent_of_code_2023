@@ -240,6 +240,81 @@ Took me a good half hour or more to debug my code before I realized it was the p
 
 Again, the code compiled, and to mee, looked liked it was doing the right thing...
 
+# day 23
+
+## I first thought "icy" meant I could not stand there but would immediately slip to a tile nearby...
+
+The puzzle states "...if you step onto a slope tile, your next step must be downhill (in the direction the arrow is pointing).".
+
+So, from this I suppose it is clear I can stand on that tile. But that the next step must then be in the direction of the slope.
+
+But, what first throw me off was "Because of all the mist from the waterfall, the slopes are probably quite icy;". 
+
+To me, that meant the tile should behave as icy spots in real life? And if so, to step on an icy spot would cause you to slip and end up in a position next to the icy spot.
+
+As it turned out, this was *not* the case. 
+
+## I was reminded how factually correct compiler errors can be confusing and unhelpful if you don't have your "C++ matrix" glasses tuned
+
+The code:
+
+        struct Vector {
+          int r, c;
+          auto operator<=>(const Vector& lhs, const Vector& rhs) const {
+            return std::tie(lhs.r, lhs.c) <=> std::tie(rhs.r, rhs.c);
+          }
+        };
+
+
+Makes the compiler complain:
+
+      /Users/kjell-olovhogdal/Documents/Github/advent_of_code_2023/day23/day23.cpp:222:8: error: overloaded 'operator<=>' must be a binary operator (has 3 parameters)
+        222 |   bool operator<=>(const Vector& lhs, const Vector& rhs) const {
+
+At first glance this is a bit confusing. Firstly it says "operator<=>" must be *binary operator* (taking two arguments). Which is understandable. But then, the distracted programmer may look at the signature and think, well, it takes two argument! It is already binary? What is the problem?
+
+Then, the second part, "has 3 parameters", makes no sense? We can clearly see it takes two parameters!
+
+Well, time to put on the C++ matrix glasses. And now we understand:
+
+1. Every member function of a struct or class has a hidden "this" parameter. So, yes, we provided two arguments but the compiler provided the this-pointer as the third.
+2. A binary member operator is defined to implicitly take "ourselves" as the left hand term and "the other" as an argument.
+
+So, a seasoned (and alert) C++ programmer should read "overloaded 'operator<=>' must be a binary operator (has 3 parameters)" and correct the code to:
+
+        struct Vector {
+          int r, c;
+          auto operator<=>(Vector const& other) const {
+            return std::tie(this->r, this->c) <=> std::tie(other.r, other.c);
+          }
+        };
+
+But still, this compiler behavior belongs to the "correct but could be more helpful" bucket of C++ idiosyncrasies. 
+
+## I solved creating a Vector struct from size_t (size() call expressions) arguments with a generic constructor
+
+To be able to create a Vector with plain int coordinates from a call like:
+
+        Vector start = {0,std::distance(model[0].begin(),sit)};
+        Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
+
+,which would make the arguments of type size_t (inferred by the size() call). And this would not be acceptable by the compiler to be passed on to the int r,c of the Vector.
+
+To address this problem, I tried providing a generic constructor that silence any size inconsistencies (a convenience helper constructor).
+
+        struct Vector {
+          int r, c;
+          Vector(auto r,auto c) {
+            // Ensure I can create a vector from container size() call expressions (they are are unsigned size_t...)
+            this->r = static_cast<decltype(Vector::r)>(r); // decltype makes refactoring of type r and c easier
+            this->c = static_cast<decltype(Vector::c)>(c);
+          }
+          bool operator==(Vector const& other) const {
+            return this->r == other.r && this->c == other.c;
+          }
+        };
+
+
 # day 24
 
 ## ILearned today that a C++ structured binding does not keep const refs "alive" in the same way as cont ref arguments to functions do.

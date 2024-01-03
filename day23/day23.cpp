@@ -24,6 +24,7 @@
 #include <optional>
 #include <regex>
 #include <chrono>
+#include <cassert>
 
 
 char const* example = R"(#.#####################
@@ -217,7 +218,24 @@ void print_model(Model const& model) {
   }
 }
 
-using Vector = std::tuple<int,int>;
+struct Vector {
+  int r, c;
+  Vector(auto r,auto c) {
+    // Ensure I can create a vector from container size() call expressions (they are are unsigned size_t...)
+    this->r = static_cast<decltype(Vector::r)>(r); // decltype makes refactoring of type r and c easier
+    this->c = static_cast<decltype(Vector::c)>(c);
+  }
+  bool operator==(Vector const& other) const {
+    return this->r == other.r && this->c == other.c;
+  }
+};
+
+struct Direction {
+  int dr, dc;
+};
+
+using Directions = std::vector<Direction>;
+
 namespace std {
   template <>
   struct hash<Vector> {
@@ -288,6 +306,7 @@ namespace hyperneutrino {
 
   template <bool ALL>
   Result count(Vector start,Vector end,Result max_steps,Model& grid) {
+    // Note: Parameter max_steps is ignored (hyperneutrino's may have intially considered a recursive solution?)
     Result result{};
     // Vertices in "compressed" graph between junctions in the order merge junction, split junction, merge junction.
     // In our puzzle we only have splits into two and merge two into one.
@@ -377,124 +396,167 @@ namespace hyperneutrino {
 } // namespace hyperneutrino
 
 namespace part1 {
+  namespace mine {
 
-  // 231223, used by my own solution try that is not yet used
-  struct Walker {
-    Vector pos{};
-    Vector dir{};
-    bool operator<(Walker const& rhs) const {
-      return std::tie(pos,dir) < std::tie(rhs.pos,rhs.dir);
-    }
-    bool operator!=(Walker const& rhs) const {
-      return std::tie(pos,dir) != std::tie(rhs.pos,rhs.dir);
-    }
-  };
+    struct State {
+        int r, c, distance;
+    };
 
-  // 231223, used by my own solution try that is not yet used
-  struct State {
-    Walker walker{};
-    Result walked{};
-    bool operator<(State const& rhs) const {
-      return std::tie(walker,walked) < std::tie(rhs.walker,rhs.walked);
-    }
-  };
-
-  // 231223, used by my own solution try that is not yet used
-  bool on_grid(Vector pos,Model const& grid) {
-    auto [row,col] = pos;
-    return row >= 0 and row < grid.size() and col >= 0 and col < grid[row].size();
-  }
-
-  // 231223, used by my own solution try that is not yet used
-  // if you step onto a slope tile, 
-  // your next step must be downhill (in the direction the arrow is pointing).
-  Walker to_slipped(Walker walker,Model const& grid) {
-    Walker result{walker};
-    auto [pos,dir] = walker;
-    if (on_grid(pos,grid)) {
-      auto [row,col] = pos;
-      switch (grid[row][col]) {
-      case '^': dir = {row-1,col};break; // slip up
-      case '>': dir = {row,col+1};break; // slip right
-      case 'v': dir = {row+1,col};break; // slip down
-      case '<': dir =  {row,col-1};break; // slip left
-      default: dir = {0,0};break; // no slip
+    Directions to_directions(char tile) {
+      switch (tile) {
+      case '^': return { {-1, 0} }; // next must be up
+      case 'v': return { {1, 0} }; // next mist be down
+      case '<': return { {0, -1} }; // next must be left
+      case '>': return { {0, 1} }; // next must be right
+      default: return { {-1, 0}, {1, 0}, {0, -1}, {0, 1} }; // next is any up, down, left, right
       }
     }
-    result = {pos + dir,dir}; // apply any slip
-    return (on_grid(result.pos,grid)) ? result : walker;
-  }
 
-  // 20231223, does not work yet (TODO: use hyperneutrino as reference to fix problem?)
-  // max number of steps to reach end from provided state
-  Result max_to(Vector start,Vector end,Result max_steps,Model& grid) {
-    Result result{};
-    auto const& [srow,scol] = start;
-    auto const& [erow,ecol] = end;
-    std::cout << NL << "max_to(start:" << srow << "," << scol << " end:" << erow << "," << ecol << " max_steps:" << max_steps << ")" << std::flush;
-    // 1) Get the walking working and flood fill in n steps.
-    // 2) Find any path to end
-    // 3) Find the longest path to seen positions (break at max_steps)
-    // 4) Find the longest path to end (break at max_int of result)
-    // 5) Walk with heuristics? (are there any preferred steps to try before others?)
-    std::queue<State> q{};
-    State down_state{ {start,{1,0}},0 };
-    State right_state{ {start,{0,1}},0 };
-    q.push({down_state});
-    q.push({right_state});
-    std::set<Walker> dont_visit_again{};
-    std::map<Vector,Result> best_from_start{};
-    while (!q.empty()) {
-      auto current = q.front();
-      q.pop();
-      auto& [walker,walked] = current;
-      if (dont_visit_again.contains(walker)) continue;
-      dont_visit_again.insert(walker); // block walking here again
-      if (walker.pos == end) {
-        // Did we get here and walked more steps than previously known?
-        if (walked > result) {
-          result = walked;
-          best_from_start[walker.pos] = result;
+    Result to_max_steps(Vector const& start, Vector const& end, Model& grid) {
+      auto R = grid.size();
+      auto C = grid[0].size();
+      using Results = std::vector<Result>;
+      std::vector<Results> distance(R, Results(C, -1)); // Distance to each cell
+
+      std::deque<State> q;
+      q.push_back({start.r, start.c, 0});
+      distance[start.r][start.c] = 0;
+
+      while (!q.empty()) {
+        State current = q.back();
+        q.pop_back();
+
+        if (current.r == end.r && current.c == end.c) {
+          // Reached the end
+          break;
         }
-        std::cout << NL << "END! walked " << walked << " best_from_start " << best_from_start[walker.pos] << " still in queue:" << q.size() << std::flush;
-      }
-      else if (walked > max_steps) {
-        // update best walking up to the limit of steps
-        if (walked > result) {
-          result = walked;
-          best_from_start[walker.pos] = result;
-        }
-        std::cout << NL << "MAX walked " << walked << " max_steps " << max_steps << " still in queue are:" << q.size() << std::flush;
-      }
-      else {
-        // try next possible steps
-        std::vector<Vector> dirs{{0,1},{1,0},{0,-1},{-1,0}};
-        for (auto const& dir : dirs) {
-          Walker candidate{walker.pos + dir,dir};
-          if (!on_grid(candidate.pos,grid)) continue; // can't walk off the grid ;
-          candidate = to_slipped(candidate,grid);
-          auto [nr,nc] = candidate.pos;
-          if (grid[nr][nc] == '#') continue; // can't walk into the forrest ;)
-          if (candidate != walker) {
-            // Queue an actual step
-            q.push({candidate,walked+1}); // push next to examine later
-            std::cout << NL << "pushed " << nr << "," << nc << " walked " << walked+1 << std::flush; 
+
+        for (auto &dir : to_directions(grid[current.r][current.c])) {
+          int new_r = current.r + dir.dr;
+          int new_c = current.c + dir.dc;
+
+          if (new_r >= 0 && new_r < R && new_c >= 0 && new_c < C &&
+              grid[new_r][new_c] != '#' && distance[new_r][new_c] == -1) {
+            auto new_distance = current.distance + 1;
+            if (new_distance > distance[new_r][new_c]) {
+              q.push_back({new_r, new_c, new_distance});
+              distance[new_r][new_c] = new_distance;
+            }
           }
         }
       }
+      return distance[end.r][end.c];
+    } // to_max_steps
+
+void test_to_max_steps() {
+  // #.#####################
+  // #.......#########...###
+  // #######.#########.#.###
+  // ###.....#.>.>.###.#.###
+  // ###v#####.#v#.###.#.###
+  // ###.>...#.#.#.....#...#
+  // ###v###.#.#.#########.#
+  // ###...#.#.#.......#...#
+  // #####.#.#.#######.#.###
+  // #.....#.#.#.......#...#
+  // #.#####.#.#.#########v#
+  // #.#...#...#...###...>.#
+  // #.#.#v#######v###.###v#
+  // #...#.>.#...>.>.#.###.#
+  // #####v#.#.###v#.#.###.#
+  // #.....#...#...#.#.#...#
+  // #.#########.###.#.#.###
+  // #...###...#...#...#.###
+  // ###.###.#.###v#####v###
+  // #...#...#.#.>.>.#.>.###
+  // #.###.###.#.###.#.#v###
+  // #.....###...###...#...#
+  // #####################.#
+  std::istringstream in{example}; 
+  auto example_grid = parse(in);
+
+  bool more_to_test = true;
+  int text_ix = 0;
+  while (more_to_test) {
+    bool result = false;
+    switch (text_ix++) {
+      case 0: {
+        Model grid = {
+            {'.', '.', '.', '.'},
+            {'.', '.', '.', '.'},
+            {'.', '.', '.', '.'},
+            {'.', '.', '.', '.'}
+        };
+        Vector start = {0, 0};
+        Vector end = {3, 3};
+        Result expected = 6; // The longest path goes through all the '.' cells
+        result = (to_max_steps(start, end, grid) == expected);
+      } break;
+      case 1:     {
+        Model grid = {
+            {'#', '#', '#', '#', '#'},
+            {'#', '.', '.', '.', '#'},
+            {'#', '#', '#', '.', '#'},
+            {'#', '.', '.', '.', '#'},
+            {'#', '#', '#', '#', '#'}
+        };
+        Vector start = {1, 1};
+        Vector end = {3, 3};
+        Result expected = 4; 
+        result = (to_max_steps(start, end, grid) == expected);
+      } break;
+      case 2: {
+        Vector start = {0,1};
+        Vector end = {4, 3};
+        Result expected = 14;
+        result = (to_max_steps(start, end, example_grid) == expected);
+      } break;
+      case 3: {
+        Vector start = {0,1};
+        Vector end = {5, 3};
+        Result expected = 15;
+        result = (to_max_steps(start, end, example_grid) == expected);
+      } break;
+      case 4: {
+        Vector start = {0,1};
+        Vector end = {5,4};
+        Result expected = 16;
+        result = (to_max_steps(start, end, example_grid) == expected);
+      } break;
+      case 5: {
+        // Example
+          Vector start = {0,1};
+          Vector end = {22,21};
+          Result expected = 94;
+          result = (to_max_steps(start, end, example_grid) == expected);
+      } break;
+      default: more_to_test = false; break;
     }
-    auto walked_grid = grid;
-    for (auto const& walker : dont_visit_again) {
-      auto [row,col] = walker.pos;
-      if (grid[row][col] == '.') walked_grid[row][col] = 'O';
+    if (!more_to_test) break;
+
+    if (result) {
+      std::cout << NL << "test_to_max_steps[" << text_ix << "] passed";
     }
-    print_model(walked_grid);
-    return result;
+    else {
+      std::cout << NL << "test_to_max_steps[" << text_ix << "] FAILED";
+    }
   }
+    {
+        Vector start = {0,1};
+        Vector end = {6,3};
+        Result expected = 16;
+        assert(to_max_steps(start, end, example_grid) == expected);
+    }
+}    
+
+  } // namespace mine
 
   Result solve_for(Model& model,auto args) {
     Result result{};
     std::cout << NL << NL << "part1";
+
+    if (true) mine::test_to_max_steps();
+
     auto const& [part,file,max_steps] = args;
     // find start and end
     auto sit = std::find(model[0].begin(),model[0].end(),'.');
@@ -502,6 +564,7 @@ namespace part1 {
     Vector start = {0,std::distance(model[0].begin(),sit)};
     Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
     // result = max_to(start,end,max_steps,model); // ignored for noe (I failed to get it to work)
+    result = mine::to_max_steps(start,end,model);
     result = hyperneutrino::count<false>(start,end,max_steps,model); // see namespace comment on source of solution
     std::cout << NL << "result : " << result;
     return result; // 2206
