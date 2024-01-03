@@ -398,15 +398,9 @@ namespace hyperneutrino {
 namespace part1 {
   namespace mine {
 
-    struct Vector {
-      int r,c;
-      bool operator<(Vector const& other) const {
-        return std::tie(r,c) < std::tie(other.r,other.c);
-      }
-    };
-
     struct State {
         int r, c;
+        Direction from;
         Result distance;
     };
 
@@ -425,16 +419,15 @@ namespace part1 {
       std::cout << NL << "to_max_steps";
       auto const R = grid.size();
       auto const C = grid[0].size();
-      Vector previous{};
       std::deque<State> q;
-      q.push_back({start.r, start.c, 0});
+      q.push_back({start.r, start.c, {-1,0},0});
 
       while (!q.empty()) {
         State current = q.back();
         q.pop_back();
         std::cout << NT << "current : " << current.r << "," << current.c << " distance : " << current.distance;
 
-        auto const& [r,c,distance] = current;
+        auto const& [r,c,from,distance] = current;
         grid[r][c] = 'O'; 
 
         if (current.r == end.r && current.c == end.c) {
@@ -442,22 +435,25 @@ namespace part1 {
           continue; // try another from queue
         }
 
+        // I need a mechanism that don't allow backtracking from a popped state
         for (auto &dir : to_directions(grid[current.r][current.c])) {
-          State new_state{current.r + dir.dr, current.c + dir.dc, current.distance + 1};
+          std::cout << NT << "dir : " << dir.dr << "," << dir.dc << " from : " << from.dr << "," << from.dc;
           int new_r = current.r + dir.dr;
           int new_c = current.c + dir.dc;
           if (     new_r >= 0 
                 && new_r < R 
                 && new_c >= 0 
                 && new_c < C 
-                && !(new_r == previous.r and new_c == previous.c)
+                && !(dir.dr == from.dr and dir.dc == from.dc)
                 && grid[new_r][new_c] != '#') {
             // On grid and not a forrest tile and not seen before
             auto new_distance = current.distance + 1;
-            q.push_back({new_r, new_c, distance+1});
-            previous = {current.r,current.c};
+            q.push_back({new_r, new_c, {-dir.dr,-dir.dc},distance+1});
             std::cout << NT << "new : " << new_r << "," << new_c << " distance : " << new_distance;
-            if (new_distance > 12) return result; // Debug!
+            if (new_distance > 15) {
+              std::cout << NT << "gave up";
+              return result; // Debug!
+            }
           }
         }
       }
