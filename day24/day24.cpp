@@ -599,6 +599,42 @@ namespace part1 {
 }
 
 namespace part2 {
+  // For part 2 I learned that the puzzle input would cause an int64_t overflow when applying line standard form (ax+by+c=0) intersection expressions.
+  // But fining intersection times is doable without overflow.
+
+  // Why does expressions for intersection using the line equation ax+by+c=0 overflow for smaller starting positions
+  // Then intersection expressions fining intersection time?
+
+  // Given:
+  // auto const& [start_i,orientation_i] = hi_prim;
+  // auto const& [start_j,orientation_j] = hj_prim;
+  // auto const [x0_i,y0_i,z0_i] = start_i;
+  // auto const [x0_j,y0_j,z0_j] = start_j;
+  // auto const [dx_i,dy_i,dz_i] = orientation_i;
+  // auto const [dx_j,dy_j,dz_j] = orientation_j;
+
+  // Study the expression for intersection from a line on the for ax+by+c=0
+  // Integer a = -dy;
+  // Integer b = dx;
+  // Integer c = dy * x0 - dx * y0;
+  // for lines i,j
+  // Integer det = a_j * b_i - a_i * b_j; 
+  // Integer nom_x = b_j * c_i - b_i * c_j;
+  // ==> nom_x contains terms b_j * c_i = dx_j * (dy_i*x0_i - dx_i * y0_i)
+  // We se terms like dx_j*dy_i and dx_i*dy_j multiplied by x or y start position.
+  // Which is proportional to "velocity squared" times s"start position".
+  // For this to NOT overflow in int64_t we need to ensure that the start positions are roughly less than int_64_max / velocity_squared. 
+
+  // Study the expressions for finding time of intersection
+  // Integer numerator_ti = dx_j * (y0_i - y0_j) - dy_j * (x0_i - x0_j);
+  // Integer denominator_ti = dx_i * dy_j - dy_i * dx_j;
+  // ti = numerator_ti / denominator_ti;
+  // ==> numerator_ti contains terms dx_j * (y0_i - y0_j) and dy_j * (x0_i - x0_j)
+  // This is roughly proportional to velocity times start position.
+
+  // So for intersection using line equation ax+by+c=0 we have terms "velocity squared" times "start position"
+  // And for intersection time we have terms "velocity" times "start position"
+  // Thus, intersection time expressions allows for starting positions roughly "max velocity" times larger than intersection expressions from line equation :)
 
 
   namespace mine {

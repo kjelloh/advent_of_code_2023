@@ -5,7 +5,7 @@ My C++20 solutions to advent of code 2023 puzzles
 
 # day03
 
-* I fell into a signed and unsigned compare again!
+## I fell into a signed and unsigned compare again!
 
 This loop will do nothing when c is negative (which happens for the start coordinate 0,0)
 
@@ -22,7 +22,7 @@ For me this seems to be the "most vexing untyped int" trap of all (so easy to fa
 
 # day05
 
-* In part 2 I got bitten by an int that got sneaked in by CoPilot that translated some python code to C++ for me.
+## In part 2 I got bitten by an int that got sneaked in by CoPilot that translated some python code to C++ for me.
 
 I *had* searched and replaced all 'int' to 'Integer' but *still* one remained for some obscure reason.
 
@@ -51,7 +51,7 @@ The har truth to swallow is that I *did* suspect this, I *did* searhc and replac
 
 Hm... Maybe it is time to start using some sanitizer for C++ to detect these for me?
 
-* With LLM (for me CoPilot in VSCode) C++ programming has gotten so much better!
+## With LLM (for me CoPilot in VSCode) C++ programming has gotten so much better!
 
 I asked CoPilot for recomended sanitizers and it told me about the flags to gcc and clang!
 
@@ -75,28 +75,28 @@ Programming has gotten so much easier now!
 
 # day09
 
-* I got the semantics of std::adjacent_difference wrong.
+## I got the semantics of std::adjacent_difference wrong.
 
 I expected it to write to the output the difference of a two value window of the input starting at (begin,begin+1) and end at (last-1,last).
 In effect producing one less value that in the input!
-Instead it uses a first window of (begin,begin) and generates a copy of *begin! It also places the result from window (begin,begin+1) at output+1! *sigh*
+
+Instead it uses a first window of (begin,begin) and generates a copy of element at begin! It also places the result from window (begin,begin+1) at output+1! *sigh*
 
 I found that out after reading the specification.
 
 "If [first, last) is not empty, computes the differences between the second and the first of each adjacent pair of its elements and writes the differences to the range beginning at d_first + 1. An unmodified copy of *first is written to *d_first"
 
-Ok, as usual there may be a good reason for it behaves like this. But it violated the sematics of "adjacent difference" that I found natural...
+Ok, as usual there may be a good reason for it behaves like this. But it violated the semantics of "adjacent difference" that I found natural...
 
-* I used unsigned integer in looping down and failed to terminate the loop on i>=0
+## I used unsigned integer in looping down and failed to terminate the loop on i>=0
 
     for (auto row = result.size() - 2; row >= 0; --row)
 
     This loop will never end as size() returns a size_t which is unsigned, causing --row to overflow on 0 so the break condition >=0 will always be TRUE!!
-* I used auto from a size() call and fed into a 
 
 #day10
 
-* I got the semantics of std::adjacent_difference wrong again (this time I got the order of the passed argument to the lambda wrong)
+## I got the semantics of std::adjacent_difference wrong again (this time I got the order of the passed argument to the lambda wrong)
 
 This code does NOT create a key with the first and second character from the input string.
 
@@ -120,13 +120,13 @@ To get the result I expected I need to assemble the key by adding c2 and then c1
 
 An reading the specification it "kind of" states that the passed argument are (second,first) but I missed it!
 
-* computes the differences between the second and the first of each adjacent pair *
+**"computes the differences between the second and the first of each adjacent pair"**
 
 This caused me to spend at least an hour trying to understand why I failed to get any matches for the key!
 
-#day18
+# day18
 
-* Another hidden "int instead of Integer type" detour...
+## Another hidden "int instead of Integer type" detour...
 
 I had initially and high up in the source file (for part 1) defined:
 
@@ -149,9 +149,9 @@ To add insult to missery I then somehow made and error copy-pasting the final an
 When, in fact, I had the correct answer! It took me an hour to implement two other solutions from Github to compare.
 And when they all returned my answer I tried again... 
 
-#day19
+# day19
 
-* Silently got a boolean when expecting an integer and failed to understand why my find() did not work in parsing
+## Silently got a boolean when expecting an integer and failed to understand why my find() did not work in parsing
 
 I wrote this code:
 
@@ -174,7 +174,7 @@ What I should have written was of course:
 
 I can't wait for teh C++ compiler that applies AI before compiling my code ;)
 
-* C++ ridiculously long compiler error listings did not fit into the limits of VSCode output window
+## C++ ridiculously long compiler error listings did not fit into the limits of VSCode output window
 
 When solving this puzzle I change a type from std::map to std::vector<std::tuple<...>>. The consequence of this is of course
 that all usage of objects "thing" of this type no longer could use thing[key].
@@ -187,9 +187,9 @@ You know what - I would like the compiler to list its complaints in the reverse 
 That is, if the compiler would list the compiler error in a stack-like manner, having the root of the error at the bottom
 and then have ever deeper complaints above in the listing, this would make reading the compiler complaints much easier!
 
-#day20
+# day20
 
-* Failed to realize that std::map::insert did not magically merge two maps with elements being std::vector<strings>
+## Failed to realize that std::map::insert did not magically merge two maps with elements being std::vector<strings>
 
 The code:
 
@@ -218,7 +218,7 @@ To get code that "does what I mean" I need to write:
           level_map[level].push_back(std::format("{} <-- {}{}",root,type,new_root));
         }
 
-* Falsely believed an std::string_view::substr::data could be used to cerate an std::string from the sub-view.
+## Falsely believed an std::string_view::substr::data could be used to create an std::string from the sub-view.
 
 The code:
 
@@ -240,9 +240,9 @@ Took me a good half hour or more to debug my code before I realized it was the p
 
 Again, the code compiled, and to mee, looked liked it was doing the right thing...
 
-#day 24
+# day 24
 
-* Learned today that a C++ structured binding does not keep const refs "alive" in the same way as cont ref arguments to functions do.
+## ILearned today that a C++ structured binding does not keep const refs "alive" in the same way as cont ref arguments to functions do.
 
 The code:
 
@@ -254,7 +254,7 @@ But - "structured bound const refs" does *not* keep the temporary alive. So in t
 
 That was not the semantics I inferred...
 
-* Learned that std::array and std::vector uses mirrored syntax to define a fixed count of values.
+## Learned that std::array and std::vector uses mirrored syntax to define a fixed count of values.
 
 To declare an *std::array* with six members you provide the *count* as the *second* argument
 
@@ -272,7 +272,7 @@ The code:
 
 ,will create a vector with two elements 6 and 0 in that order...
 
-* I learned that C++ does not infer a type to hold a literal integer too large for the built in int.
+## I learned that C++ does not infer a type to hold a literal integer too large for the built in int.
 
 The code:
 
@@ -283,7 +283,7 @@ The code:
 
 ,does not compile. I need, as a programmer, suffix the literals with the correct type suffix (in this case LL for lon long int)
 
-* And I did it again, sneahed in an int that caused my algorithm to silently overflow (fail)
+## And I did it again, sneaked in an int that caused my algorithm to silently overflow (fail)
 
 The code:
 
@@ -322,7 +322,7 @@ So much for the help a sanitized-compiled code can help me with.
 
 Hm...I wonder if I should find me a static analyzer to check future code I write?
 
-* Learned today to see the potential overflows when multiplying large integers :)
+## Learned today to see the potential overflows when multiplying large integers :)
 
 In the code:
 
@@ -348,7 +348,7 @@ Say the int x=10000001 (8 digits) and the float a = 10000000.0. Now (x > a) beco
 which is (10000000.0 > 10000000.0) which is *false*! The other way around would work - (10000001 > int(10000000.0))
 becomes (10000001 > 10000000) with is *true* as expected :)
 
-* I learned that C++ is able to feed a single initializer list to two separate member constructors.
+## I learned that C++ is able to feed a single initializer list to two separate member constructors.
 
 So given the types:
 
@@ -365,7 +365,7 @@ I can write:
 
 And the compiler will feed the first three values to position and the following three to orientation :)
 
-* For part 2 I kept forgetting that relative start positions parallel with relative velocity is true only for actual collision (NOT trajectory intersection in general)
+## For part 2 I kept forgetting that relative start positions parallel with relative velocity is true only for actual collision (NOT trajectory intersection in general)
 
 I spent quite some time to find a "nice" solution for part 2 with the result that I went down quite a number of rabbit holes...
 
@@ -378,7 +378,7 @@ But, if two objects arrive at the same point at different times..., then their r
 
 Took me some time to dig that bug out!
 
-* I learned the hard way that this days Puzzle had ben set up so that solving for intersection using lines on the fow ax+by+c=0 will overflow in an int64_t!
+## I learned the hard way that this days Puzzle had ben set up so that solving for intersection using lines on the fow ax+by+c=0 will overflow in an int64_t!
 
 It was not until I compiled my C++ code with the "-fsanitize=undefined" flag that I discovered that the expressions for intersection would fail due to products as well as differences would occasionally overflow in int64_t value space!
 
@@ -389,7 +389,7 @@ So, after having slept on the matter I realized solving for time of intersection
 
 An assumption that turned out correct!
 
-* I learned NOT to trust CoPilot to solve equations for me *sigh*
+## I learned NOT to trust CoPilot to solve equations for me *sigh*
 
 I set up the equations for the times when two objects i and j on their trajectories would collide (same point, different times).
 I had tried to solve them myself but got tired and made silly mistakes confusing x and y and i and j (my handwriting is not the best)...
@@ -421,7 +421,7 @@ You see the bug? Yeas, CoPilot had missed the sign on the denominator!
 
 So close, bit no cigar for CoPilot / ChatGPT!
 
-* I got bitten by C++ allowing an initializer list that is too short
+## I got bitten by C++ silently allowing an initializer list that is too short
 
 I had written the code:
 
@@ -436,4 +436,48 @@ So the code required was:
           return { IntersectionType::Intersection,xi,yi,0,ti,tj };
 
 Again, C++ has, for my slightly dyslectic programming style, a strong tendency to punish me for incorrect syntax but allow me to write incorrect type applications.
+
+## I learned that expressions using time of intersection allows start positions that are "max velocity" times larger than intersection of line on the form ax+by+c=0.
+
+So, Why does expressions for intersection using the line equation ax+by+c=0 overflow for smaller starting positions than intersection expressions finding intersection time?
+
+*Given:*
+auto const& [start_i,orientation_i] = hi_prim;
+auto const& [start_j,orientation_j] = hj_prim;
+auto const [x0_i,y0_i,z0_i] = start_i;
+auto const [x0_j,y0_j,z0_j] = start_j;
+auto const [dx_i,dy_i,dz_i] = orientation_i;
+auto const [dx_j,dy_j,dz_j] = orientation_j;
+
+*Study the expression for intersection from a line on the for ax+by+c=0*
+Integer a = -dy;
+Integer b = dx;
+Integer c = dy * x0 - dx * y0;
+for lines i,j
+Integer det = a_j * b_i - a_i * b_j; 
+Integer nom_x = b_j * c_i - b_i * c_j;
+
+==> nom_x contains terms like b_j * c_i = dx_j * (dy_i*x0_i - dx_i * y0_i)
+
+We see terms like dx_j*dy_i and dx_i*dy_j multiplied by x or y start position.
+Which is proportional to *"velocity squared" times s"start position"*.
+
+For this to NOT overflow in int64_t we need to ensure that the start positions are roughly less than int_64_max / velocity squared. 
+
+*Study the expressions for finding time of intersection*
+Integer numerator_ti = dx_j * (y0_i - y0_j) - dy_j * (x0_i - x0_j);
+Integer denominator_ti = dx_i * dy_j - dy_i * dx_j;
+ti = numerator_ti / denominator_ti;
+
+==> numerator_ti contains terms dx_j * (y0_i - y0_j) and dy_j * (x0_i - x0_j)
+
+This is roughly proportional to *velocity times start position*.
+
+So for intersection using line equation ax+by+c=0 we have terms "velocity squared" times "start position"
+And for intersection time we have terms "velocity" times "start position"
+
+For this to NOT overflow in int64_t we need to ensure that the start positions are roughly less than int_64_max / velocity. 
+
+*Thus, intersection time expressions allows for starting positions roughly "max velocity" times larger than intersection expressions from line equation :)*
+
 
