@@ -212,9 +212,9 @@ Model parse(auto& in) {
 }
 
 void print_model(Model const& model) {
-  std::cout << NL << "Model";
+  std::cout << NL << "print_model:";
   for (auto const& line : model) {
-    std::cout << NT << line;
+    std::cout << NL << line;
   }
 }
 
@@ -398,8 +398,16 @@ namespace hyperneutrino {
 namespace part1 {
   namespace mine {
 
+    struct Vector {
+      int r,c;
+      bool operator<(Vector const& other) const {
+        return std::tie(r,c) < std::tie(other.r,other.c);
+      }
+    };
+
     struct State {
-        int r, c, distance;
+        int r, c;
+        Result distance;
     };
 
     Directions to_directions(char tile) {
@@ -413,141 +421,175 @@ namespace part1 {
     }
 
     Result to_max_steps(Vector const& start, Vector const& end, Model& grid) {
-      auto R = grid.size();
-      auto C = grid[0].size();
-      using Results = std::vector<Result>;
-      std::vector<Results> distance(R, Results(C, -1)); // Distance to each cell
-
+      Result result{};
+      std::cout << NL << "to_max_steps";
+      auto const R = grid.size();
+      auto const C = grid[0].size();
+      Vector previous{};
       std::deque<State> q;
       q.push_back({start.r, start.c, 0});
-      distance[start.r][start.c] = 0;
 
       while (!q.empty()) {
         State current = q.back();
         q.pop_back();
+        std::cout << NT << "current : " << current.r << "," << current.c << " distance : " << current.distance;
+
+        auto const& [r,c,distance] = current;
+        grid[r][c] = 'O'; 
 
         if (current.r == end.r && current.c == end.c) {
-          // Reached the end
-          break;
+          result = std::max(result, current.distance); // Update current max
+          continue; // try another from queue
         }
 
         for (auto &dir : to_directions(grid[current.r][current.c])) {
+          State new_state{current.r + dir.dr, current.c + dir.dc, current.distance + 1};
           int new_r = current.r + dir.dr;
           int new_c = current.c + dir.dc;
-
-          if (new_r >= 0 && new_r < R && new_c >= 0 && new_c < C &&
-              grid[new_r][new_c] != '#' && distance[new_r][new_c] == -1) {
+          if (     new_r >= 0 
+                && new_r < R 
+                && new_c >= 0 
+                && new_c < C 
+                && !(new_r == previous.r and new_c == previous.c)
+                && grid[new_r][new_c] != '#') {
+            // On grid and not a forrest tile and not seen before
             auto new_distance = current.distance + 1;
-            if (new_distance > distance[new_r][new_c]) {
-              q.push_back({new_r, new_c, new_distance});
-              distance[new_r][new_c] = new_distance;
-            }
+            q.push_back({new_r, new_c, distance+1});
+            previous = {current.r,current.c};
+            std::cout << NT << "new : " << new_r << "," << new_c << " distance : " << new_distance;
+            if (new_distance > 12) return result; // Debug!
           }
         }
       }
-      return distance[end.r][end.c];
+      std::cout << NT << "==> result : " << result;
+      return result;
     } // to_max_steps
 
-void test_to_max_steps() {
-  // #.#####################
-  // #.......#########...###
-  // #######.#########.#.###
-  // ###.....#.>.>.###.#.###
-  // ###v#####.#v#.###.#.###
-  // ###.>...#.#.#.....#...#
-  // ###v###.#.#.#########.#
-  // ###...#.#.#.......#...#
-  // #####.#.#.#######.#.###
-  // #.....#.#.#.......#...#
-  // #.#####.#.#.#########v#
-  // #.#...#...#...###...>.#
-  // #.#.#v#######v###.###v#
-  // #...#.>.#...>.>.#.###.#
-  // #####v#.#.###v#.#.###.#
-  // #.....#...#...#.#.#...#
-  // #.#########.###.#.#.###
-  // #...###...#...#...#.###
-  // ###.###.#.###v#####v###
-  // #...#...#.#.>.>.#.>.###
-  // #.###.###.#.###.#.#v###
-  // #.....###...###...#...#
-  // #####################.#
-  std::istringstream in{example}; 
-  auto example_grid = parse(in);
+    void test_to_max_steps() {
+      // #.#####################
+      // #.......#########...###
+      // #######.#########.#.###
+      // ###.....#.>.>.###.#.###
+      // ###v#####.#v#.###.#.###
+      // ###.>...#.#.#.....#...#
+      // ###v###.#.#.#########.#
+      // ###...#.#.#.......#...#
+      // #####.#.#.#######.#.###
+      // #.....#.#.#.......#...#
+      // #.#####.#.#.#########v#
+      // #.#...#...#...###...>.#
+      // #.#.#v#######v###.###v#
+      // #...#.>.#...>.>.#.###.#
+      // #####v#.#.###v#.#.###.#
+      // #.....#...#...#.#.#...#
+      // #.#########.###.#.#.###
+      // #...###...#...#...#.###
+      // ###.###.#.###v#####v###
+      // #...#...#.#.>.>.#.>.###
+      // #.###.###.#.###.#.#v###
+      // #.....###...###...#...#
+      // #####################.#
+      std::istringstream in{example}; 
+      auto example_grid = parse(in);
 
-  bool more_to_test = true;
-  int text_ix = 0;
-  while (more_to_test) {
-    bool result = false;
-    switch (text_ix++) {
-      case 0: {
-        Model grid = {
-            {'.', '.', '.', '.'},
-            {'.', '.', '.', '.'},
-            {'.', '.', '.', '.'},
-            {'.', '.', '.', '.'}
-        };
-        Vector start = {0, 0};
-        Vector end = {3, 3};
-        Result expected = 6; // The longest path goes through all the '.' cells
-        result = (to_max_steps(start, end, grid) == expected);
-      } break;
-      case 1:     {
-        Model grid = {
-            {'#', '#', '#', '#', '#'},
-            {'#', '.', '.', '.', '#'},
-            {'#', '#', '#', '.', '#'},
-            {'#', '.', '.', '.', '#'},
-            {'#', '#', '#', '#', '#'}
-        };
-        Vector start = {1, 1};
-        Vector end = {3, 3};
-        Result expected = 4; 
-        result = (to_max_steps(start, end, grid) == expected);
-      } break;
-      case 2: {
-        Vector start = {0,1};
-        Vector end = {4, 3};
-        Result expected = 14;
-        result = (to_max_steps(start, end, example_grid) == expected);
-      } break;
-      case 3: {
-        Vector start = {0,1};
-        Vector end = {5, 3};
-        Result expected = 15;
-        result = (to_max_steps(start, end, example_grid) == expected);
-      } break;
-      case 4: {
-        Vector start = {0,1};
-        Vector end = {5,4};
-        Result expected = 16;
-        result = (to_max_steps(start, end, example_grid) == expected);
-      } break;
-      case 5: {
-        // Example
-          Vector start = {0,1};
-          Vector end = {22,21};
-          Result expected = 94;
-          result = (to_max_steps(start, end, example_grid) == expected);
-      } break;
-      default: more_to_test = false; break;
-    }
-    if (!more_to_test) break;
+      bool more_to_test = true;
+      int text_ix = 0;
+      while (more_to_test) {
+        bool result = false;
+        switch (text_ix) {
+          case 0: {
+            std::istringstream in{R"(#.#####
+#.#####
+#.#####
+#.#####
+#.#####
+#.#####
+#.....#
+#####.#)"};
+            auto grid = parse(in);
+            print_model(grid);
+            Vector start = {0, 1};
+            Vector end = {7, 5};
+            Result expected = 11; // The longest path goes through all the '.' cells
+            result = (to_max_steps(start, end, grid) == expected);
+            print_model(grid);
+          } break;
+          case 1:     {
+            std::istringstream in{R"(#.#####
+#.#####
+#.>..##
+#.##.##
+#.##.##
+#.#####
+#.....#
+#####.#)"};
+            auto grid = parse(in);
+            print_model(grid);
+            Vector start = {0, 1};
+            Vector end = {7, 5};
+            Result expected = 11; 
+            result = (to_max_steps(start, end, grid) == expected);
+            print_model(grid);
+          } break;
+          case 2:     {
+            std::istringstream in{R"(#.#####
+#.#####
+#.>...#
+#.###.#
+#v#...#
+#...#.#
+#####.#)"}; // 9 vs 11 
+            auto grid = parse(in);
+            print_model(grid);
+            Vector start = {0, 1};
+            Vector end = {6, 5};
+            Result expected = 11; 
+            result = (to_max_steps(start, end, grid) == expected);
+            print_model(grid);
+          } break;
+          case 3: {
+            auto grid = example_grid;
+            Vector start = {0,1};
+            Vector end = {4, 3};
+            Result expected = 14;
+            result = (to_max_steps(start, end, grid) == expected);
+            print_model(grid);
+          } break;
+          case 4: {
+            auto grid = example_grid;
+            Vector start = {0,1};
+            Vector end = {5, 3};
+            Result expected = 15;
+            result = (to_max_steps(start, end, grid) == expected);
+          } break;
+          case 5: {
+            auto grid = example_grid;
+            Vector start = {0,1};
+            Vector end = {5,4};
+            Result expected = 16;
+            result = (to_max_steps(start, end, grid) == expected);
+          } break;
+          case 6: {
+            // Example
+              Vector start = {0,1};
+              Vector end = {22,21};
+              Result expected = 94;
+              result = (to_max_steps(start, end, example_grid) == expected);
+          } break;
+          default: more_to_test = false; break;
+        }
+        if (!more_to_test) break;
 
-    if (result) {
-      std::cout << NL << "test_to_max_steps[" << text_ix << "] passed";
-    }
-    else {
-      std::cout << NL << "test_to_max_steps[" << text_ix << "] FAILED";
-    }
-  }
-    {
-        Vector start = {0,1};
-        Vector end = {6,3};
-        Result expected = 16;
-        assert(to_max_steps(start, end, example_grid) == expected);
-    }
-}    
+        if (result) {
+          std::cout << NL << "test_to_max_steps[" << text_ix << "] passed";
+        }
+        else {
+          std::cout << NL << "test_to_max_steps[" << text_ix << "] FAILED";
+          break;
+        }
+        ++text_ix;
+      }
+    }    
 
   } // namespace mine
 
@@ -564,7 +606,7 @@ void test_to_max_steps() {
     Vector start = {0,std::distance(model[0].begin(),sit)};
     Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
     // result = max_to(start,end,max_steps,model); // ignored for noe (I failed to get it to work)
-    result = mine::to_max_steps(start,end,model);
+    // result = mine::to_max_steps(start,end,model);
     result = hyperneutrino::count<false>(start,end,max_steps,model); // see namespace comment on source of solution
     std::cout << NL << "result : " << result;
     return result; // 2206
