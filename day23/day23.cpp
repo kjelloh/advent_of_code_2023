@@ -431,11 +431,12 @@ namespace part1 {
             adjList[u].push_back({v, weight});
         }
 
-        std::vector<std::pair<int, int>> getNeighbors(int u) const {
-          if (adjList.contains(u)) {
-            return adjList.at(u);
-          }
-          throw std::out_of_range(std::format("Graph::getNeighbors, Index {} out of range {}",u,adjList.size()));
+        AdjList const& getAdjList() const {
+          return adjList;
+        }
+
+        std::vector<std::pair<int, int>> const& getNeighbors(int u) const {
+          return adjList.at(u);
         }
 
         int edge_count () const {
@@ -470,16 +471,13 @@ namespace part1 {
           return graph;
       }
 
-    private:
-      std::map<Vector, int> map;
-
       int getNodeId(Vector v) {
           if (map.count(v) == 0) {
               map[v] = map.size();
           }
           return map[v];
       }
-      Vector getVector(int index) {
+      Vector getVector(int index) const {
           if (index < 0 || index >= map.size()) {
               throw std::out_of_range("Index out of range");
           }
@@ -489,7 +487,19 @@ namespace part1 {
           return it->first;
       }
 
+    private:
+      std::map<Vector, int> map;
     };
+
+    void print_graph(Graph const& graph,Dictionary const& dictionary) {
+      std::cout << NL << "print_graph:";
+      for (auto const& [u,neighbors] : graph.getAdjList()) {
+        std::cout << NL << dictionary.getVector(u).r << "," << dictionary.getVector(u).c << " -> ";
+        for (auto const& [v,weight] : neighbors) {
+          std::cout << dictionary.getVector(v).r << "," << dictionary.getVector(v).c << " w : " << weight << " ";
+        }
+      }
+    }
 
     Directions to_directions(char tile) {
       switch (tile) {
@@ -579,6 +589,7 @@ namespace part1 {
       // 1) Transform the maze to a graph with nodes being the junctions of the maze
       auto [graph, dictionary] = to_graph_and_dictionary(grid);
       result = { {},graph,dictionary };
+      print_graph(graph,dictionary);
       // 2) Find the longest path by finding the most expensive way to travel between junctions start to end.
       if (graph.edge_count() == 1) {
         auto [u,v,weight] = graph.getEdge(0,1);
@@ -660,7 +671,7 @@ namespace part1 {
             std::istringstream in{R"(#.#####
 #.#####
 #.>..##
-#.##.##
+#v##.##
 #.##.##
 #.#####
 #.....#
@@ -679,8 +690,8 @@ namespace part1 {
             std::istringstream in{R"(#.#####
 #.#####
 #.>...#
-#.###v#
-#v#.>.#
+#v###v#
+#.#.>.#
 #...#.#
 #####.#)"}; // 9 vs 11 
             auto grid = parse(in);
