@@ -583,6 +583,37 @@ namespace part1 {
       return {graph,dictionary};
     }
 
+    Result calculatePathCost(Graph const& graph, std::vector<int> const& path) {
+      Result cost = 0;
+      for (int i = 0; i < path.size() - 1; ++i) {
+        int u = path[i];
+        int v = path[i + 1];
+        cost += graph.edge_weight(u, v);
+      }
+      return cost;
+    }
+
+    void dfs(Graph const& graph, int current, int end, std::vector<int>& path, std::vector<bool>& visited, Result& maxCost) {
+      visited[current] = true;
+      path.push_back(current);
+
+      if (current == end) {
+        auto cost = calculatePathCost(graph, path);
+        if (cost > maxCost) {
+          maxCost = cost;
+        }
+      } else {
+        for (auto [neighbor, weight] : graph.getNeighbors(current)) {
+          if (!visited[neighbor]) {
+            dfs(graph, neighbor, end, path, visited, maxCost);
+          }
+        }
+      }
+
+      visited[current] = false;
+      path.pop_back();
+    }
+
     using MaxStepsResult = std::tuple<Graph::Path,Graph,Dictionary>;
     MaxStepsResult to_max_steps(Vector const& start, Vector const& end, Model& grid) {
       MaxStepsResult result{};
@@ -595,9 +626,18 @@ namespace part1 {
         auto [u,v,weight] = graph.getEdge(0,1);
         std::get<0>(result).push_back(u);
         std::get<0>(result).push_back(v);
+      } else {
+        std::vector<int> path;
+        std::vector<bool> visited(graph.getAdjList().size(), false);
+        Result maxCost = std::numeric_limits<Result>::min();
+
+        dfs(graph, dictionary.getNodeId(start), dictionary.getNodeId(end), path, visited, maxCost);
+
+        std::get<0>(result) = path;
       }
+
       return result;
-    } // to_max_steps
+    }
 
     Result to_path_length(Graph::Path const& path,Graph const& graph) {
       Result result{};
