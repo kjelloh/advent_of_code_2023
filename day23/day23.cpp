@@ -437,6 +437,27 @@ namespace part1 {
           }
           throw std::out_of_range(std::format("Graph::getNeighbors, Index {} out of range {}",u,adjList.size()));
         }
+
+        int edge_count () const {
+          int result{};
+          for (auto const& [u,neighbors] : adjList) {
+            result += neighbors.size();
+          }
+          return result;
+        }
+
+        std::tuple<int,int,int> getEdge(int u, int v) const {
+          for (auto const& [neighbor, weight] : getNeighbors(u)) {
+            if (neighbor == v) {
+              return {u,neighbor,weight};
+            }
+          }
+          throw std::out_of_range(std::format("Graph::getEdge, Index {} out of range {}",u,adjList.size()));
+        }
+
+        int edge_weight(int u, int v) const {
+          return std::get<2>(getEdge(u,v));
+        }
     };
 
     // Dictionary to transform between Vector nodes and index nodes
@@ -490,6 +511,7 @@ namespace part1 {
       Vector end = {R - 1, C - 2};
 
       std::set<Vector> junctions{start, end};
+      std::cout << NL << "junctions : " << junctions.size() << std::flush;
       std::set<char> const slopes = { '^', 'v', '<', '>' };
       for (int r = 0; r < R; ++r) {
         for (int c = 0; c < C; ++c) {
@@ -507,8 +529,9 @@ namespace part1 {
                 ++outgoingPaths;
               }
             }
-            if (outgoingPaths >= 3) {
+            if (outgoingPaths >= 2) {
               // The cell is a junction
+              std::cout << NL << "junction : " << v.r << "," << v.c << std::flush;
               junctions.insert(v);
             }
           }
@@ -516,6 +539,7 @@ namespace part1 {
       }
       // Travel from each branching junction to a merging junction
       std::set<Vector> seen{};
+      std::cout << NL << "junctions : " << junctions.size() << std::flush;
       for (auto const& start : junctions) {
         std::stack<std::tuple<int, Vector>> stack; // step count, row, col
         stack.push({0, start}); // push start with zero step count
@@ -524,9 +548,11 @@ namespace part1 {
         while (!stack.empty()) {
           auto [n, v] = stack.top(); // step count,row,column
           stack.pop();
+          std::cout << NL << "n : " << n << " v : " << v.r << "," << v.c << std::flush;
 
           if (n != 0 && junctions.contains(v)) {
             // we have gone steps and reached a junction (n>0 skips start)
+            std::cout << NL << "add_edge : " << start.r << "," << start.c << " -> " << v.r << "," << v.c << " n : " << n << std::flush;
             dictionary.add_edge(graph, start, v, n);
             continue; // don't consider any more steps from this junction
           }
@@ -551,15 +577,21 @@ namespace part1 {
     MaxStepsResult to_max_steps(Vector const& start, Vector const& end, Model& grid) {
       MaxStepsResult result{};
       // 1) Transform the maze to a graph with nodes being the junctions of the maze
-      // 2) Update the graph to a weighted graph (the edges weigh is the step count of path between two junctions)
-      // 3) Find the longest path by finding the most expensive way to travel between junctions start to end.
+      auto [graph, dictionary] = to_graph_and_dictionary(grid);
+      result = { {},graph,dictionary };
+      // 2) Find the longest path by finding the most expensive way to travel between junctions start to end.
+      if (graph.edge_count() == 1) {
+        auto [u,v,weight] = graph.getEdge(0,1);
+        std::get<0>(result).push_back(u);
+        std::get<0>(result).push_back(v);
+      }
       return result;
     } // to_max_steps
 
     Result to_path_length(Graph::Path const& path,Graph const& graph) {
       Result result{};
       std::cout << NL << "to_path_length" << NT << "path.size() : " << path.size() << std::flush;
-      for (int i = 0; i < static_cast<int>(path.size()) - 2; ++i) {
+      for (int i = 0; i < static_cast<int>(path.size()) - 1; ++i) {
       // for (int i = 0; i < path.size() - 2; ++i) {
         int u = path[i];
         int v = path[i + 1];
