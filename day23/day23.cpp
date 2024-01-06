@@ -405,102 +405,6 @@ namespace hyperneutrino {
 namespace part1 {
   namespace mine {
 
-    // struct Direction {
-    //   int dr,dc;
-    // };
-
-    // struct Vector {
-    //   int r,c;
-    //   bool operator<(Vector const& other) const {
-    //     return this->r < other.r || (this->r == other.r && this->c < other.c);
-    //   }
-    //   Vector operator+(Direction const& dir) const {
-    //     return {this->r + dir.dr, this->c + dir.dc};
-    //   }
-    // };
-
-    // Weighted directional graph with index nodes
-    class Graph {
-    private:
-        using AdjList = std::map<int, std::vector<std::pair<int, int>>>;
-        AdjList adjList;
-    public:
-    using Path = std::vector<int>;
-        void addEdge(int u, int v, int weight) {
-            // Directed graph
-            adjList[u].push_back({v, weight});
-        }
-
-        AdjList const& getAdjList() const {
-          return adjList;
-        }
-
-        std::vector<std::pair<int, int>> const& getNeighbors(int u) const {
-          return adjList.at(u);
-        }
-
-        int edge_count () const {
-          int result{};
-          for (auto const& [u,neighbors] : adjList) {
-            result += neighbors.size();
-          }
-          return result;
-        }
-
-        std::tuple<int,int,int> getEdge(int u, int v) const {
-          for (auto const& [neighbor, weight] : getNeighbors(u)) {
-            if (neighbor == v) {
-              return {u,neighbor,weight};
-            }
-          }
-          throw std::out_of_range(std::format("Graph::getEdge, Index {} out of range {}",u,adjList.size()));
-        }
-
-        int edge_weight(int u, int v) const {
-          return std::get<2>(getEdge(u,v));
-        }
-    };
-
-    // Dictionary to transform between Vector nodes and index nodes
-    class Dictionary {
-    public:
-      Graph& add_edge(Graph& graph, Vector const& from, Vector const& to, int weight) {
-          int fromId = getNodeId(from);
-          int toId = getNodeId(to);
-          graph.addEdge(fromId, toId, weight);
-          return graph;
-      }
-
-      int getNodeId(Vector v) {
-          if (map.count(v) == 0) {
-              map[v] = map.size();
-          }
-          return map[v];
-      }
-      Vector getVector(int index) const {
-          if (index < 0 || index >= map.size()) {
-              throw std::out_of_range("Index out of range");
-          }
-
-          auto it = map.begin();
-          std::advance(it, index);
-          return it->first;
-      }
-
-    private:
-      std::map<Vector, int> map;
-    };
-
-    void print_graph(Graph const& graph,Dictionary const& dictionary) {
-      std::cout << NL << "print_graph:";
-      for (auto const& [u,neighbors] : graph.getAdjList()) {
-        std::cout << NL << dictionary.getVector(u).r << "," << dictionary.getVector(u).c << " -> ";
-        for (auto const& [v,weight] : neighbors) {
-          std::cout << dictionary.getVector(v).r << "," << dictionary.getVector(v).c << " w : " << weight << " ";
-        }
-      }
-    }
-
     Directions to_directions(char tile) {
       switch (tile) {
       case '^': return { {-1, 0} }; // next must be up
@@ -510,151 +414,23 @@ namespace part1 {
       default: return { {-1, 0}, {1, 0}, {0, -1}, {0, 1} }; // next is any up, down, left, right
       }
     }
-
-    std::tuple<Graph,Dictionary> to_graph_and_dictionary(Model const& grid) {
-      Graph graph;
-      Dictionary dictionary;
-
-      int R = grid.size();
-      int C = grid[0].size();
-      Vector start = {0, 1};
-      Vector end = {R - 1, C - 2};
-
-      std::set<Vector> junctions{start, end};
-      std::cout << NL << "junctions : " << junctions.size() << std::flush;
-      std::set<char> const slopes = { '^', 'v', '<', '>' };
-      for (int r = 0; r < R; ++r) {
-        for (int c = 0; c < C; ++c) {
-          if (grid[r][c] == '.') {
-            Vector v{r, c};
-            // Check the four possible directions: up, down, left, right
-            std::vector<Direction> directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-            int outgoingPaths = 0;
-            for (auto const& dir : directions) {
-              Vector next = v + dir;
-              if (next.r >= 0 && next.r < R && next.c >= 0 && next.c < C &&
-                  grid[next.r][next.c] != '#' and
-                  slopes.contains(grid[next.r][next.c])) {
-                // The next cell is on the grid and not a wall
-                ++outgoingPaths;
-              }
-            }
-            if (outgoingPaths >= 2) {
-              // The cell is a junction
-              std::cout << NL << "junction : " << v.r << "," << v.c << std::flush;
-              junctions.insert(v);
-            }
-          }
-        }
-      }
-      // Travel from each branching junction to a merging junction
-      std::set<Vector> seen{};
-      std::cout << NL << "junctions : " << junctions.size() << std::flush;
-      for (auto const& start : junctions) {
-        std::stack<std::tuple<int, Vector>> stack; // step count, row, col
-        stack.push({0, start}); // push start with zero step count
-        seen.insert(start); // Block coming back to seen.
-
-        while (!stack.empty()) {
-          auto [n, v] = stack.top(); // step count,row,column
-          stack.pop();
-          std::cout << NL << "n : " << n << " v : " << v.r << "," << v.c << std::flush;
-
-          if (n != 0 && junctions.contains(v)) {
-            // we have gone steps and reached a junction (n>0 skips start)
-            std::cout << NL << "add_edge : " << start.r << "," << start.c << " -> " << v.r << "," << v.c << " n : " << n << std::flush;
-            dictionary.add_edge(graph, start, v, n);
-            continue; // don't consider any more steps from this junction
-          }
-
-          // Consider next steps from this position (maze = should be only one possible)
-          for (auto const& dir : to_directions(grid[v.r][v.c])) {
-            Vector next = v + dir; // candidate
-            if (next.r >= 0 && next.r < R && next.c >= 0 && next.c < C &&
-                grid[next.r][next.c] != '#' &&
-                seen.find(next) == seen.end()) {
-              // We reached a new valid position, that is on grid, not seen and not a forrest tile
-              stack.push({n + 1, next}); // push an increment step count and the new position
-              seen.insert(next); // dont allow coming back to this position again
-            }
-          }
-        }
-      }
-      return {graph,dictionary};
-    }
-
-    Result calculatePathCost(Graph const& graph, std::vector<int> const& path) {
-      Result cost = 0;
-      for (int i = 0; i < path.size() - 1; ++i) {
-        int u = path[i];
-        int v = path[i + 1];
-        cost += graph.edge_weight(u, v);
-      }
-      return cost;
-    }
-
-    void dfs(Graph const& graph, int current, int end, std::vector<int>& path, std::vector<bool>& visited, Result& maxCost) {
-      visited[current] = true;
-      path.push_back(current);
-
-      if (current == end) {
-        auto cost = calculatePathCost(graph, path);
-        if (cost > maxCost) {
-          maxCost = cost;
-        }
-      } else {
-        for (auto [neighbor, weight] : graph.getNeighbors(current)) {
-          if (!visited[neighbor]) {
-            dfs(graph, neighbor, end, path, visited, maxCost);
-          }
-        }
-      }
-
-      visited[current] = false;
-      path.pop_back();
-    }
-
-    using MaxStepsResult = std::tuple<Graph::Path,Graph,Dictionary>;
-    MaxStepsResult to_max_steps(Vector const& start, Vector const& end, Model& grid) {
-      MaxStepsResult result{};
-      // 1) Transform the maze to a graph with nodes being the junctions of the maze
-      auto [graph, dictionary] = to_graph_and_dictionary(grid);
-      result = { {},graph,dictionary };
-      print_graph(graph,dictionary);
-      // 2) Find the longest path by finding the most expensive way to travel between junctions start to end.
-      if (graph.edge_count() == 1) {
-        auto [u,v,weight] = graph.getEdge(0,1);
-        std::get<0>(result).push_back(u);
-        std::get<0>(result).push_back(v);
-      } else {
-        std::vector<int> path;
-        std::vector<bool> visited(graph.getAdjList().size(), false);
-        Result maxCost = std::numeric_limits<Result>::min();
-
-        dfs(graph, dictionary.getNodeId(start), dictionary.getNodeId(end), path, visited, maxCost);
-
-        std::get<0>(result) = path;
-      }
-
-      return result;
-    }
-
-    Result to_path_length(Graph::Path const& path,Graph const& graph) {
+    Result to_max_steps(Vector const& start, Vector const& end, Model& grid) {
       Result result{};
-      std::cout << NL << "to_path_length" << NT << "path.size() : " << path.size() << std::flush;
-      for (int i = 0; i < static_cast<int>(path.size()) - 1; ++i) {
-      // for (int i = 0; i < path.size() - 2; ++i) {
-        int u = path[i];
-        int v = path[i + 1];
-        for (auto [neighbor, weight] : graph.getNeighbors(u)) {
-          if (neighbor == v) {
-            result += weight;
-            break;
-          }
-        }
-      }
+      // Idea: Traverse the grid so that all reachable positions is traveled once.
+      //       Along the way, keep track of each branching and merging junction along the way.
+      //       At each branch, restart a step counter to count the steps to the next junction.
+      //       Along the way, store each function-to-junction path and step length in
+      //       an adjacency list.
+      //       Finally, brute force a way to travel the discovered subsections between junctions
+      //       in the most steps possible (longest path).
+      // We need:
+      // 1. A way to traverse the grid without revisiting a position.
+      // 2. A way to identify a branching junction specifically and any junction generally.
+      // 3. A way to assemble the adjacency list dfs-stile (possibly recursively).
+      // 4. A way to brute force the longest path between junctions. Again dfs-style and "smart" to reuse any already discovered distance to the end.
       return result;
     }
+
 
     void test_to_max_steps() {
       // #.#####################
@@ -688,103 +464,6 @@ namespace part1 {
       while (more_to_test) {
         bool result = false;
         switch (text_ix) {
-          case 0: {
-            std::istringstream in{R"(#.#####
-#.#####
-#.#####
-#.#####
-#.#####
-#.#####
-#.....#
-#####.#)"};
-            auto grid = parse(in);
-            print_model(grid);
-            Vector start = {0, 1};
-            Vector end = {7, 5};
-            Result expected = 11; // The longest path goes through all the '.' cells
-            auto max_steps_result = to_max_steps(start, end, grid);
-            auto const [path, graph, dictionary] = max_steps_result;
-            result = (to_path_length(path,graph) == expected);
-            print_model(grid);
-          } break;
-          case 1:     {
-            std::istringstream in{R"(#.#####
-#.#####
-#.>..##
-#v##.##
-#.##.##
-#.#####
-#.....#
-#####.#)"};
-            auto grid = parse(in);
-            print_model(grid);
-            Vector start = {0, 1};
-            Vector end = {7, 5};
-            Result expected = 11; 
-            auto max_steps_result = to_max_steps(start, end, grid);
-            auto const [path, graph, dictionary] = max_steps_result;
-            result = (to_path_length(path,graph) == expected);
-            print_model(grid);
-          } break;
-          case 2:     {
-            std::istringstream in{R"(#.#####
-#.#####
-#.>...#
-#v###v#
-#.#.>.#
-#...#.#
-#####.#)"}; // 9 vs 11 
-            auto grid = parse(in);
-            print_model(grid);
-            Vector start = {0, 1};
-            Vector end = {6, 5};
-            Result expected = 11; 
-            auto max_steps_result = to_max_steps(start, end, grid);
-            auto const [path, graph, dictionary] = max_steps_result;
-            result = (to_path_length(path,graph) == expected);
-            print_model(grid);
-          } break;
-          case 3: {
-            auto grid = example_grid;
-            Vector start = {0,1};
-            Vector end = {4, 3};
-            Result expected = 14;
-            auto max_steps_result = to_max_steps(start, end, grid);
-            auto const [path, graph, dictionary] = max_steps_result;
-            result = (to_path_length(path,graph) == expected);
-            print_model(grid);
-          } break;
-          case 4: {
-            auto grid = example_grid;
-            Vector start = {0,1};
-            Vector end = {5, 3};
-            Result expected = 15;
-            auto max_steps_result = to_max_steps(start, end, grid);
-            auto const [path, graph, dictionary] = max_steps_result;
-            result = (to_path_length(path,graph) == expected);
-            print_model(grid);
-          } break;
-          case 5: {
-            auto grid = example_grid;
-            Vector start = {0,1};
-            Vector end = {5,4};
-            Result expected = 16;
-            auto max_steps_result = to_max_steps(start, end, grid);
-            auto const [path, graph, dictionary] = max_steps_result;
-            result = (to_path_length(path,graph) == expected);
-            print_model(grid);
-          } break;
-          case 6: {
-            // Example
-            auto grid = example_grid;
-            Vector start = {0,1};
-            Vector end = {22,21};
-            Result expected = 94;
-            auto max_steps_result = to_max_steps(start, end, grid);
-            auto const [path, graph, dictionary] = max_steps_result;
-            result = (to_path_length(path,graph) == expected);
-            print_model(grid);
-          } break;
           default: more_to_test = false; break;
         }
         if (!more_to_test) break;
@@ -805,19 +484,18 @@ namespace part1 {
   Result solve_for(Model& model,auto args) {
     Result result{};
     std::cout << NL << NL << "part1";
-
-    if (true) {
-      mine::test_to_max_steps();
-    }
-
     auto const& [part,file,max_steps] = args;
     // find start and end
     auto sit = std::find(model[0].begin(),model[0].end(),'.');
     auto eit = std::find(model.back().begin(),model.back().end(),'.');
     Vector start = {0,std::distance(model[0].begin(),sit)};
     Vector end = {model.size()-1,std::distance(model.back().begin(),eit)};
-    // result = max_to(start,end,max_steps,model); // ignored for noe (I failed to get it to work)
-    // result = mine::to_max_steps(start,end,model);
+
+    if (true) {
+      mine::test_to_max_steps();
+      result = mine::to_max_steps(start,end,model);
+    }
+
     result = hyperneutrino::count<false>(start,end,max_steps,model); // see namespace comment on source of solution
     std::cout << NL << "result : " << result;
     return result; // 2206
